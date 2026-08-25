@@ -55,6 +55,43 @@ public class StatementReprocessTests : IClassFixture<CustomWebApplicationFactory
         return Encoding.ASCII.GetBytes(body.ToString());
     }
 
+    // Same shape as StatementFileValidatorTests'/PdfTextExtractionServiceTests' "no content
+    // stream" fixture: a structurally valid PDF whose page has nothing for PdfPig to extract,
+    // simulating a scanned page with no embedded text layer.
+    private static byte[] BuildPdfWithNoContentStream()
+    {
+        string[] objects =
+        [
+            "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+            "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] >>\nendobj\n"
+        ];
+
+        var body = new StringBuilder("%PDF-1.4\n");
+        var offsets = new List<int>();
+        foreach (var obj in objects)
+        {
+            offsets.Add(Encoding.ASCII.GetByteCount(body.ToString()));
+            body.Append(obj);
+        }
+
+        var xrefOffset = Encoding.ASCII.GetByteCount(body.ToString());
+        body.Append("xref\n");
+        body.Append($"0 {objects.Length + 1}\n");
+        body.Append("0000000000 65535 f \n");
+        foreach (var offset in offsets)
+        {
+            body.Append($"{offset:D10} 00000 n \n");
+        }
+        body.Append("trailer\n");
+        body.Append($"<< /Size {objects.Length + 1} /Root 1 0 R >>\n");
+        body.Append("startxref\n");
+        body.Append($"{xrefOffset}\n");
+        body.Append("%%EOF");
+
+        return Encoding.ASCII.GetBytes(body.ToString());
+    }
+
     private async Task<HttpClient> CreateAuthenticatedClientAsync()
     {
         var client = _factory.CreateClient();
@@ -93,6 +130,31 @@ public class StatementReprocessTests : IClassFixture<CustomWebApplicationFactory
         Assert.Equal("ExtractionComplete", result.GetProperty("processingStatus").GetString());
         Assert.True(result.GetProperty("hasUsableText").GetBoolean());
         Assert.Equal(1, result.GetProperty("extractedPageCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task Reprocess_A_Pdf_With_No_Usable_Text_Falls_Back_To_Ocr()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var pdfBytes = BuildPdfWithNoContentStream();
+
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(pdfBytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "scanned-statement.pdf");
+
+        var uploadResponse = await client.PostAsync("/api/statements/upload", content);
+        var uploaded = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var statementId = uploaded.GetProperty("id").GetGuid();
+
+        var reprocessResponse = await client.PostAsync($"/api/statements/{statementId}/reprocess", null);
+
+        Assert.Equal(HttpStatusCode.OK, reprocessResponse.StatusCode);
+        var result = await reprocessResponse.Content.ReadFromJsonAsync<JsonElement>();
+        // MockOcrService (the default provider) always succeeds with usable simulated text, so
+        // a PDF with no direct text layer should still end up ExtractionComplete via the OCR path.
+        Assert.Equal("ExtractionComplete", result.GetProperty("processingStatus").GetString());
+        Assert.Equal("Ocr", result.GetProperty("extractionMethod").GetString());
     }
 
     [Fact]

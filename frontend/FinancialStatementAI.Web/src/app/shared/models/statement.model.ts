@@ -45,6 +45,7 @@ export interface StatementDetail {
   transactionCount: number;
   hasUsableText: boolean | null;
   extractedPageCount: number | null;
+  extractionMethod: string | null;
 }
 
 export interface StatementStatus {

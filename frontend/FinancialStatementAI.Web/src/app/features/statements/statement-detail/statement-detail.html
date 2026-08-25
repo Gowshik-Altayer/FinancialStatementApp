@@ -63,7 +63,10 @@
         @if (s.hasUsableText === null) {
           <p class="placeholder">Not yet processed — click Reprocess to extract text.</p>
         } @else if (s.hasUsableText) {
-          <p>✓ Usable text extracted directly from {{ s.extractedPageCount }} page(s).</p>
+          <p>
+            ✓ Usable text extracted from {{ s.extractedPageCount }} page(s)
+            via {{ s.extractionMethod === 'Ocr' ? 'OCR' : 'direct PDF text extraction' }}.
+          </p>
         } @else {
           <p>Insufficient embedded text — this document will need OCR/Vision (Phase 8) once available.</p>
         }

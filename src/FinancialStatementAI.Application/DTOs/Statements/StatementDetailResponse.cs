@@ -30,4 +30,5 @@ public class StatementDetailResponse
     /// <summary>Null until this statement has gone through text extraction (Phase 7) at least once.</summary>
     public bool? HasUsableText { get; set; }
     public int? ExtractedPageCount { get; set; }
+    public string? ExtractionMethod { get; set; }
 }

@@ -1,5 +1,7 @@
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Infrastructure.AI.DocumentIntelligence;
 using FinancialStatementAI.Infrastructure.Documents;
+using FinancialStatementAI.Infrastructure.OCR;
 using FinancialStatementAI.Infrastructure.Persistence;
 using FinancialStatementAI.Infrastructure.Repositories;
 using FinancialStatementAI.Infrastructure.Security;
@@ -46,6 +48,30 @@ public static class DependencyInjection
         else
         {
             services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+        }
+
+        services.Configure<AzureVisionOptions>(configuration.GetSection(AzureVisionOptions.SectionName));
+        services.Configure<AzureDocumentIntelligenceOptions>(configuration.GetSection(AzureDocumentIntelligenceOptions.SectionName));
+
+        // Both default to Mock (works with zero configuration for local dev/demo); set
+        // "Ocr:Provider" / "DocumentIntelligence:Provider" to "Azure" plus the matching
+        // Azure:Vision / Azure:DocumentIntelligence Endpoint+ApiKey to use the real services.
+        if (string.Equals(configuration["Ocr:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IOcrService, AzureOcrService>();
+        }
+        else
+        {
+            services.AddSingleton<IOcrService, MockOcrService>();
+        }
+
+        if (string.Equals(configuration["DocumentIntelligence:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IDocumentIntelligenceService, AzureDocumentIntelligenceService>();
+        }
+        else
+        {
+            services.AddSingleton<IDocumentIntelligenceService, MockDocumentIntelligenceService>();
         }
 
         return services;
