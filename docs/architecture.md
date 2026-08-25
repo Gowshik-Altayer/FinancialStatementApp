@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, and **Phase 9 (transaction extraction & normalization)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, and **Phase 10 (AI classification)**.
 
 ## Solution layout
 
@@ -234,5 +234,16 @@ changed in each:
   marks a statement `ExtractionComplete` after text extraction, field extraction, *and*
   transaction parsing have all run — not just after getting raw text.
 
-Further architecture detail (AI classification, reconciliation) will be appended here as each
-phase lands.
+## AI classification (Phase 10)
+
+New `MerchantMapping` entity (seeded, extensible per requirement #6) plus
+`TransactionClassificationService` orchestrating the Rules → Merchant Mapping → Known
+Classification (prior human corrections) → LLM ladder from requirement #17, stopping at the
+first confident match so the LLM (`ITransactionClassifier`, Mock by default, real OpenAI/Azure
+OpenAI implementations behind the same `Classification:Provider` config-switch pattern as
+earlier phases) is only ever reached for genuinely unrecognized merchants. Full reasoning —
+including a real bug the test suite caught (rules were checking the wrong field) and a known
+limitation (reprocessing doesn't yet preserve classification history) — lives in
+[docs/ai-processing.md](ai-processing.md).
+
+Further architecture detail (reconciliation) will be appended here as it lands.

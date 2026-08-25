@@ -86,6 +86,9 @@ isn't reachable yet, the API logs a warning and still starts rather than crashin
 - **`AddStatementExtraction`** (Phase 7) — adds the `StatementExtractions` table (1:1 with
   `Statements`, cascade delete), backing the direct-PDF-text-extraction result described in
   [docs/ai-processing.md](ai-processing.md).
+- **`AddMerchantMapping`** (Phase 10) — adds the `MerchantMappings` table (`Category` FK,
+  `Restrict` delete — a category referenced by a mapping can't be deleted out from under it),
+  seeded by `MerchantMappingSeeder` after `CategorySeeder` runs.
 
 ## Running migrations
 

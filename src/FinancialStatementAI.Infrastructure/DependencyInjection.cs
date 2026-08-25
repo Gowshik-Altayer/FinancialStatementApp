@@ -1,4 +1,6 @@
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Application.Services;
+using FinancialStatementAI.Infrastructure.AI.Classification;
 using FinancialStatementAI.Infrastructure.AI.DocumentIntelligence;
 using FinancialStatementAI.Infrastructure.Documents;
 using FinancialStatementAI.Infrastructure.OCR;
@@ -9,6 +11,7 @@ using FinancialStatementAI.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 namespace FinancialStatementAI.Infrastructure;
 
@@ -34,6 +37,10 @@ public static class DependencyInjection
         services.AddScoped<IProcessingJobRepository, ProcessingJobRepository>();
         services.AddScoped<IStatementExtractionRepository, StatementExtractionRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        services.AddScoped<IMerchantMappingRepository, MerchantMappingRepository>();
+        services.AddScoped<IClassificationHistoryRepository, ClassificationHistoryRepository>();
+        services.AddScoped<IAiRequestLogRepository, AiRequestLogRepository>();
         services.AddSingleton<IStatementFileValidator, StatementFileValidator>();
         services.AddSingleton<IPdfTextExtractionService, PdfTextExtractionService>();
         services.AddSingleton<ITransactionExtractionService, TransactionExtractionService>();
@@ -76,6 +83,23 @@ public static class DependencyInjection
         {
             services.AddSingleton<IDocumentIntelligenceService, MockDocumentIntelligenceService>();
         }
+
+        services.Configure<OpenAiOptions>(configuration.GetSection(OpenAiOptions.SectionName));
+        services.Configure<AzureOpenAiOptions>(configuration.GetSection(AzureOpenAiOptions.SectionName));
+
+        services.AddScoped<ITransactionClassifier>(sp =>
+        {
+            var provider = configuration["Classification:Provider"];
+            return provider switch
+            {
+                _ when string.Equals(provider, "OpenAI", StringComparison.OrdinalIgnoreCase) =>
+                    new OpenAiTransactionClassifier(sp.GetRequiredService<IOptions<OpenAiOptions>>()),
+                _ when string.Equals(provider, "AzureOpenAI", StringComparison.OrdinalIgnoreCase) =>
+                    new AzureOpenAiTransactionClassifier(sp.GetRequiredService<IOptions<AzureOpenAiOptions>>()),
+                _ => new MockTransactionClassifier()
+            };
+        });
+        services.AddScoped<ITransactionClassificationService, TransactionClassificationService>();
 
         return services;
     }
