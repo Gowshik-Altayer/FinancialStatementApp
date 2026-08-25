@@ -24,8 +24,22 @@ export const routes: Routes = [
       },
       {
         path: 'statements',
-        component: PlaceholderPage,
-        data: { title: 'Statements', note: 'Statement upload and the processed-statements list arrive in Phase 6.' }
+        children: [
+          {
+            path: '',
+            loadComponent: () => import('./features/statements/statement-list/statement-list').then((m) => m.StatementList)
+          },
+          {
+            path: 'upload',
+            loadComponent: () =>
+              import('./features/statements/statement-upload/statement-upload').then((m) => m.StatementUpload)
+          },
+          {
+            path: ':id',
+            loadComponent: () =>
+              import('./features/statements/statement-detail/statement-detail').then((m) => m.StatementDetail)
+          }
+        ]
       },
       {
         path: 'transactions',

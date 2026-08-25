@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, and **Phase 5 (Angular layout)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, and **Phase 6 (file upload)**.
 
 ## Solution layout
 
@@ -170,6 +170,43 @@ interceptor's snack bar all confirmed working by actually submitting the Registe
 browser. The submission itself got a `500` back (no SQL Server in this sandbox — same limitation
 noted in `docs/database.md`), which was useful in its own right: it confirmed the error
 interceptor's user-friendly-message path end-to-end without needing a database at all.
+
+## File upload (Phase 6)
+
+`StatementsController` stays thin: it reads the `IFormFile` into a byte array and delegates
+everything to `IStatementService` (`Application/Services/StatementService.cs`), which depends
+only on Application-defined interfaces — `IStatementFileValidator`, `IFileStorageService`,
+`IStatementRepository`, `IProcessingJobRepository` — never touching EF Core, PdfPig, or a storage
+SDK directly.
+
+- **`StatementFileValidator`** (Infrastructure) never trusts the client: it sniffs the file's
+  actual magic bytes (`%PDF-`, `FF D8 FF`, PNG signature) rather than the extension or
+  Content-Type header, rejects a mismatch between the two, and — for PDFs — actually opens the
+  file with PdfPig to catch corruption or password-protection before it's ever stored. This is
+  the same library Phase 7 will reuse for real text extraction.
+- **`IFileStorageService`** has two implementations selected by the `FileStorage:Provider`
+  config switch: `LocalFileStorageService` (default, writes under `App_Data/uploads`, generates
+  its own server-side file name so a malicious `fileName` can never path-traverse out of the
+  root) and `AzureBlobStorageService` (set `FileStorage:Provider=Azure` plus
+  `FileStorage:Azure:ConnectionString` via User Secrets/environment — never in `appsettings.json`).
+- Upload creates a `Statement` (status `Uploaded`) and a `ProcessingJob` (status `Pending`, stage
+  `Upload`) in the same request, then returns immediately — no OCR/AI processing happens
+  synchronously (requirement #11). Nothing consumes that pending job yet; Phase 14 (Hangfire)
+  is what turns "a `Pending` row exists" into actual background work.
+- **Why 404, not 403, for another user's statement**: `GetByIdAsync`/`GetStatusAsync` check
+  `statement.UserId == userId` and return `null` (→ `404`) rather than distinguishing "not found"
+  from "not yours" — leaking the existence of another user's resource via a 403 is itself an
+  information disclosure.
+- **Known tradeoff**: `StatementRepository` currently `.Include()`s a statement's `Transactions`
+  just to report `TransactionCount` in list/detail responses. With zero transactions per
+  statement until Phase 9, this is free; Phase 13 (search/pagination) should replace it with a
+  lightweight `COUNT` projection before transaction volume makes it not free.
+
+Angular: `StatementService` (`core/services/`) wraps the three endpoints; `statement-upload`
+(drag-and-drop + client-side extension/size pre-check + live preview — `<img>` for images,
+`<embed type="application/pdf">` for PDFs — plus the metadata table requirement #1 asks for),
+`statement-list` (`MatTable` with client-side sort — server-side paging arrives in Phase 13), and
+`statement-detail` now replace the Phase 5 `PlaceholderPage` under `/statements`.
 
 Further architecture detail (document-processing pipeline, AI classification, reconciliation)
 will be appended here as each phase lands.

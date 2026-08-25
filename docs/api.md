@@ -31,3 +31,36 @@ Requires `Authorization: Bearer <token>`.
 
 - `200 OK` → `{ userId, email, name, role }` read from the token's claims
 - `401 Unauthorized` → missing/invalid/expired token
+
+## Statements (Phase 6)
+
+All endpoints require `Authorization: Bearer <token>`. A statement is only visible to the user
+who uploaded it (`404 Not Found` for another user's statement — see `docs/architecture.md` for
+why 404 rather than 403).
+
+### `POST /api/statements/upload`
+
+`multipart/form-data` with a `file` field. Accepts PDF, JPG, JPEG, PNG up to 20 MB. Validates the
+file's actual bytes (magic numbers), not just its extension or Content-Type header; for PDFs,
+also confirms the file opens and isn't password-protected. Returns immediately after creating the
+`Statement` row (status `Uploaded`) and a pending `ProcessingJob` — no OCR/AI processing happens
+synchronously (that begins once Hangfire is wired up in Phase 14 and consumes pending jobs).
+
+- `201 Created` → `StatementDetailResponse` (Location header points at `GET /api/statements/{id}`)
+- `400 Bad Request` → no file, empty file, unsupported type, oversized, corrupted/password-protected PDF, or content/extension mismatch
+- `401 Unauthorized` → missing/invalid token
+
+### `GET /api/statements`
+
+Returns all statements belonging to the current user, most recently uploaded first. No pagination
+yet — added in Phase 13 once search/filter lands.
+
+### `GET /api/statements/{id}`
+
+Full statement detail (`StatementDetailResponse`). `404 Not Found` if it doesn't exist or belongs
+to someone else.
+
+### `GET /api/statements/{id}/status`
+
+Lightweight `{ id, processingStatus, uploadedAt, processedAt }` — meant for polling processing
+progress once background processing exists (Phase 14) without pulling the full detail payload.

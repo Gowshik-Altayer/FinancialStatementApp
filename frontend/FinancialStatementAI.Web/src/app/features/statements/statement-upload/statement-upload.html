@@ -1,0 +1,62 @@
+<h1>Upload Statement</h1>
+
+<mat-card>
+  <mat-card-content>
+    @if (!selectedFile()) {
+      <div
+        class="drop-zone"
+        [class.drag-over]="isDragOver()"
+        (dragover)="onDragOver($event)"
+        (dragleave)="onDragLeave()"
+        (drop)="onDrop($event)"
+        (click)="fileInput.click()"
+      >
+        <mat-icon>upload_file</mat-icon>
+        <p>Drag and drop a bank or credit card statement here, or click to browse.</p>
+        <p class="hint">PDF, JPG, JPEG, or PNG — up to 20 MB.</p>
+        <input #fileInput type="file" hidden accept=".pdf,.jpg,.jpeg,.png" (change)="onFileSelected($event)" />
+      </div>
+    } @else {
+      <div class="preview-section">
+        <div class="preview">
+          @if (isImagePreview()) {
+            <img [src]="previewUrl()" alt="Statement preview" />
+          } @else {
+            <embed [src]="previewUrl()" type="application/pdf" width="100%" height="400" />
+          }
+        </div>
+
+        <div class="metadata">
+          <h3>Document metadata</h3>
+          <dl>
+            <dt>File name</dt>
+            <dd>{{ selectedFile()!.name }}</dd>
+            <dt>Size</dt>
+            <dd>{{ formatSize(selectedFile()!.size) }}</dd>
+            <dt>Type</dt>
+            <dd>{{ selectedFile()!.type || 'Unknown' }}</dd>
+            <dt>Last modified</dt>
+            <dd>{{ selectedFile()!.lastModified | date: 'medium' }}</dd>
+          </dl>
+
+          @if (isUploading()) {
+            <mat-progress-bar mode="indeterminate" />
+          }
+
+          @if (errorMessage()) {
+            <p class="error-message">{{ errorMessage() }}</p>
+          }
+
+          <div class="actions">
+            <button mat-flat-button color="primary" [disabled]="isUploading()" (click)="submit()">Upload</button>
+            <button mat-button [disabled]="isUploading()" (click)="clearSelection()">Choose a different file</button>
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (errorMessage() && !selectedFile()) {
+      <p class="error-message">{{ errorMessage() }}</p>
+    }
+  </mat-card-content>
+</mat-card>
