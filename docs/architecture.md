@@ -2,7 +2,8 @@
 
 > This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, **Phase 12 (human review + audit trail)**,
 **Phase 13 (search, filter & pagination)**, **Phase 14 (Hangfire background processing)**,
-**Phase 15 (Redis caching & distributed locks)**, and **Phase 16 (testing)**.
+**Phase 15 (Redis caching & distributed locks)**, **Phase 16 (testing)**, and **Phase 17 (Docker &
+Docker Compose)**.
 
 ## Solution layout
 
@@ -533,3 +534,41 @@ Page-level "glue" components (`StatementList`, `StatementDetail`, `Transactions`
 fetch-on-init-and-bind-to-already-tested-services shell around components (`TransactionTable`,
 Angular Material) that are either already unit-tested or are themselves a well-tested third-party
 library — the same "test the logic, not the wiring" reasoning as the backend's own split above.
+
+## Docker & Docker Compose (Phase 17)
+
+### One Dockerfile per deployable, `docker-compose.yml` wiring them together
+
+Three images, matching the three things this solution actually deploys independently:
+`src/FinancialStatementAI.Api/Dockerfile`, `src/FinancialStatementAI.Worker/Dockerfile` (both
+multi-stage: `dotnet/sdk:8.0` to `dotnet publish`, then a slim runtime stage — `dotnet/aspnet:8.0`
+for Api, since it serves HTTP, and the smaller `dotnet/runtime:8.0` for Worker, since it only ever
+runs Hangfire's `BackgroundJobServer` and never serves a request), and
+`frontend/FinancialStatementAI.Web/Dockerfile` (Node build stage → static files served by nginx,
+which also reverse-proxies `/api` and `/health` to the `api` container — the same relative-path
+convention `proxy.conf.json` already uses for `ng serve`, so nothing environment-specific needs to
+be baked into the built Angular bundle).
+
+The two backend Dockerfiles must be built with the **repository root** as context (`docker build
+-f src/FinancialStatementAI.Api/Dockerfile .`), not their own project directory, since their
+`COPY` instructions need the sibling `Application`/`Infrastructure`/`Domain` project directories
+that `ProjectReference`s point at — `docker-compose.yml` sets this up automatically.
+
+### Why this compose file uses the real providers, not the test defaults
+
+`docker-compose.yml` sets `BackgroundJobs:Provider=Hangfire` and `Caching:Provider=Redis` (with
+real `sqlserver`/`redis` service containers) rather than leaving every service on its zero-config
+in-process default. Every automated test already exercises the in-process defaults thoroughly —
+what a Docker Compose demo is actually good for is proving the *other* path (a separate Worker
+process, a shared Redis-backed lock, Hangfire's dashboard and SQL Server-backed job storage)
+genuinely works when wired together for real, which is precisely what none of the test suite's
+InMemory-storage-based tests exercise.
+
+### An honest limitation: none of this has been run
+
+These Dockerfiles and the compose file were written carefully and validated with `docker compose
+config` (confirms the YAML is well-formed and every variable/build-context reference resolves) —
+but this development environment has no Docker daemon available, so they could not actually be
+built or run here. Anyone using this Phase should run `docker compose up --build` themselves
+before relying on it, the same way any other unverified-in-this-environment code should be
+checked before being trusted.
