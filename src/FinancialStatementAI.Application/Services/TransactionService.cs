@@ -1,5 +1,7 @@
+using FinancialStatementAI.Application.DTOs.Common;
 using FinancialStatementAI.Application.DTOs.Transactions;
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Domain.Constants;
 using FinancialStatementAI.Domain.Entities;
 using FinancialStatementAI.Domain.Enums;
 
@@ -26,6 +28,24 @@ public class TransactionService(
     {
         var transactions = await transactionRepository.GetReviewQueueAsync(userId, cancellationToken);
         return transactions.Select(TransactionMapper.ToResponse).ToList();
+    }
+
+    public async Task<PagedResult<TransactionResponse>> SearchAsync(
+        Guid userId,
+        string? search,
+        Guid? categoryId,
+        Guid? statementId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, PaginationDefaults.MaxPageSize);
+
+        var result = await transactionRepository.SearchAsync(userId, search, categoryId, statementId, page, pageSize, cancellationToken);
+        var items = result.Items.Select(TransactionMapper.ToResponse).ToList();
+
+        return PagedResult<TransactionResponse>.Create(items, result.TotalCount, result.Page, result.PageSize);
     }
 
     public async Task<CorrectTransactionResult> CorrectCategoryAsync(

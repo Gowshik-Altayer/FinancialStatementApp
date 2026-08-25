@@ -1,5 +1,7 @@
 using System.Security.Claims;
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Domain.Constants;
+using FinancialStatementAI.Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -39,10 +41,19 @@ public class StatementsController(IStatementService statementService, IStatement
         return CreatedAtAction(nameof(GetById), new { id = result.Statement!.Id }, result.Statement);
     }
 
+    /// <summary>Search/filter/paginate the current user's statements (Phase 13). All query
+    /// parameters are optional; omitting all of them returns the first page, most recently
+    /// uploaded first — the same behavior the unpaginated endpoint had before this phase.</summary>
     [HttpGet]
-    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetAll(
+        [FromQuery] string? search,
+        [FromQuery] StatementProcessingStatus? status,
+        [FromQuery] ReconciliationStatus? reconciliationStatus,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
+        CancellationToken cancellationToken = default)
     {
-        var statements = await statementService.GetForUserAsync(CurrentUserId, cancellationToken);
+        var statements = await statementService.SearchAsync(CurrentUserId, search, status, reconciliationStatus, page, pageSize, cancellationToken);
         return Ok(statements);
     }
 

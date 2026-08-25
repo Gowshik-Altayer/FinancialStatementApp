@@ -43,8 +43,7 @@ export const routes: Routes = [
       },
       {
         path: 'transactions',
-        component: PlaceholderPage,
-        data: { title: 'Transactions', note: 'Transaction search, filtering, and pagination arrive in Phase 13.' }
+        loadComponent: () => import('./features/transactions/transactions').then((m) => m.Transactions)
       },
       {
         path: 'review',
@@ -55,7 +54,7 @@ export const routes: Routes = [
         component: PlaceholderPage,
         data: {
           title: 'Reconciliation',
-          note: 'Reconciliation status is shown per statement — see the Statements list or a statement\'s detail page. A dedicated cross-statement reconciliation report may arrive alongside Phase 13\'s search/filter work.'
+          note: 'Reconciliation status is shown per statement — see the Statements list (filterable by reconciliation status) or a statement\'s detail page. A dedicated cross-statement reconciliation report may arrive in a later phase.'
         }
       },
       {

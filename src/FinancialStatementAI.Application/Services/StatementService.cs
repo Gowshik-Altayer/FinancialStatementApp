@@ -1,5 +1,7 @@
+using FinancialStatementAI.Application.DTOs.Common;
 using FinancialStatementAI.Application.DTOs.Statements;
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Domain.Constants;
 using FinancialStatementAI.Domain.Entities;
 using FinancialStatementAI.Domain.Enums;
 
@@ -50,14 +52,19 @@ public class StatementService(
         return UploadStatementResult.Success(StatementMapper.ToDetailResponse(statement));
     }
 
-    public async Task<IReadOnlyList<StatementSummaryResponse>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    public Task<PagedResult<StatementSummaryResponse>> SearchAsync(
+        Guid userId,
+        string? search,
+        StatementProcessingStatus? status,
+        ReconciliationStatus? reconciliationStatus,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
     {
-        var statements = await statementRepository.GetByUserIdAsync(userId, cancellationToken);
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 1, PaginationDefaults.MaxPageSize);
 
-        return statements
-            .OrderByDescending(s => s.UploadedAt)
-            .Select(StatementMapper.ToSummaryResponse)
-            .ToList();
+        return statementRepository.SearchForUserAsync(userId, search, status, reconciliationStatus, page, pageSize, cancellationToken);
     }
 
     public async Task<StatementDetailResponse?> GetByIdAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)

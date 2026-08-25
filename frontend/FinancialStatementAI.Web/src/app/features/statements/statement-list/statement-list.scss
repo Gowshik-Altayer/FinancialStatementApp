@@ -5,6 +5,21 @@
   margin-bottom: 1rem;
 }
 
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+
+  mat-form-field {
+    width: 14rem;
+  }
+
+  .search-field {
+    width: 20rem;
+  }
+}
+
 table {
   width: 100%;
 }

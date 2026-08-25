@@ -1,3 +1,4 @@
+using FinancialStatementAI.Application.DTOs.Common;
 using FinancialStatementAI.Domain.Entities;
 using FinancialStatementAI.Domain.Enums;
 
@@ -38,4 +39,18 @@ public interface ITransactionRepository
     /// as an immutable audit row — the original AI-assigned category is never overwritten, only
     /// superseded.</summary>
     Task ApplyCorrectionAsync(Guid transactionId, Guid categoryId, TransactionCorrection correction, CancellationToken cancellationToken = default);
+
+    /// <summary>Search/filter/paginate across every transaction belonging to one of the user's
+    /// statements (Phase 13) — the "All Transactions" page, as opposed to the single-statement
+    /// list or the PendingReview-only review queue. Runs the filter/count/page entirely in the
+    /// database (selecting just matching Ids) before hydrating the bounded page of full entities
+    /// with their Category/Classifications/Corrections.</summary>
+    Task<PagedResult<Transaction>> SearchAsync(
+        Guid userId,
+        string? search,
+        Guid? categoryId,
+        Guid? statementId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
 }

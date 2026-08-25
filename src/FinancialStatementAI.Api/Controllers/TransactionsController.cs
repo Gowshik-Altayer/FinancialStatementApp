@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FinancialStatementAI.Application.DTOs.Transactions;
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -28,6 +29,21 @@ public class TransactionsController(ITransactionService transactionService) : Co
     public async Task<IActionResult> GetReviewQueue(CancellationToken cancellationToken)
     {
         var transactions = await transactionService.GetReviewQueueAsync(CurrentUserId, cancellationToken);
+        return Ok(transactions);
+    }
+
+    /// <summary>Search/filter/paginate across all of the current user's transactions, regardless
+    /// of their statement's processing status (Phase 13) — the "All Transactions" page.</summary>
+    [HttpGet("transactions")]
+    public async Task<IActionResult> Search(
+        [FromQuery] string? search,
+        [FromQuery] Guid? categoryId,
+        [FromQuery] Guid? statementId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var transactions = await transactionService.SearchAsync(CurrentUserId, search, categoryId, statementId, page, pageSize, cancellationToken);
         return Ok(transactions);
     }
 

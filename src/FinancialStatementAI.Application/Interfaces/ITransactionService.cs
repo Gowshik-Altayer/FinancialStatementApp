@@ -1,3 +1,4 @@
+using FinancialStatementAI.Application.DTOs.Common;
 using FinancialStatementAI.Application.DTOs.Transactions;
 
 namespace FinancialStatementAI.Application.Interfaces;
@@ -11,6 +12,18 @@ public interface ITransactionService
     /// <summary>The cross-statement human review queue (Phase 12): every transaction on one of
     /// this user's PendingReview statements, lowest classification confidence first.</summary>
     Task<IReadOnlyList<TransactionResponse>> GetReviewQueueAsync(Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Search/filter/paginate across all of the user's transactions, across every
+    /// statement regardless of processing status (Phase 13's "All Transactions" page — as
+    /// opposed to the single-statement list or the PendingReview-only review queue).</summary>
+    Task<PagedResult<TransactionResponse>> SearchAsync(
+        Guid userId,
+        string? search,
+        Guid? categoryId,
+        Guid? statementId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default);
 
     /// <summary>Applies a human's category correction to one transaction (requirement #9) and
     /// records it as an audit row.</summary>
