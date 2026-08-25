@@ -1,3 +1,4 @@
+using FinancialStatementAI.Application.DTOs.Statements;
 using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Domain.Entities;
 using FinancialStatementAI.Domain.Enums;
@@ -43,6 +44,30 @@ public class StatementRepository(AppDbContext dbContext) : IStatementRepository
         {
             statement.ProcessedAt = processedAt;
         }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateExtractedFieldsAsync(Guid statementId, ExtractedStatementFields fields, CancellationToken cancellationToken = default)
+    {
+        var statement = await dbContext.Statements.SingleAsync(s => s.Id == statementId, cancellationToken);
+
+        // Prefer whatever this extraction run found; if it found nothing for a field (e.g. this
+        // run used OCR and OCR text is noisier than a prior direct-extraction pass), keep
+        // whatever was already there rather than clobbering it with null.
+        statement.AccountHolderName = fields.AccountHolderName ?? statement.AccountHolderName;
+        statement.ProviderName = fields.ProviderName ?? statement.ProviderName;
+        statement.AccountNumberMasked = fields.AccountNumberMasked ?? statement.AccountNumberMasked;
+        statement.StatementPeriodStart = fields.StatementPeriodStart ?? statement.StatementPeriodStart;
+        statement.StatementPeriodEnd = fields.StatementPeriodEnd ?? statement.StatementPeriodEnd;
+        statement.StatementDate = fields.StatementDate ?? statement.StatementDate;
+        statement.OpeningBalance = fields.OpeningBalance ?? statement.OpeningBalance;
+        statement.ClosingBalance = fields.ClosingBalance ?? statement.ClosingBalance;
+        statement.TotalDebits = fields.TotalDebits ?? statement.TotalDebits;
+        statement.TotalCredits = fields.TotalCredits ?? statement.TotalCredits;
+        statement.TotalPayments = fields.TotalPayments ?? statement.TotalPayments;
+        statement.TotalPurchases = fields.TotalPurchases ?? statement.TotalPurchases;
+        statement.Currency = fields.Currency ?? statement.Currency;
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

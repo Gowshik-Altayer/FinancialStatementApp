@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, and **Phase 8 (OCR / Document Intelligence)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, and **Phase 9 (transaction extraction & normalization)**.
 
 ## Solution layout
 
@@ -208,5 +208,31 @@ Angular: `StatementService` (`core/services/`) wraps the three endpoints; `state
 `statement-list` (`MatTable` with client-side sort — server-side paging arrives in Phase 13), and
 `statement-detail` now replace the Phase 5 `PlaceholderPage` under `/statements`.
 
-Further architecture detail (document-processing pipeline, AI classification, reconciliation)
-will be appended here as each phase lands.
+## Document processing: text extraction, OCR, and transaction parsing (Phases 7–9)
+
+The full reasoning for this stretch of the pipeline — why the OCR-vs-direct decision works the
+way it does, why OCR/Document Intelligence default to Mock, why transaction parsing is rule-based
+rather than LLM-based, and the normalization/duplicate-detection rules — lives in
+[docs/ai-processing.md](ai-processing.md) rather than being duplicated here. Summary of what
+changed in each:
+
+- **Phase 7** — `PdfTextExtractionService` (PdfPig) extracts a PDF's embedded text directly, and
+  judges it "usable" via a per-page character-count threshold. New `StatementExtraction` entity
+  (1:1 with `Statement`) persists the raw text, page/character counts, and that verdict.
+  `POST /api/statements/{id}/reprocess` triggers it (synchronously for now — Phase 14 moves this
+  to a Hangfire job without changing the endpoint's contract).
+- **Phase 8** — `IOcrService` / `IDocumentIntelligenceService` abstractions, each with a real
+  Azure implementation and a Mock default (`Ocr:Provider` / `DocumentIntelligence:Provider`
+  config switch, same pattern as Phase 6's `FileStorage:Provider`). `StatementProcessingService`
+  falls back to OCR when direct PDF extraction finds no usable text, and routes images straight
+  to OCR since they have no text layer at all.
+- **Phase 9** — `ITransactionExtractionService` (rule-based line parser, not LLM-based — see
+  ai-processing.md for why) turns the raw text into normalized `Transaction` rows;
+  `IStatementFieldExtractionService` pulls statement-level fields (balances, account info) the
+  same way. `ITransactionRepository.ReplaceForStatementAsync` replaces a statement's own prior
+  parse on reprocess and flags (never deletes) cross-statement duplicates. `ProcessAsync` only
+  marks a statement `ExtractionComplete` after text extraction, field extraction, *and*
+  transaction parsing have all run — not just after getting raw text.
+
+Further architecture detail (AI classification, reconciliation) will be appended here as each
+phase lands.

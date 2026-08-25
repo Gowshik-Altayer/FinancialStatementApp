@@ -9,9 +9,12 @@ namespace FinancialStatementAI.Application.Services;
 public class StatementProcessingService(
     IStatementRepository statementRepository,
     IStatementExtractionRepository statementExtractionRepository,
+    ITransactionRepository transactionRepository,
     IFileStorageService fileStorage,
     IPdfTextExtractionService pdfTextExtractionService,
-    IOcrService ocrService) : IStatementProcessingService
+    IOcrService ocrService,
+    IStatementFieldExtractionService statementFieldExtractionService,
+    ITransactionExtractionService transactionExtractionService) : IStatementProcessingService
 {
     public async Task<StatementDetailResponse?> ProcessAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
     {
@@ -21,78 +24,99 @@ public class StatementProcessingService(
             return null;
         }
 
-        var needsOcr = true;
+        string? rawText = null;
+        var method = ExtractionMethod.DirectPdfText;
 
         if (statement.ContentType == "application/pdf")
         {
-            needsOcr = !await ExtractPdfTextAsync(statement, cancellationToken);
+            rawText = await TryDirectPdfExtractionAsync(statement, cancellationToken);
         }
 
-        if (needsOcr)
+        if (rawText is null)
         {
-            await RunOcrAsync(statement, cancellationToken);
+            method = ExtractionMethod.Ocr;
+            rawText = await TryOcrExtractionAsync(statement, cancellationToken);
+        }
+
+        if (rawText is null)
+        {
+            // Both available paths were tried and neither produced usable text.
+            await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.ExtractionFailed, null, cancellationToken);
+        }
+        else
+        {
+            await PersistExtractionAsync(statement, method, rawText, cancellationToken);
+
+            var fields = statementFieldExtractionService.Extract(rawText);
+            await statementRepository.UpdateExtractedFieldsAsync(statementId, fields, cancellationToken);
+
+            var referenceYear = fields.StatementPeriodStart?.Year ?? fields.StatementDate?.Year ?? DateTime.UtcNow.Year;
+            var parsedTransactions = transactionExtractionService.Extract(rawText, referenceYear);
+            var transactions = parsedTransactions.Select(p => ToTransactionEntity(statementId, p, method));
+            await transactionRepository.ReplaceForStatementAsync(statementId, userId, transactions, cancellationToken);
+
+            await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.ExtractionComplete, DateTime.UtcNow, cancellationToken);
         }
 
         var updated = await statementRepository.GetByIdAsync(statementId, cancellationToken);
         return updated is null ? null : StatementMapper.ToDetailResponse(updated);
     }
 
-    /// <returns>Whether the direct extraction produced usable text (see docs/ai-processing.md
-    /// for the threshold and reasoning) — false means the caller should fall back to OCR.</returns>
-    private async Task<bool> ExtractPdfTextAsync(Statement statement, CancellationToken cancellationToken)
+    /// <returns>The extracted raw text if it was usable, or null if direct extraction found
+    /// nothing worth using — the caller should fall back to OCR.</returns>
+    private async Task<string?> TryDirectPdfExtractionAsync(Statement statement, CancellationToken cancellationToken)
     {
         await using var fileStream = await fileStorage.OpenReadAsync(statement.StoredFilePath, cancellationToken);
         var extraction = pdfTextExtractionService.Extract(fileStream);
-
-        if (!extraction.HasUsableText)
-        {
-            return false;
-        }
-
-        await statementExtractionRepository.UpsertAsync(new StatementExtraction
-        {
-            StatementId = statement.Id,
-            ExtractionMethod = ExtractionMethod.DirectPdfText,
-            RawText = extraction.RawText,
-            PageCount = extraction.PageCount,
-            CharacterCount = extraction.CharacterCount,
-            HasUsableText = true
-        }, cancellationToken);
-
-        await statementRepository.UpdateStatusAsync(statement.Id, StatementProcessingStatus.ExtractionComplete, DateTime.UtcNow, cancellationToken);
-        return true;
+        return extraction.HasUsableText ? extraction.RawText : null;
     }
 
-    /// <summary>Used for images outright, and as the fallback when direct PDF extraction found no
-    /// usable text layer (a scanned PDF) — see requirement #2's core OCR-vs-direct decision.</summary>
-    private async Task RunOcrAsync(Statement statement, CancellationToken cancellationToken)
+    private async Task<string?> TryOcrExtractionAsync(Statement statement, CancellationToken cancellationToken)
     {
         await using var fileStream = await fileStorage.OpenReadAsync(statement.StoredFilePath, cancellationToken);
         var ocrResult = await ocrService.ExtractTextAsync(fileStream, statement.ContentType, cancellationToken);
 
         if (!ocrResult.IsSuccess)
         {
-            await statementRepository.UpdateStatusAsync(statement.Id, StatementProcessingStatus.ExtractionFailed, null, cancellationToken);
-            return;
+            return null;
         }
 
         var characterCount = ocrResult.RawText.Count(c => !char.IsWhiteSpace(c));
-        var hasUsableText = characterCount >= TextExtractionThresholds.MinUsableCharactersPerPage;
+        return characterCount >= TextExtractionThresholds.MinUsableCharactersPerPage ? ocrResult.RawText : null;
+    }
+
+    private async Task PersistExtractionAsync(Statement statement, ExtractionMethod method, string rawText, CancellationToken cancellationToken)
+    {
+        var characterCount = rawText.Count(c => !char.IsWhiteSpace(c));
 
         await statementExtractionRepository.UpsertAsync(new StatementExtraction
         {
             StatementId = statement.Id,
-            ExtractionMethod = ExtractionMethod.Ocr,
-            RawText = ocrResult.RawText,
-            PageCount = 1,
+            ExtractionMethod = method,
+            RawText = rawText,
+            PageCount = method == ExtractionMethod.Ocr ? 1 : rawText.Count(c => c == '\f') + 1,
             CharacterCount = characterCount,
-            HasUsableText = hasUsableText
+            HasUsableText = true
         }, cancellationToken);
-
-        await statementRepository.UpdateStatusAsync(
-            statement.Id,
-            hasUsableText ? StatementProcessingStatus.ExtractionComplete : StatementProcessingStatus.ExtractionFailed,
-            hasUsableText ? DateTime.UtcNow : null,
-            cancellationToken);
     }
+
+    private static Transaction ToTransactionEntity(Guid statementId, ParsedTransaction parsed, ExtractionMethod method) => new()
+    {
+        StatementId = statementId,
+        TransactionDate = parsed.TransactionDate,
+        PostingDate = parsed.PostingDate,
+        Description = parsed.Description,
+        Merchant = parsed.Merchant,
+        ReferenceNumber = parsed.ReferenceNumber,
+        DebitAmount = parsed.DebitAmount,
+        CreditAmount = parsed.CreditAmount,
+        Amount = parsed.Amount,
+        Currency = parsed.Currency,
+        TransactionType = parsed.TransactionType,
+        Extraction = new TransactionExtraction
+        {
+            RawText = parsed.RawLine,
+            ExtractionMethod = method
+        }
+    };
 }

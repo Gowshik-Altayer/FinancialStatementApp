@@ -1,3 +1,4 @@
+using FinancialStatementAI.Application.DTOs.Statements;
 using FinancialStatementAI.Domain.Entities;
 using FinancialStatementAI.Domain.Enums;
 
@@ -14,4 +15,8 @@ public interface IStatementRepository
         StatementProcessingStatus status,
         DateTime? processedAt,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Applies whichever fields <see cref="IStatementFieldExtractionService"/> managed
+    /// to find — fields it couldn't find are left untouched, never overwritten with null.</summary>
+    Task UpdateExtractedFieldsAsync(Guid statementId, ExtractedStatementFields fields, CancellationToken cancellationToken = default);
 }
