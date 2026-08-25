@@ -81,6 +81,12 @@ defaults exist; it never touches custom categories a user adds later. It runs au
 API startup in the Development environment only (see `Program.cs`), non-fatally — if SQL Server
 isn't reachable yet, the API logs a warning and still starts rather than crashing.
 
+## Migrations added since Phase 3
+
+- **`AddStatementExtraction`** (Phase 7) — adds the `StatementExtractions` table (1:1 with
+  `Statements`, cascade delete), backing the direct-PDF-text-extraction result described in
+  [docs/ai-processing.md](ai-processing.md).
+
 ## Running migrations
 
 See the root [README.md](../README.md#database-migrations-from-phase-3-onward) for both the

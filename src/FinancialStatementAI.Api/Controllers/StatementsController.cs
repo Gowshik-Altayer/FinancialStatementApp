@@ -8,7 +8,7 @@ namespace FinancialStatementAI.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/statements")]
-public class StatementsController(IStatementService statementService) : ControllerBase
+public class StatementsController(IStatementService statementService, IStatementProcessingService processingService) : ControllerBase
 {
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -58,5 +58,15 @@ public class StatementsController(IStatementService statementService) : Controll
     {
         var status = await statementService.GetStatusAsync(id, CurrentUserId, cancellationToken);
         return status is null ? NotFound() : Ok(status);
+    }
+
+    /// <summary>Runs the currently-available processing steps (direct PDF text extraction as of
+    /// Phase 7) synchronously and returns the updated statement. Phase 14 moves this to a
+    /// Hangfire background job (returning 202 Accepted instead) without changing the URL/verb.</summary>
+    [HttpPost("{id:guid}/reprocess")]
+    public async Task<IActionResult> Reprocess(Guid id, CancellationToken cancellationToken)
+    {
+        var statement = await processingService.ProcessAsync(id, CurrentUserId, cancellationToken);
+        return statement is null ? NotFound() : Ok(statement);
     }
 }

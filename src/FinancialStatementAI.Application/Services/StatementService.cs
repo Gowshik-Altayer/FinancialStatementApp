@@ -46,7 +46,7 @@ public class StatementService(
             Status = ProcessingJobStatus.Pending
         }, cancellationToken);
 
-        return UploadStatementResult.Success(ToDetailResponse(statement));
+        return UploadStatementResult.Success(StatementMapper.ToDetailResponse(statement));
     }
 
     public async Task<IReadOnlyList<StatementSummaryResponse>> GetForUserAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -55,14 +55,14 @@ public class StatementService(
 
         return statements
             .OrderByDescending(s => s.UploadedAt)
-            .Select(ToSummaryResponse)
+            .Select(StatementMapper.ToSummaryResponse)
             .ToList();
     }
 
     public async Task<StatementDetailResponse?> GetByIdAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
     {
         var statement = await statementRepository.GetByIdAsync(statementId, cancellationToken);
-        return statement is null || statement.UserId != userId ? null : ToDetailResponse(statement);
+        return statement is null || statement.UserId != userId ? null : StatementMapper.ToDetailResponse(statement);
     }
 
     public async Task<StatementStatusResponse?> GetStatusAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
@@ -81,44 +81,4 @@ public class StatementService(
             ProcessedAt = statement.ProcessedAt
         };
     }
-
-    private static StatementSummaryResponse ToSummaryResponse(Statement statement) => new()
-    {
-        Id = statement.Id,
-        OriginalFileName = statement.OriginalFileName,
-        ProviderName = statement.ProviderName,
-        StatementPeriodStart = statement.StatementPeriodStart,
-        StatementPeriodEnd = statement.StatementPeriodEnd,
-        TransactionCount = statement.Transactions.Count,
-        TotalDebits = statement.TotalDebits,
-        TotalCredits = statement.TotalCredits,
-        ProcessingStatus = statement.ProcessingStatus.ToString(),
-        UploadedAt = statement.UploadedAt
-    };
-
-    private static StatementDetailResponse ToDetailResponse(Statement statement) => new()
-    {
-        Id = statement.Id,
-        OriginalFileName = statement.OriginalFileName,
-        ContentType = statement.ContentType,
-        FileSizeBytes = statement.FileSizeBytes,
-        DocumentType = statement.DocumentType.ToString(),
-        AccountHolderName = statement.AccountHolderName,
-        ProviderName = statement.ProviderName,
-        AccountNumberMasked = statement.AccountNumberMasked,
-        StatementPeriodStart = statement.StatementPeriodStart,
-        StatementPeriodEnd = statement.StatementPeriodEnd,
-        StatementDate = statement.StatementDate,
-        OpeningBalance = statement.OpeningBalance,
-        ClosingBalance = statement.ClosingBalance,
-        TotalDebits = statement.TotalDebits,
-        TotalCredits = statement.TotalCredits,
-        TotalPayments = statement.TotalPayments,
-        TotalPurchases = statement.TotalPurchases,
-        Currency = statement.Currency,
-        ProcessingStatus = statement.ProcessingStatus.ToString(),
-        UploadedAt = statement.UploadedAt,
-        ProcessedAt = statement.ProcessedAt,
-        TransactionCount = statement.Transactions.Count
-    };
 }

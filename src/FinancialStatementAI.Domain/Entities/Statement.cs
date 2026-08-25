@@ -38,4 +38,5 @@ public class Statement : BaseEntity
     public ICollection<ProcessingJob> ProcessingJobs { get; set; } = [];
     public ICollection<ProcessingError> ProcessingErrors { get; set; } = [];
     public ICollection<ReconciliationResult> ReconciliationResults { get; set; } = [];
+    public StatementExtraction? StatementExtraction { get; set; }
 }

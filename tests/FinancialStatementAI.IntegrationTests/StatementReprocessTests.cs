@@ -1,0 +1,115 @@
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Http.Json;
+using System.Text;
+using System.Text.Json;
+using FinancialStatementAI.Application.DTOs.Auth;
+
+namespace FinancialStatementAI.IntegrationTests;
+
+public class StatementReprocessTests : IClassFixture<CustomWebApplicationFactory>
+{
+    private readonly CustomWebApplicationFactory _factory;
+
+    public StatementReprocessTests(CustomWebApplicationFactory factory)
+    {
+        _factory = factory;
+    }
+
+    private static byte[] BuildPdfWithText(string pageText)
+    {
+        var contentStream = $"BT /F1 12 Tf 72 700 Td ({pageText}) Tj ET";
+        var contentBytes = Encoding.ASCII.GetByteCount(contentStream);
+
+        string[] objects =
+        [
+            "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+            "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+            "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj\n",
+            "4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj\n",
+            $"5 0 obj\n<< /Length {contentBytes} >>\nstream\n{contentStream}\nendstream\nendobj\n"
+        ];
+
+        var body = new StringBuilder("%PDF-1.4\n");
+        var offsets = new List<int>();
+        foreach (var obj in objects)
+        {
+            offsets.Add(Encoding.ASCII.GetByteCount(body.ToString()));
+            body.Append(obj);
+        }
+
+        var xrefOffset = Encoding.ASCII.GetByteCount(body.ToString());
+        body.Append("xref\n");
+        body.Append($"0 {objects.Length + 1}\n");
+        body.Append("0000000000 65535 f \n");
+        foreach (var offset in offsets)
+        {
+            body.Append($"{offset:D10} 00000 n \n");
+        }
+        body.Append("trailer\n");
+        body.Append($"<< /Size {objects.Length + 1} /Root 1 0 R >>\n");
+        body.Append("startxref\n");
+        body.Append($"{xrefOffset}\n");
+        body.Append("%%EOF");
+
+        return Encoding.ASCII.GetBytes(body.ToString());
+    }
+
+    private async Task<HttpClient> CreateAuthenticatedClientAsync()
+    {
+        var client = _factory.CreateClient();
+        var register = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            Email = $"{Guid.NewGuid():N}@example.com",
+            Password = "Sup3rSecret!",
+            FirstName = "Ada",
+            LastName = "Lovelace"
+        });
+        var auth = await register.Content.ReadFromJsonAsync<AuthResponse>();
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth!.Token);
+        return client;
+    }
+
+    [Fact]
+    public async Task Reprocess_A_Pdf_With_Usable_Text_Marks_Extraction_Complete()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var pdfBytes = BuildPdfWithText(
+            "01/08 AMAZON WEB SERVICES 129.45 02/08 UBER TRIP 18.20 03/08 WHOLE FOODS MARKET 64.02 payment thank you");
+
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(pdfBytes);
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "statement.pdf");
+
+        var uploadResponse = await client.PostAsync("/api/statements/upload", content);
+        var uploaded = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var statementId = uploaded.GetProperty("id").GetGuid();
+
+        var reprocessResponse = await client.PostAsync($"/api/statements/{statementId}/reprocess", null);
+
+        Assert.Equal(HttpStatusCode.OK, reprocessResponse.StatusCode);
+        var result = await reprocessResponse.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("ExtractionComplete", result.GetProperty("processingStatus").GetString());
+        Assert.True(result.GetProperty("hasUsableText").GetBoolean());
+        Assert.Equal(1, result.GetProperty("extractedPageCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task Reprocess_For_Another_Users_Statement_Returns_NotFound()
+    {
+        var owner = await CreateAuthenticatedClientAsync();
+        var content = new MultipartFormDataContent();
+        var fileContent = new ByteArrayContent(BuildPdfWithText("some statement text"));
+        fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+        content.Add(fileContent, "file", "statement.pdf");
+        var uploadResponse = await owner.PostAsync("/api/statements/upload", content);
+        var uploaded = await uploadResponse.Content.ReadFromJsonAsync<JsonElement>();
+        var statementId = uploaded.GetProperty("id").GetGuid();
+
+        var intruder = await CreateAuthenticatedClientAsync();
+        var response = await intruder.PostAsync($"/api/statements/{statementId}/reprocess", null);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+}
