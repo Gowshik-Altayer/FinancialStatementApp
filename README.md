@@ -6,7 +6,7 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 3 of 18 complete.** See [Development Phases](#development-phases) below. Each
+**Status: Phase 4 of 18 complete.** See [Development Phases](#development-phases) below. Each
 phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
 for the full history.
 
@@ -120,7 +120,21 @@ Update-Database -StartupProject FinancialStatementAI.Api
 
 Configured via `appsettings.Development.json` for non-sensitive defaults and **.NET User Secrets**
 for anything sensitive (JWT signing key, Azure/OpenAI keys, storage connection strings) — never
-committed to source control. Example SQL Server connection strings:
+committed to source control.
+
+`appsettings.Development.json` currently ships a **placeholder** JWT signing key (clearly labeled)
+so the app runs out of the box for local development. Replace it with your own via User Secrets
+before doing anything beyond local dev:
+
+```bash
+cd src/FinancialStatementAI.Api
+dotnet user-secrets init
+dotnet user-secrets set "Jwt:SigningKey" "a-long-random-string-at-least-32-characters"
+```
+
+(Or in Visual Studio: right-click `FinancialStatementAI.Api` → **Manage User Secrets**.)
+
+Example SQL Server connection strings:
 
 ```
 # Windows/Integrated auth
@@ -137,8 +151,8 @@ Completed phases are checked off as they land.
 
 - [x] Phase 1 — Visual Studio solution setup
 - [x] Phase 2 — Clean Architecture wiring (DI composition, extensions)
-- [x] **Phase 3** — SQL Server + EF Core (entities, `AppDbContext`, migrations, seed data)
-- [ ] Phase 4 — Authentication (JWT, roles, login/registration)
+- [x] Phase 3 — SQL Server + EF Core (entities, `AppDbContext`, migrations, seed data)
+- [x] **Phase 4** — Authentication (JWT, roles, login/registration)
 - [ ] Phase 5 — Angular layout (routing, Material shell, core/shared, auth, dashboard shell)
 - [ ] Phase 6 — File upload (Angular + API + validation + storage + Statement creation)
 - [ ] Phase 7 — Digital PDF text extraction + text-quality detection
