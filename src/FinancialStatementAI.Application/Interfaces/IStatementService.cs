@@ -18,4 +18,8 @@ public interface IStatementService
     Task<StatementStatusResponse?> GetStatusAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default);
 
     Task<ReconciliationResponse?> GetReconciliationAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Marks a statement Verified — the terminal state after a human has reviewed its
+    /// AI-classified transactions and reconciliation result. Only valid from PendingReview.</summary>
+    Task<VerifyStatementResult> VerifyAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default);
 }

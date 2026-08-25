@@ -1,0 +1,14 @@
+<h1>Review</h1>
+<p class="subtitle">Transactions across all statements still awaiting human review, lowest classification confidence first.</p>
+
+@if (isLoading()) {
+  <mat-spinner diameter="32" />
+} @else if (transactions().length === 0) {
+  <p class="empty-state">Nothing to review right now — every statement is either still processing or already verified.</p>
+} @else {
+  <mat-card>
+    <mat-card-content>
+      <app-transaction-table [transactions]="transactions()" [showStatementColumn]="true" />
+    </mat-card-content>
+  </mat-card>
+}

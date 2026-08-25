@@ -1,0 +1,81 @@
+.review-table {
+  width: 100%;
+  border-collapse: collapse;
+
+  th {
+    text-align: left;
+    font-weight: 500;
+    color: var(--mat-sys-on-surface-variant);
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+    vertical-align: middle;
+  }
+
+  .numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .actions {
+    white-space: nowrap;
+    text-align: right;
+  }
+
+  tr.duplicate {
+    background: color-mix(in srgb, var(--mat-sys-error) 6%, transparent);
+  }
+}
+
+.duplicate-icon,
+.corrected-icon {
+  font-size: 16px;
+  width: 16px;
+  height: 16px;
+  vertical-align: text-bottom;
+  margin-left: 0.25rem;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.corrected-icon {
+  color: var(--mat-sys-primary);
+}
+
+.category-select {
+  width: 12rem;
+
+  ::ng-deep .mat-mdc-form-field-subscript-wrapper {
+    display: none;
+  }
+}
+
+mat-chip.priority-HighConfidence {
+  --mat-chip-selected-container-color: color-mix(in srgb, #2e7d32 20%, transparent);
+}
+
+mat-chip.priority-ReviewRecommended {
+  --mat-chip-selected-container-color: color-mix(in srgb, #f9a825 25%, transparent);
+}
+
+mat-chip.priority-ReviewRequired {
+  --mat-chip-selected-container-color: color-mix(in srgb, var(--mat-sys-error) 20%, transparent);
+}
+
+.empty-state {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.history-row td {
+  background: var(--mat-sys-surface-container-low);
+}
+
+.history-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  font-size: 0.875rem;
+  color: var(--mat-sys-on-surface-variant);
+}

@@ -91,3 +91,54 @@ means and why there are three of them, not two).
 - `404 Not Found` → the statement doesn't exist or belongs to another user, **or** it exists but
   has never been reconciled yet (no successful reprocess run to completion) — the client can tell
   the difference from the statement's own `processingStatus`
+
+### `POST /api/statements/{id}/verify` (Phase 12)
+
+Marks a statement `Verified` — the terminal state after a human reviewer is satisfied with its
+classified transactions and reconciliation result. Only valid from `PendingReview`.
+
+- `200 OK` → updated `StatementDetailResponse`
+- `400 Bad Request` → the statement isn't currently `PendingReview`
+- `404 Not Found` → doesn't exist or belongs to another user
+
+## Transactions & review (Phase 12)
+
+All endpoints require `Authorization: Bearer <token>`; ownership is enforced the same way as
+Statements (404, not 403, for another user's data).
+
+### `GET /api/statements/{statementId}/transactions`
+
+Every transaction on one statement, in date order, each with its current (possibly
+human-corrected) category, classification confidence/method/reason, a computed `reviewPriority`
+(`HighConfidence` / `ReviewRecommended` / `ReviewRequired`, mirroring
+`ClassificationConfidenceThresholds`), and its full correction audit trail.
+
+- `200 OK` → `TransactionResponse[]`
+- `404 Not Found` → the statement doesn't exist or belongs to another user
+
+### `GET /api/transactions/review-queue`
+
+The cross-statement human review queue: every transaction belonging to one of the current user's
+`PendingReview` statements, ordered by classification confidence ascending (the transactions most
+likely to need a correction come first).
+
+- `200 OK` → `TransactionResponse[]`
+
+### `POST /api/transactions/{transactionId}/corrections`
+
+Applies a human's category correction (requirement #9). Body: `{ categoryName, reason? }`. Scoped
+to Category only for now — see `docs/ai-processing.md` for why. The original AI-assigned category
+is preserved in the returned transaction's `corrections` array, never overwritten.
+
+- `200 OK` → updated `TransactionResponse`
+- `400 Bad Request` → `categoryName` missing or doesn't match any active category
+- `404 Not Found` → the transaction doesn't exist or belongs to another user's statement
+
+## Categories (Phase 12)
+
+### `GET /api/categories`
+
+Active categories, for the review UI's correction picker. Full category management
+(create/edit/deactivate) is a later phase.
+
+- `200 OK` → `{ id, name }[]`

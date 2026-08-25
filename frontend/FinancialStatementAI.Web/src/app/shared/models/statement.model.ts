@@ -7,6 +7,8 @@ export type ProcessingStatus =
   | 'PendingReview'
   | 'Verified';
 
+export type ReconciliationStatus = 'Reconciled' | 'Mismatch' | 'InsufficientInformation';
+
 export interface StatementSummary {
   id: string;
   originalFileName: string;
@@ -17,6 +19,7 @@ export interface StatementSummary {
   totalDebits: number | null;
   totalCredits: number | null;
   processingStatus: ProcessingStatus;
+  reconciliationStatus: ReconciliationStatus | null;
   uploadedAt: string;
 }
 
@@ -46,6 +49,7 @@ export interface StatementDetail {
   hasUsableText: boolean | null;
   extractedPageCount: number | null;
   extractionMethod: string | null;
+  reconciliationStatus: ReconciliationStatus | null;
 }
 
 export interface StatementStatus {

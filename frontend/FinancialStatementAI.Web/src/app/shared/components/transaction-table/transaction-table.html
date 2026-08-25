@@ -1,0 +1,99 @@
+@if (transactions.length === 0) {
+  <p class="empty-state">No transactions here.</p>
+} @else {
+  <table class="review-table">
+    <thead>
+      <tr>
+        @if (showStatementColumn) {
+          <th>Statement</th>
+        }
+        <th>Date</th>
+        <th>Description</th>
+        <th class="numeric">Amount</th>
+        <th>Category</th>
+        <th>Confidence</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      @for (t of transactions; track t.id) {
+        <tr [class.duplicate]="t.isPotentialDuplicate">
+          @if (showStatementColumn) {
+            <td><a [routerLink]="['/statements', t.statementId]">{{ t.statementFileName }}</a></td>
+          }
+          <td>{{ t.transactionDate ?? '—' }}</td>
+          <td>
+            {{ t.description }}
+            @if (t.isPotentialDuplicate) {
+              <mat-icon class="duplicate-icon" matTooltip="Flagged as a potential duplicate of another transaction">content_copy</mat-icon>
+            }
+          </td>
+          <td class="numeric">{{ t.amount != null ? (t.amount | number: '1.2-2') : '—' }}</td>
+          <td>
+            @if (editingId() === t.id) {
+              <mat-form-field appearance="outline" class="category-select">
+                <mat-select [(ngModel)]="selectedCategoryName">
+                  @for (c of categories(); track c.id) {
+                    <mat-option [value]="c.name">{{ c.name }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            } @else {
+              {{ t.categoryName ?? 'Uncategorized' }}
+              @if (t.hasBeenCorrected) {
+                <mat-icon class="corrected-icon" matTooltip="This category was corrected by a human reviewer">verified_user</mat-icon>
+              }
+            }
+          </td>
+          <td>
+            @if (t.reviewPriority) {
+              <mat-chip [class]="'priority-' + t.reviewPriority">{{ priorityLabel(t) }}</mat-chip>
+            } @else {
+              <span class="empty-state">—</span>
+            }
+          </td>
+          <td class="actions">
+            @if (editingId() === t.id) {
+              @if (savingId() === t.id) {
+                <mat-spinner diameter="18" />
+              } @else {
+                <button mat-icon-button (click)="save(t)" matTooltip="Save correction">
+                  <mat-icon>check</mat-icon>
+                </button>
+                <button mat-icon-button (click)="cancelEdit()" matTooltip="Cancel">
+                  <mat-icon>close</mat-icon>
+                </button>
+              }
+            } @else {
+              <button mat-icon-button (click)="startEdit(t)" matTooltip="Correct category">
+                <mat-icon>edit</mat-icon>
+              </button>
+              @if (t.corrections.length > 0) {
+                <button mat-icon-button (click)="toggleHistory(t)" matTooltip="View correction history">
+                  <mat-icon>history</mat-icon>
+                </button>
+              }
+            }
+          </td>
+        </tr>
+        @if (expandedId() === t.id) {
+          <tr class="history-row">
+            <td [attr.colspan]="showStatementColumn ? 7 : 6">
+              <ul class="history-list">
+                @for (c of t.corrections; track c.id) {
+                  <li>
+                    <strong>{{ c.fieldName }}</strong>: "{{ c.originalValue ?? '(none)' }}" → "{{ c.correctedValue }}"
+                    by {{ c.correctedByUserName ?? 'a reviewer' }} on {{ c.correctedAt | date: 'medium' }}
+                    @if (c.correctionReason) {
+                      — {{ c.correctionReason }}
+                    }
+                  </li>
+                }
+              </ul>
+            </td>
+          </tr>
+        }
+      }
+    </tbody>
+  </table>
+}

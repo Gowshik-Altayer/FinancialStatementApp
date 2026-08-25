@@ -2,8 +2,8 @@
 
 > Built up phase by phase. This revision covers **Phase 7 (direct PDF text extraction and the
 > OCR-vs-direct decision)**, **Phase 8 (OCR / Document Intelligence abstractions)**,
-> **Phase 9 (transaction extraction and normalization)**, **Phase 10 (AI classification)**, and
-> **Phase 11 (deterministic reconciliation)**.
+> **Phase 9 (transaction extraction and normalization)**, **Phase 10 (AI classification)**,
+> **Phase 11 (deterministic reconciliation)**, and **Phase 12 (human review + audit trail)**.
 
 ## How we determine whether OCR is required
 
@@ -245,17 +245,65 @@ success/failure) *only* when the LLM is actually reached; Rules/Merchant Mapping
 Classification hits never touch this table, since they never called an LLM. This is the concrete
 mechanism behind "don't send every transaction to the LLM, and track what you do send."
 
-### Known limitation: reprocessing does not yet preserve classification/correction history
+### Resolved (Phase 12): reprocessing now preserves classification/correction history
 
-`ITransactionRepository.ReplaceForStatementAsync` (Phase 9) deletes and recreates a statement's
-transactions wholesale on every reprocess, rather than updating matching rows in place. That
-means today, reprocessing a statement that already has human corrections or prior classifications
-would discard them along with the recreated `Transaction` rows (cascade-deleted with them) —
-tested and documented rather than silently accepted (see
-`Reprocessing_Yields_One_Transaction_With_One_Current_Classification`). Phase 12 (human review)
-will need to address this — most likely by matching parsed transactions against existing ones on
-a natural key (date + amount + description) and updating in place instead of replacing, once
-corrections exist to actually preserve.
+Phase 9's original `ReplaceForStatementAsync` deleted and recreated a statement's transactions
+wholesale on every reprocess, which cascade-deleted any human corrections or classification
+history along with the recreated `Transaction` rows — a known, documented limitation at the time.
+Phase 12 fixes this exactly as previously planned: reparsed lines are matched against the
+statement's own existing transactions by natural key (date + amount + description) and updated in
+place — same `Transaction.Id`, so its `TransactionCorrection`/`TransactionClassification` rows are
+untouched. `ApplyReparsedFields` deliberately never touches `CategoryId` (classification runs as
+its own step right after), so a human's prior correction can't be reset by a bare re-extraction in
+between. See `TransactionRepository.ReplaceForStatementAsync` and
+`Reprocessing_Preserves_The_Same_Transaction_And_Accumulates_Classification_History` (the test that
+replaced `Reprocessing_Yields_One_Transaction_With_One_Current_Classification`, which asserted the
+old, now-fixed behavior).
+
+## Human review and audit trail (Phase 12)
+
+### Category correction only, deliberately
+
+`TransactionCorrection` (Phase 1) is a generic per-field audit row — `CorrectedField` supports
+seven fields — but the Phase 12 API (`POST /api/transactions/{id}/corrections`) only accepts
+`Category`. Two reasons: Amount/date corrections would need to also re-trigger reconciliation
+(new design surface this phase doesn't need), and — more subtly — a live Merchant/Description
+correction would conflict with `ApplyReparsedFields` unconditionally refreshing those fields from
+the raw text on every reprocess, silently reverting the correction exactly the way the pre-fix
+`ReplaceForStatementAsync` used to revert categories. Rather than solve that now for fields the
+challenge doesn't actually need corrected, the scope stays at Category — the field the review
+workflow is actually about — and the limitation is written down rather than guessed around.
+
+### Why a category correction survives on its own, with no special-casing
+
+Once the corrected `Transaction` row survives a reprocess (the fix above), no extra code is needed
+to make the correction "stick": `TransactionClassificationService`'s existing "Known
+Classification" rung (`IClassificationHistoryRepository.FindPreviousCorrectedCategoryAsync`,
+Phase 10) already looks up the most recent human correction for a transaction's merchant text
+before ever reaching the LLM. Reclassification after a reprocess finds that same correction row
+again (same transaction, same merchant, correction row never deleted) and reapplies it with
+`ClassificationMethod.PreviousCorrection` at `0.95` confidence — the correction and the
+self-healing classification ladder were designed independently (Phases 9/10 and 12) but compose
+correctly once the identity-preservation bug is fixed.
+
+### The review queue and "review priority" are computed, never stored
+
+`GET /api/transactions/review-queue` and `GET /api/statements/{id}/transactions` both derive a
+`reviewPriority` (`HighConfidence` / `ReviewRecommended` / `ReviewRequired`) from the transaction's
+current `ConfidenceScore` against `ClassificationConfidenceThresholds` at read time
+(`TransactionMapper.ToResponse`) rather than persisting it — it's a pure function of already-stored
+data, so persisting it would just be a second place for it to drift out of sync. The review queue
+is ordered by that same confidence, ascending, across every one of the user's `PendingReview`
+statements — the transactions most likely to be wrong surface first.
+
+### Verification is a human decision, not a computed one
+
+`POST /api/statements/{id}/verify` is the only way a statement reaches `Verified` — nothing marks
+a statement verified automatically, no matter how high its classification confidences or how clean
+its reconciliation, because "a human looked at this and agreed" is the entire meaning of the state.
+It's only valid from `PendingReview` (a statement that's still `Uploaded`/`Processing` hasn't been
+classified or reconciled yet, and one already `Verified` doesn't need re-verifying without a new
+reprocess putting it back in `PendingReview` first).
 
 ## Deterministic reconciliation (Phase 11)
 

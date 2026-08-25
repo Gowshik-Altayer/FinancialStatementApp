@@ -94,4 +94,24 @@ public class StatementService(
         var latest = await reconciliationRepository.GetLatestAsync(statementId, cancellationToken);
         return latest is null ? null : ReconciliationService.ToResponse(latest);
     }
+
+    public async Task<VerifyStatementResult> VerifyAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var statement = await statementRepository.GetByIdAsync(statementId, cancellationToken);
+        if (statement is null || statement.UserId != userId)
+        {
+            return VerifyStatementResult.AsNotFound();
+        }
+
+        if (statement.ProcessingStatus != StatementProcessingStatus.PendingReview)
+        {
+            return VerifyStatementResult.Failure(
+                $"Statement must be in PendingReview to verify (current status: {statement.ProcessingStatus}).");
+        }
+
+        await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.Verified, DateTime.UtcNow, cancellationToken);
+
+        var updated = await statementRepository.GetByIdAsync(statementId, cancellationToken);
+        return VerifyStatementResult.Success(StatementMapper.ToDetailResponse(updated!));
+    }
 }

@@ -28,4 +28,8 @@ export class StatementService {
   reprocess(id: string): Observable<StatementDetail> {
     return this.http.post<StatementDetail>(`/api/statements/${id}/reprocess`, null);
   }
+
+  verify(id: string): Observable<StatementDetail> {
+    return this.http.post<StatementDetail>(`/api/statements/${id}/verify`, null);
+  }
 }

@@ -145,15 +145,16 @@ public class TransactionClassificationIntegrationTests : IClassFixture<CustomWeb
     }
 
     [Fact]
-    public async Task Reprocessing_Yields_One_Transaction_With_One_Current_Classification()
+    public async Task Reprocessing_Preserves_The_Same_Transaction_And_Accumulates_Classification_History()
     {
-        // NOTE: ReplaceForStatementAsync (Phase 9) deletes and recreates a statement's
-        // transactions wholesale on reprocess, rather than updating in place — so reprocessing
-        // today does not (yet) preserve classification/correction history across the recreated
-        // Transaction row. That's a known, documented limitation (see docs/ai-processing.md)
-        // that Phase 12 (human review) needs to account for. This test asserts today's actual
-        // behavior: exactly one transaction, freshly classified once, after any number of
-        // reprocess calls — not that history survives across them.
+        // As of Phase 12, ReplaceForStatementAsync matches a reparsed line against the
+        // statement's own existing transaction by natural key (date + amount + description) and
+        // updates it in place instead of deleting and recreating it — see
+        // TransactionRepository.ReplaceForStatementAsync and docs/ai-processing.md. That's what
+        // lets classification (and, more importantly, human correction) history survive a
+        // reprocess: still exactly one Transaction row, but every reprocess's classification
+        // attempt is preserved (never overwritten — requirement #9), with exactly one marked
+        // IsCurrent.
         var client = await CreateAuthenticatedClientAsync();
         var statementId = await UploadAndReprocessAsync(client, "01/08 UBER TRIP RIDESHARE SERVICE PAYMENT 18.20");
 
@@ -167,7 +168,7 @@ public class TransactionClassificationIntegrationTests : IClassFixture<CustomWeb
             .ToListAsync();
 
         var transaction = Assert.Single(transactions);
-        var classification = Assert.Single(transaction.Classifications);
-        Assert.True(classification.IsCurrent);
+        Assert.Equal(2, transaction.Classifications.Count);
+        Assert.Single(transaction.Classifications, c => c.IsCurrent);
     }
 }

@@ -35,3 +35,19 @@ dt {
 dd {
   margin: 0;
 }
+
+.transactions-card {
+  margin-bottom: 1rem;
+}
+
+mat-chip.reconciliation-Reconciled {
+  --mat-chip-selected-container-color: color-mix(in srgb, #2e7d32 20%, transparent);
+}
+
+mat-chip.reconciliation-Mismatch {
+  --mat-chip-selected-container-color: color-mix(in srgb, var(--mat-sys-error) 20%, transparent);
+}
+
+mat-chip.reconciliation-InsufficientInformation {
+  --mat-chip-selected-container-color: color-mix(in srgb, #f9a825 25%, transparent);
+}
