@@ -1,3 +1,5 @@
+using FinancialStatementAI.Application;
+using FinancialStatementAI.Infrastructure;
 
 namespace FinancialStatementAI.Api;
 
@@ -14,6 +16,9 @@ public class Program
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddSwaggerGen();
         builder.Services.AddHealthChecks();
+
+        builder.Services.AddApplication();
+        builder.Services.AddInfrastructure(builder.Configuration);
 
         builder.Services.AddCors(options =>
         {
