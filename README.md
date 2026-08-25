@@ -6,7 +6,7 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 14 of 18 complete.** See [Development Phases](#development-phases) below. Each
+**Status: Phase 15 of 18 complete.** See [Development Phases](#development-phases) below. Each
 phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
 for the full history.
 
@@ -61,7 +61,7 @@ Dependency direction follows Clean Architecture: `Api`/`Worker` → `Application
 3. **Node.js** (LTS) and npm — Angular CLI is used via `npx`/local devDependency, no global install required
 4. **SQL Server** (LocalDB, Developer Edition, or a container) — needed starting Phase 3
 5. **SQL Server Management Studio** (optional, for inspecting the database)
-6. **Redis** (local install or via Docker) — needed starting Phase 15
+6. **Redis** (local install or via Docker) — optional; only needed if you set `Caching:Provider` to `Redis` (Phase 15). The default `InMemory` provider needs nothing extra.
 7. Git
 
 ## Running from Visual Studio 2022
@@ -174,6 +174,12 @@ set `Hangfire:Storage` to `InMemory` instead for local experimentation without a
 instance (never for production — jobs vanish on restart). The dashboard at `/hangfire` (Development
 environment only) shows job history and status once Hangfire is active.
 
+Caching and the statement-reprocess concurrency lock default to an in-process implementation (no
+configuration needed). Set `Caching:Provider` to `Redis` plus `Caching:Redis:ConnectionString` for
+a real Redis backing shared across every Api/Worker instance — required for the lock to actually
+prevent two *different* processes from reprocessing the same statement concurrently (see
+`docs/architecture.md`); the in-process default only protects within a single process.
+
 Example SQL Server connection strings:
 
 ```
@@ -202,8 +208,8 @@ Completed phases are checked off as they land.
 - [x] Phase 11 — Reconciliation (deterministic financial calculations)
 - [x] Phase 12 — Human review UI + audit trail (original vs. corrected values)
 - [x] Phase 13 — Search / filter / pagination
-- [x] **Phase 14** — Hangfire background processing
-- [ ] Phase 15 — Redis caching / distributed locks
+- [x] Phase 14 — Hangfire background processing
+- [x] **Phase 15** — Redis caching / distributed locks
 - [ ] Phase 16 — Testing (backend xUnit/Moq/FluentAssertions, Angular tests)
 - [ ] Phase 17 — Docker + Docker Compose
 - [ ] Phase 18 — Documentation pass

@@ -1,7 +1,8 @@
 # Architecture
 
 > This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, **Phase 12 (human review + audit trail)**,
-**Phase 13 (search, filter & pagination)**, and **Phase 14 (Hangfire background processing)**.
+**Phase 13 (search, filter & pagination)**, **Phase 14 (Hangfire background processing)**, and
+**Phase 15 (Redis caching & distributed locks)**.
 
 ## Solution layout
 
@@ -412,3 +413,71 @@ against the already-populated `IServiceCollection` and can freely replace what `
 already registered — which is what `HangfireWebApplicationFactory` does instead (removing the
 default `IBackgroundJobScheduler` registration and adding the Hangfire one directly, rather than
 trying to influence *which one* `AddInfrastructure` would have chosen).
+
+## Redis caching & distributed locks (Phase 15)
+
+### Two more provider-switch abstractions, sharing one connection
+
+`ICacheService` and `IDistributedLockService` (both Application-layer) follow the identical
+pattern as every other technology abstraction in this codebase — a zero-configuration in-process
+default, and a real Redis-backed implementation behind `Caching:Provider` = `Redis` (both share
+this one switch, and one `IConnectionMultiplexer`, since enabling Redis for one without the other
+would be an unusual, unrequested configuration):
+
+- **`InMemoryCacheService`** (`Microsoft.Extensions.Caching.Memory.IMemoryCache`) / **`RedisCacheService`**
+  (`StackExchange.Redis`, values JSON-serialized) — `ICacheService.GetOrCreateAsync` deliberately
+  never caches a factory *failure*: if the factory throws, the exception propagates and nothing is
+  stored, so the next call retries instead of serving (or being stuck behind) a poisoned entry.
+- **`InMemoryDistributedLockService`** (a `ConcurrentDictionary<string, byte>`, guards one process
+  only) / **`RedisDistributedLockService`** (the standard single-instance Redis lock recipe —
+  `SET key token NX PX expiry` to acquire; release via a Lua script that only deletes the key if it
+  still holds *this* handle's own token, so a handle can never release a lock it no longer owns,
+  e.g. one that already expired and was re-acquired by someone else in the meantime).
+
+Both interfaces are `TryAcquireAsync`/`GetOrCreateAsync`-shaped rather than exposing a raw
+"lock"/"get" primitive: `TryAcquireAsync` never blocks waiting for a lock to free up (returns
+`null` immediately if it's already held) because every actual use in this codebase wants "refuse to
+duplicate this work," never "queue up behind it" — see below.
+
+### Where each is actually used
+
+- **Categories** (`CategoryService.GetActiveAsync`) — read-heavy (the review UI's correction
+  picker fetches this on every page load), write-rare (category management is a later, unbuilt
+  phase — nothing can currently change the active category list at runtime, so there's no
+  invalidation logic to get wrong yet). A plain 5-minute time-based cache is the entire
+  implementation; `RemoveAsync` exists on the interface for whenever category management lands and
+  actually needs to invalidate it.
+- **Statement reprocess concurrency** (`StatementProcessingService.ProcessAsync`) — the real
+  motivation for building `IDistributedLockService` at all. Phase 14 made this method callable
+  from a background worker process, which is exactly what turns "a user double-clicks Reprocess"
+  or "two requests race" from a narrow same-request edge case into a genuine risk: two overlapping
+  runs for the *same* statement would both call `ReplaceForStatementAsync` concurrently and could
+  interleave their writes, corrupting the natural-key matching Phase 12 depends on. `ProcessAsync`
+  now wraps its entire pipeline (extraction through reconciliation) in
+  `TryAcquireAsync($"statement-processing:{statementId}", ...)`; if the lock is already held, it
+  returns the statement's *current* (unchanged) snapshot rather than running a second pass — the
+  in-flight run will still get there. The lock is a 10-minute expiring safety net, not something
+  the caller is expected to wait on.
+
+### Why this needed to be a *distributed* lock, not just a .NET `lock`
+
+An in-process `lock`/`SemaphoreSlim` would already solve the concurrency risk for a single Api
+instance — which is exactly what `InMemoryDistributedLockService` is. But once
+`BackgroundJobs:Provider` = `Hangfire` is active, the actual pipeline execution happens in a
+*separate* `FinancialStatementAI.Worker` process (see Phase 14), and a horizontally-scaled
+deployment could run several such Worker instances. An in-process lock held in one process is
+invisible to another — only a lock backed by a shared store (Redis) actually prevents two Worker
+instances from picking up and running the same statement's job concurrently. `Caching:Provider`
+should be set consistently to `Redis` across the Api and every Worker instance in any deployment
+that also uses `BackgroundJobs:Provider` = `Hangfire` with more than one process — leaving it on
+the in-process default in that configuration silently loses the actual cross-process protection.
+
+### Not tested against a live Redis instance
+
+Consistent with this project's existing precedent for every other real, external-service-backed
+implementation (`AzureOcrService`, `AzureBlobStorageService`, `OpenAiTransactionClassifier`, and
+now `HangfireBackgroundJobScheduler`'s use of real SQL Server storage) — none of which have their
+own tests requiring live credentials or a running service — `RedisCacheService` and
+`RedisDistributedLockService` aren't covered by automated tests here, since no Redis instance is
+available in this environment. `InMemoryCacheService` and `InMemoryDistributedLockService` (the
+default, always-active providers) are fully unit-tested.

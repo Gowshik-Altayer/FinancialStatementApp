@@ -171,7 +171,10 @@ is preserved in the returned transaction's `corrections` array, never overwritte
 ### `GET /api/categories`
 
 Active categories, for the review UI's correction picker. Full category management
-(create/edit/deactivate) is a later phase.
+(create/edit/deactivate) is a later phase. Cached for 5 minutes (Phase 15 — see
+`docs/architecture.md`), since nothing can currently change the active category list at runtime.
+
+- `200 OK` → `{ id, name }[]`
 
 ## Background processing (Phase 14)
 
@@ -187,4 +190,12 @@ job history, retry/delete controls, server status. See `docs/architecture.md` fo
 authorization filter allows every request (an honest limitation of pairing a JWT-only API with an
 interactive dashboard, not a real security boundary) and why it's Development-gated as a result.
 
-- `200 OK` → `{ id, name }[]`
+## Caching & distributed locks (Phase 15)
+
+Also not a REST resource. `Caching:Provider` = `InMemory` (default) or `Redis` controls both
+`ICacheService` (backs the categories cache above) and `IDistributedLockService` (guards
+`reprocess` against a second, overlapping run for the same statement — see
+`docs/architecture.md`). When set to `Redis`, `Caching:Redis:ConnectionString` is required, and
+must point every process (Api and every `FinancialStatementAI.Worker` instance) at the *same*
+Redis — the whole point of Redis over the in-process default is that the cache/lock is shared
+across processes, which only holds if they're all actually configured to use it.
