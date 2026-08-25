@@ -3,6 +3,7 @@ using FinancialStatementAI.Application.Services;
 using FinancialStatementAI.Infrastructure.AI.Classification;
 using FinancialStatementAI.Infrastructure.AI.DocumentIntelligence;
 using FinancialStatementAI.Infrastructure.BackgroundJobs;
+using FinancialStatementAI.Infrastructure.Caching;
 using FinancialStatementAI.Infrastructure.Documents;
 using FinancialStatementAI.Infrastructure.OCR;
 using FinancialStatementAI.Infrastructure.Persistence;
@@ -14,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using StackExchange.Redis;
 
 namespace FinancialStatementAI.Infrastructure;
 
@@ -134,6 +136,26 @@ public static class DependencyInjection
         else
         {
             services.AddScoped<IBackgroundJobScheduler, ImmediateBackgroundJobScheduler>();
+        }
+
+        // Both default to in-process implementations (zero configuration — every existing test
+        // exercises this path). Set "Caching:Provider" = "Redis" plus
+        // "Caching:Redis:ConnectionString" for a real, shared-across-instances Redis backing
+        // (Phase 15) — the same switch covers both ICacheService and IDistributedLockService
+        // since they share one Redis connection when enabled.
+        if (string.Equals(configuration["Caching:Provider"], "Redis", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IConnectionMultiplexer>(_ =>
+                ConnectionMultiplexer.Connect(configuration["Caching:Redis:ConnectionString"]
+                    ?? throw new InvalidOperationException("Caching:Redis:ConnectionString is required when Caching:Provider is Redis.")));
+            services.AddSingleton<ICacheService, RedisCacheService>();
+            services.AddSingleton<IDistributedLockService, RedisDistributedLockService>();
+        }
+        else
+        {
+            services.AddMemoryCache();
+            services.AddSingleton<ICacheService, InMemoryCacheService>();
+            services.AddSingleton<IDistributedLockService, InMemoryDistributedLockService>();
         }
 
         return services;

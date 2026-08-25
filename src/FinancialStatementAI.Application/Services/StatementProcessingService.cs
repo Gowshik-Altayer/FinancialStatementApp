@@ -16,14 +16,30 @@ public class StatementProcessingService(
     IStatementFieldExtractionService statementFieldExtractionService,
     ITransactionExtractionService transactionExtractionService,
     ITransactionClassificationService transactionClassificationService,
-    IReconciliationService reconciliationService) : IStatementProcessingService
+    IReconciliationService reconciliationService,
+    IDistributedLockService distributedLockService) : IStatementProcessingService
 {
+    private static readonly TimeSpan ProcessingLockExpiry = TimeSpan.FromMinutes(10);
+
     public async Task<StatementDetailResponse?> ProcessAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
     {
         var statement = await statementRepository.GetByIdAsync(statementId, cancellationToken);
         if (statement is null || statement.UserId != userId)
         {
             return null;
+        }
+
+        // Guards the entire pipeline below (extraction through reconciliation) against a second,
+        // overlapping run for the *same* statement — a real risk now that Phase 14 makes this
+        // callable from a background worker: a double-clicked Reprocess button, or two Hangfire
+        // attempts racing, could otherwise both call ReplaceForStatementAsync concurrently and
+        // interleave their writes. Refuses to run a second pass rather than risk that, returning
+        // the (unchanged) current state instead — the in-flight run will still get there.
+        await using var processingLock = await distributedLockService.TryAcquireAsync(
+            $"statement-processing:{statementId}", ProcessingLockExpiry, cancellationToken);
+        if (processingLock is null)
+        {
+            return StatementMapper.ToDetailResponse(statement);
         }
 
         string? rawText = null;
