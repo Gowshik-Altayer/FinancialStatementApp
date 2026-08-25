@@ -129,7 +129,7 @@ public class StatementsControllerTests : IClassFixture<CustomWebApplicationFacto
         var listResponse = await client.GetAsync("/api/statements");
         Assert.Equal(HttpStatusCode.OK, listResponse.StatusCode);
         var list = await listResponse.Content.ReadFromJsonAsync<JsonElement>();
-        Assert.Contains(list.EnumerateArray(), s => s.GetProperty("id").GetGuid() == statementId);
+        Assert.Contains(list.GetProperty("items").EnumerateArray(), s => s.GetProperty("id").GetGuid() == statementId);
 
         var detailResponse = await client.GetAsync($"/api/statements/{statementId}");
         Assert.Equal(HttpStatusCode.OK, detailResponse.StatusCode);

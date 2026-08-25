@@ -1,3 +1,4 @@
+using FinancialStatementAI.Application.DTOs.Common;
 using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Domain.Entities;
 using FinancialStatementAI.Domain.Enums;
@@ -189,5 +190,63 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
         transaction.CategoryId = categoryId;
 
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<PagedResult<Transaction>> SearchAsync(
+        Guid userId,
+        string? search,
+        Guid? categoryId,
+        Guid? statementId,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Transactions.Where(t => t.Statement!.UserId == userId);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.ToLower();
+            query = query.Where(t =>
+                t.Description.ToLower().Contains(term) ||
+                (t.Merchant != null && t.Merchant.ToLower().Contains(term)));
+        }
+
+        if (categoryId.HasValue)
+        {
+            query = query.Where(t => t.CategoryId == categoryId.Value);
+        }
+
+        if (statementId.HasValue)
+        {
+            query = query.Where(t => t.StatementId == statementId.Value);
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+
+        // Page over Ids first (a lean query) rather than paginating the fully-hydrated,
+        // multi-Include entity query directly — Skip/Take alongside several one-to-many
+        // Includes is exactly the shape that risks duplicated/incorrect paging in EF Core.
+        var ids = await query
+            .OrderByDescending(t => t.TransactionDate)
+            .ThenByDescending(t => t.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(t => t.Id)
+            .ToListAsync(cancellationToken);
+
+        var hydrated = await dbContext.Transactions
+            .Include(t => t.Statement)
+            .Include(t => t.Category)
+            .Include(t => t.Classifications)
+            .Include(t => t.Corrections)
+            .Where(t => ids.Contains(t.Id))
+            .AsSplitQuery()
+            .AsNoTracking()
+            .ToDictionaryAsync(t => t.Id, cancellationToken);
+
+        // Re-apply the id query's order — the hydration query above has none of its own.
+        var items = ids.Select(id => hydrated[id]).ToList();
+
+        return PagedResult<Transaction>.Create(items, totalCount, page, pageSize);
     }
 }

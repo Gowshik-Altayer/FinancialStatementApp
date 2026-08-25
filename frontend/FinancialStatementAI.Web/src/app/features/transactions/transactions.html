@@ -1,0 +1,39 @@
+<h1>Transactions</h1>
+<p class="subtitle">Every transaction across all of your statements — search, filter by category, and correct as needed.</p>
+
+<div class="filters">
+  <mat-form-field appearance="outline" class="search-field">
+    <mat-label>Search</mat-label>
+    <input matInput placeholder="Description or merchant…" [(ngModel)]="search" (ngModelChange)="onSearchInput()" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Category</mat-label>
+    <mat-select [(ngModel)]="categoryId" (ngModelChange)="onFilterChange()">
+      <mat-option value="">All categories</mat-option>
+      @for (c of categories(); track c.id) {
+        <mat-option [value]="c.id">{{ c.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
+@if (isLoading()) {
+  <mat-spinner diameter="32" />
+} @else if (transactions().length === 0) {
+  <p class="empty-state">No transactions match these filters.</p>
+} @else {
+  <mat-card>
+    <mat-card-content>
+      <app-transaction-table [transactions]="transactions()" [showStatementColumn]="true" />
+    </mat-card-content>
+  </mat-card>
+
+  <mat-paginator
+    [length]="totalCount()"
+    [pageSize]="pageSize"
+    [pageIndex]="pageIndex"
+    [pageSizeOptions]="[10, 20, 50, 100]"
+    (page)="onPage($event)"
+  />
+}

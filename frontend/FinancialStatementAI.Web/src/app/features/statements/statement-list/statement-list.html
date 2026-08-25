@@ -5,48 +5,75 @@
   </a>
 </div>
 
+<div class="filters">
+  <mat-form-field appearance="outline" class="search-field">
+    <mat-label>Search</mat-label>
+    <input matInput placeholder="File name, provider, account holder…" [(ngModel)]="search" (ngModelChange)="onSearchInput()" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Status</mat-label>
+    <mat-select [(ngModel)]="status" (ngModelChange)="onFilterChange()">
+      <mat-option value="">All statuses</mat-option>
+      @for (option of statusOptions; track option) {
+        <mat-option [value]="option">{{ option }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline">
+    <mat-label>Reconciliation</mat-label>
+    <mat-select [(ngModel)]="reconciliationStatus" (ngModelChange)="onFilterChange()">
+      <mat-option value="">All</mat-option>
+      @for (option of reconciliationOptions; track option) {
+        <mat-option [value]="option">{{ option }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+</div>
+
 @if (isLoading()) {
   <mat-spinner diameter="32" />
 } @else if (statements().length === 0) {
-  <p class="empty-state">No statements uploaded yet.</p>
+  <p class="empty-state">No statements match these filters.</p>
 } @else {
-  <table mat-table [dataSource]="statements()" matSort (matSortChange)="sortData($event)" class="mat-elevation-z1">
+  <table mat-table [dataSource]="statements()" class="mat-elevation-z1">
     <ng-container matColumnDef="originalFileName">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>File</th>
+      <th mat-header-cell *matHeaderCellDef>File</th>
       <td mat-cell *matCellDef="let s">
         <a [routerLink]="['/statements', s.id]">{{ s.originalFileName }}</a>
       </td>
     </ng-container>
 
     <ng-container matColumnDef="providerName">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Provider</th>
+      <th mat-header-cell *matHeaderCellDef>Provider</th>
       <td mat-cell *matCellDef="let s">{{ s.providerName ?? '—' }}</td>
     </ng-container>
 
     <ng-container matColumnDef="transactionCount">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Transactions</th>
+      <th mat-header-cell *matHeaderCellDef>Transactions</th>
       <td mat-cell *matCellDef="let s">{{ s.transactionCount }}</td>
     </ng-container>
 
     <ng-container matColumnDef="totalDebits">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Total Debits</th>
+      <th mat-header-cell *matHeaderCellDef>Total Debits</th>
       <td mat-cell *matCellDef="let s">{{ s.totalDebits != null ? (s.totalDebits | number: '1.2-2') : '—' }}</td>
     </ng-container>
 
     <ng-container matColumnDef="totalCredits">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Total Credits</th>
+      <th mat-header-cell *matHeaderCellDef>Total Credits</th>
       <td mat-cell *matCellDef="let s">{{ s.totalCredits != null ? (s.totalCredits | number: '1.2-2') : '—' }}</td>
     </ng-container>
 
     <ng-container matColumnDef="processingStatus">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+      <th mat-header-cell *matHeaderCellDef>Status</th>
       <td mat-cell *matCellDef="let s">
         <mat-chip>{{ s.processingStatus }}</mat-chip>
       </td>
     </ng-container>
 
     <ng-container matColumnDef="reconciliationStatus">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Reconciliation</th>
+      <th mat-header-cell *matHeaderCellDef>Reconciliation</th>
       <td mat-cell *matCellDef="let s">
         @if (s.reconciliationStatus) {
           <mat-chip [class]="'reconciliation-' + s.reconciliationStatus">{{ s.reconciliationStatus }}</mat-chip>
@@ -57,11 +84,19 @@
     </ng-container>
 
     <ng-container matColumnDef="uploadedAt">
-      <th mat-header-cell *matHeaderCellDef mat-sort-header>Uploaded</th>
+      <th mat-header-cell *matHeaderCellDef>Uploaded</th>
       <td mat-cell *matCellDef="let s">{{ s.uploadedAt | date: 'medium' }}</td>
     </ng-container>
 
     <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
     <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
   </table>
+
+  <mat-paginator
+    [length]="totalCount()"
+    [pageSize]="pageSize"
+    [pageIndex]="pageIndex"
+    [pageSizeOptions]="[10, 20, 50, 100]"
+    (page)="onPage($event)"
+  />
 }

@@ -153,7 +153,7 @@ public class ReconciliationIntegrationTests : IClassFixture<CustomWebApplication
 
         var listResponse = await client.GetAsync("/api/statements");
         var list = await listResponse.Content.ReadFromJsonAsync<JsonElement>();
-        var listedStatement = list.EnumerateArray().Single(s => s.GetProperty("id").GetGuid() == statementId);
+        var listedStatement = list.GetProperty("items").EnumerateArray().Single(s => s.GetProperty("id").GetGuid() == statementId);
         Assert.Equal("Mismatch", listedStatement.GetProperty("reconciliationStatus").GetString());
 
         var detailResponse = await client.GetAsync($"/api/statements/{statementId}");

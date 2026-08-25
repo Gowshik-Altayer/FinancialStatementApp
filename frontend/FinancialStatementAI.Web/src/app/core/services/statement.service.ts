@@ -1,7 +1,9 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { StatementDetail, StatementStatus, StatementSummary } from '../../shared/models/statement.model';
+import { StatementQuery } from '../../shared/models/statement-query.model';
+import { PagedResult } from '../../shared/models/paged-result.model';
 
 @Injectable({ providedIn: 'root' })
 export class StatementService {
@@ -13,8 +15,13 @@ export class StatementService {
     return this.http.post<StatementDetail>('/api/statements/upload', formData);
   }
 
-  getAll(): Observable<StatementSummary[]> {
-    return this.http.get<StatementSummary[]>('/api/statements');
+  getAll(query: StatementQuery = {}): Observable<PagedResult<StatementSummary>> {
+    let params = new HttpParams().set('page', String(query.page ?? 1)).set('pageSize', String(query.pageSize ?? 20));
+    if (query.search) params = params.set('search', query.search);
+    if (query.status) params = params.set('status', query.status);
+    if (query.reconciliationStatus) params = params.set('reconciliationStatus', query.reconciliationStatus);
+
+    return this.http.get<PagedResult<StatementSummary>>('/api/statements', { params });
   }
 
   getById(id: string): Observable<StatementDetail> {

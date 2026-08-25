@@ -1,0 +1,24 @@
+.subtitle {
+  color: var(--mat-sys-on-surface-variant);
+  margin-top: -0.5rem;
+  margin-bottom: 1rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+
+  mat-form-field {
+    width: 14rem;
+  }
+
+  .search-field {
+    width: 20rem;
+  }
+}
+
+.empty-state {
+  color: var(--mat-sys-on-surface-variant);
+}

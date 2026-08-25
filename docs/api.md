@@ -3,8 +3,17 @@
 Swagger/OpenAPI is live at `/swagger` in the Development environment (with a Bearer auth scheme
 wired in — use the Authorize button after logging in) for whatever endpoints exist at any given
 point. Endpoints are added phase by phase (Statements/Upload in Phase 6, Reconciliation in
-Phase 11, Transactions/Review in Phase 12, Dashboard/Search in Phase 13); this file is filled in as
-each area is built.
+Phase 11, Transactions/Review in Phase 12, search/filter/pagination in Phase 13); this file is
+filled in as each area is built.
+
+Paginated endpoints all return the same shape:
+
+```json
+{ "items": [ /* ... */ ], "totalCount": 0, "page": 1, "pageSize": 20 }
+```
+
+`page`/`pageSize` are clamped server-side (default page size 20, max 100) rather than trusted
+verbatim from the query string.
 
 ## Authentication (Phase 4)
 
@@ -50,10 +59,19 @@ synchronously (that begins once Hangfire is wired up in Phase 14 and consumes pe
 - `400 Bad Request` → no file, empty file, unsupported type, oversized, corrupted/password-protected PDF, or content/extension mismatch
 - `401 Unauthorized` → missing/invalid token
 
-### `GET /api/statements`
+### `GET /api/statements` (Phase 13: search/filter/pagination)
 
-Returns all statements belonging to the current user, most recently uploaded first. No pagination
-yet — added in Phase 13 once search/filter lands.
+Returns a page of the current user's statements, most recently uploaded first. All query
+parameters are optional:
+
+| Parameter | Meaning |
+|---|---|
+| `search` | Case-insensitive substring match against file name, provider name, or account holder name |
+| `status` | Exact match against `processingStatus` (`Uploaded`, `Processing`, `ExtractionFailed`, `ExtractionComplete`, `ClassificationComplete`, `PendingReview`, `Verified`) |
+| `reconciliationStatus` | Exact match against the statement's *latest* reconciliation status |
+| `page`, `pageSize` | 1-based page number; `pageSize` clamped to 1–100, default 20 |
+
+- `200 OK` → `PagedResult<StatementSummaryResponse>`
 
 ### `GET /api/statements/{id}`
 
@@ -101,7 +119,7 @@ classified transactions and reconciliation result. Only valid from `PendingRevie
 - `400 Bad Request` → the statement isn't currently `PendingReview`
 - `404 Not Found` → doesn't exist or belongs to another user
 
-## Transactions & review (Phase 12)
+## Transactions & review (Phases 12–13)
 
 All endpoints require `Authorization: Bearer <token>`; ownership is enforced the same way as
 Statements (404, not 403, for another user's data).
@@ -123,6 +141,14 @@ The cross-statement human review queue: every transaction belonging to one of th
 likely to need a correction come first).
 
 - `200 OK` → `TransactionResponse[]`
+
+### `GET /api/transactions` (Phase 13: search/filter/pagination)
+
+The "All Transactions" page — every transaction across all of the current user's statements,
+regardless of processing status (unlike the review queue, which is PendingReview-only). Optional
+`search` (description/merchant substring), `categoryId`, `statementId`, `page`, `pageSize`.
+
+- `200 OK` → `PagedResult<TransactionResponse>`
 
 ### `POST /api/transactions/{transactionId}/corrections`
 

@@ -5,24 +5,12 @@ namespace FinancialStatementAI.Application.Services;
 
 /// <summary>Shared Statement -> response-DTO mapping, used by both StatementService (reads) and
 /// StatementProcessingService (writes back the updated statement after processing) so the two
-/// don't drift out of sync with slightly different projections.</summary>
+/// don't drift out of sync with slightly different projections. The statement *list* (Phase 13)
+/// no longer goes through here — StatementRepository.SearchForUserAsync projects straight to
+/// StatementSummaryResponse in SQL instead, to avoid materializing a statement's full
+/// Transactions collection just to count it.</summary>
 public static class StatementMapper
 {
-    public static StatementSummaryResponse ToSummaryResponse(Statement statement) => new()
-    {
-        Id = statement.Id,
-        OriginalFileName = statement.OriginalFileName,
-        ProviderName = statement.ProviderName,
-        StatementPeriodStart = statement.StatementPeriodStart,
-        StatementPeriodEnd = statement.StatementPeriodEnd,
-        TransactionCount = statement.Transactions.Count,
-        TotalDebits = statement.TotalDebits,
-        TotalCredits = statement.TotalCredits,
-        ProcessingStatus = statement.ProcessingStatus.ToString(),
-        ReconciliationStatus = LatestReconciliationStatus(statement),
-        UploadedAt = statement.UploadedAt
-    };
-
     public static StatementDetailResponse ToDetailResponse(Statement statement) => new()
     {
         Id = statement.Id,

@@ -1,6 +1,7 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, and **Phase 12 (human review + audit trail)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, **Phase 12 (human review + audit trail)**, and
+**Phase 13 (search, filter & pagination)**.
 
 ## Solution layout
 
@@ -197,16 +198,19 @@ SDK directly.
   `statement.UserId == userId` and return `null` (→ `404`) rather than distinguishing "not found"
   from "not yours" — leaking the existence of another user's resource via a 403 is itself an
   information disclosure.
-- **Known tradeoff**: `StatementRepository` currently `.Include()`s a statement's `Transactions`
-  just to report `TransactionCount` in list/detail responses. With zero transactions per
-  statement until Phase 9, this is free; Phase 13 (search/pagination) should replace it with a
-  lightweight `COUNT` projection before transaction volume makes it not free.
+- **Resolved (Phase 13)**: `StatementRepository`'s detail/reprocess path (`GetByIdAsync`) still
+  `.Include()`s a statement's `Transactions` for its `TransactionCount` — fine for a single row.
+  The *list* path no longer does: `SearchForUserAsync` projects `TransactionCount` and the latest
+  reconciliation status as SQL subqueries (`s.Transactions.Count`, an `OrderByDescending(...)
+  .FirstOrDefault()` subquery) straight into `StatementSummaryResponse`, never materializing the
+  full `Transactions` collection just to count it.
 
-Angular: `StatementService` (`core/services/`) wraps the three endpoints; `statement-upload`
+Angular: `StatementService` (`core/services/`) wraps the statement endpoints; `statement-upload`
 (drag-and-drop + client-side extension/size pre-check + live preview — `<img>` for images,
 `<embed type="application/pdf">` for PDFs — plus the metadata table requirement #1 asks for),
-`statement-list` (`MatTable` with client-side sort — server-side paging arrives in Phase 13), and
-`statement-detail` now replace the Phase 5 `PlaceholderPage` under `/statements`.
+`statement-list` (search box, status/reconciliation filters, server-side `MatPaginator` — Phase 13
+replaced the earlier client-side-sorted, unpaginated table), and `statement-detail` now replace the
+Phase 5 `PlaceholderPage` under `/statements`.
 
 ## Document processing: text extraction, OCR, and transaction parsing (Phases 7–9)
 
@@ -292,3 +296,35 @@ badges, expandable correction history) is reused by both the statement detail pa
 global Review page (`/review`, previously a placeholder) so the two surfaces can't drift apart in
 behavior. Statement list/detail also now surface `reconciliationStatus` (a Phase 11 field the UI
 hadn't caught up to yet) and a "Mark reviewed" action gated on `PendingReview`.
+
+## Search, filter & pagination (Phase 13)
+
+Two endpoints gain server-side search/filter/pagination, both returning a shared
+`PagedResult<T>` (`{ items, totalCount, page, pageSize }`) rather than a bare array — a breaking
+response-shape change for `GET /api/statements`, accepted deliberately rather than versioning the
+endpoint, since every existing caller (the Angular app, the integration tests) is inside this same
+codebase and updated in the same commit:
+
+- **`GET /api/statements`** — optional `search` (matches file name / provider / account holder,
+  case-insensitive substring), `status`, `reconciliationStatus`, `page`, `pageSize`. Implemented in
+  `StatementRepository.SearchForUserAsync`, which is also where the Phase 6 `TransactionCount`
+  tradeoff finally gets addressed (see above).
+- **`GET /api/transactions`** — optional `search` (description/merchant substring), `categoryId`,
+  `statementId`, `page`, `pageSize` — the new "All Transactions" page, distinct from the
+  single-statement list and the PendingReview-only review queue. `TransactionRepository.SearchAsync`
+  pages over a lean `Select(t => t.Id)` query first, then hydrates exactly that page's entities
+  with their Category/Classifications/Corrections — deliberately not paginating the multi-`Include`
+  query directly, since `Skip`/`Take` combined with several one-to-many `Include`s is the classic
+  shape that silently produces duplicated or missing rows in EF Core.
+
+Both `page`/`pageSize` are clamped server-side in the Application layer
+(`Domain.Constants.PaginationDefaults` — default 20, max 100) rather than trusting whatever a
+client sends, so a request for `pageSize=99999` can't force an unbounded query.
+
+On the frontend, `statement-list` gained a search box, status/reconciliation filters, and a
+`MatPaginator` in place of its old client-side-sorted, unpaginated `MatTable` (client-side sort was
+removed rather than kept alongside server-side paging, since sorting only the current page would be
+misleading). The `/transactions` route — a `PlaceholderPage` since Phase 5 — is now a real page
+reusing Phase 12's shared `TransactionTable` component with the same search/filter/paginate pattern,
+so a transaction can be corrected from either the global list or the per-statement view without two
+different implementations to keep in sync.
