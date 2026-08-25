@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, and **Phase 4 (JWT authentication)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, and **Phase 5 (Angular layout)**.
 
 ## Solution layout
 
@@ -125,6 +125,51 @@ Integration tests (`AuthControllerTests`) exercise the full register → login �
 (and `HealthEndpointTests`) now run against a `CustomWebApplicationFactory` that swaps the real
 SQL Server `AppDbContext` registration for a fresh EF Core InMemory database per test-class
 instance — tests are fully self-contained and don't need a real SQL Server running.
+
+## Angular layout (Phase 5)
+
+`app.routes.ts` splits into three groups:
+
+- `login` / `register` — public, lazy-loaded, outside the authenticated shell.
+- `''` (root) — `Shell` (`core/layout/shell/`, a Material toolbar + sidenav), guarded by
+  `authGuard`, hosting the authenticated child routes (`dashboard`, `statements`,
+  `transactions`, `review`, `reconciliation`, `categories`). Only `dashboard` has a real
+  component today; the rest render `PlaceholderPage` (a route-data-driven stand-in — title/note
+  come from `data: {...}` via `withComponentInputBinding()`) so every nav link and lazy-loaded
+  route already works end-to-end, without pretending a screen is finished before its own phase
+  builds it.
+- `**` — `NotFound`.
+
+**Core** (`core/`) holds singleton, app-wide pieces — not tied to any one feature:
+- `services/auth.service.ts` — holds the current user as a `signal`, persists the `AuthResponse`
+  to `localStorage`, and discards it automatically if the token's `expiresAtUtc` has already
+  passed by the time the service is constructed (e.g. the tab was closed for a day).
+- `guards/auth.guard.ts` (redirects to `/login` if not authenticated) and `guards/role.guard.ts`
+  (factory taking allowed roles, redirects to `/dashboard` otherwise) — both `CanActivateFn`s,
+  the modern functional guard style rather than class-based guards.
+- `interceptors/jwt.interceptor.ts` — attaches `Authorization: Bearer <token>` to every request
+  when a token exists.
+- `interceptors/error.interceptor.ts` — on `401` logs out and redirects to `/login` (an
+  expired/invalid token shouldn't leave the user stuck on a broken screen); on `0` (network
+  unreachable) or `5xx` shows a snack bar with a plain-language message. This is the
+  requirement-#32 "Angular should show user-friendly error messages" baseline; screens that need
+  more specific messaging (e.g. Login's inline "Invalid email or password") layer their own
+  handling on top per-request.
+
+**Why `provideAnimationsAsync()` despite `@angular/animations` being flagged deprecated by
+Angular**: only the imperative `trigger()/state()/animate()` authoring API is deprecated (in
+favor of the new `animate.enter`/`animate.leave` directives for *app-authored* animations).
+Angular Material's own components (menu, sidenav, snack bar) still depend on the animations
+engine internally in this version — omitting the provider entirely breaks the build (Material's
+own bundle imports `@angular/animations/browser`). No custom animation is authored anywhere in
+this app; the dependency exists solely because Material needs it.
+
+Verified end-to-end against the live proxy chain (Angular dev server → `proxy.conf.json` →
+API): routing, the Reactive Forms on Login/Register, the JWT interceptor, and the error
+interceptor's snack bar all confirmed working by actually submitting the Register form in a
+browser. The submission itself got a `500` back (no SQL Server in this sandbox — same limitation
+noted in `docs/database.md`), which was useful in its own right: it confirmed the error
+interceptor's user-friendly-message path end-to-end without needing a database at all.
 
 Further architecture detail (document-processing pipeline, AI classification, reconciliation)
 will be appended here as each phase lands.

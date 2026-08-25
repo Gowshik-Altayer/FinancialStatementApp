@@ -499,3 +499,8 @@ yarn-error.log*
 .env
 .env.*
 
+##
+## Claude Code tooling (local dev-preview config, not part of the app)
+##
+/.claude/
+
