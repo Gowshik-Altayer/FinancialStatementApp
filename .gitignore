@@ -499,6 +499,7 @@ yarn-error.log*
 *.local.json
 .env
 .env.*
+!.env.example
 
 ##
 ## Claude Code tooling (local dev-preview config, not part of the app)

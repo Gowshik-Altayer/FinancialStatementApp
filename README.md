@@ -6,7 +6,7 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 16 of 18 complete.** See [Development Phases](#development-phases) below. Each
+**Status: Phase 17 of 18 complete.** See [Development Phases](#development-phases) below. Each
 phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
 for the full history.
 
@@ -34,18 +34,20 @@ for the full history.
 ```
 FinancialStatementAI.sln
 ├── src/
-│   ├── FinancialStatementAI.Api             ASP.NET Core Web API (controllers, DI composition root)
+│   ├── FinancialStatementAI.Api             ASP.NET Core Web API (controllers, DI composition root, Dockerfile)
 │   ├── FinancialStatementAI.Application     Use cases, DTOs, interfaces, validators
 │   ├── FinancialStatementAI.Domain          Entities, enums, value objects — no dependencies
 │   ├── FinancialStatementAI.Infrastructure  EF Core, OCR/AI/storage implementations, Hangfire, Redis
-│   └── FinancialStatementAI.Worker          Background worker host
+│   └── FinancialStatementAI.Worker          Background worker host (Dockerfile)
 ├── tests/
 │   ├── FinancialStatementAI.UnitTests
 │   └── FinancialStatementAI.IntegrationTests
 ├── frontend/
-│   └── FinancialStatementAI.Web             Angular app (also wired into the .sln via .esproj)
+│   └── FinancialStatementAI.Web             Angular app (also wired into the .sln via .esproj; Dockerfile + nginx.conf)
 ├── docs/                                    architecture.md, api.md, database.md, ai-processing.md
-└── sample-data/                             Sample statements for exercising the pipeline
+├── sample-data/                             Sample statements for exercising the pipeline
+├── docker-compose.yml                       Full stack: SQL Server, Redis, Api, Worker, Web (Phase 17)
+└── .env.example                             Template for docker-compose.yml's required secrets
 ```
 
 Dependency direction follows Clean Architecture: `Api`/`Worker` → `Application` → `Domain`, with
@@ -190,6 +192,42 @@ Server=localhost;Database=FinancialStatementAI;Trusted_Connection=True;TrustServ
 Server=localhost;Database=FinancialStatementAI;User Id=sa;Password=YOUR_PASSWORD;TrustServerCertificate=True;
 ```
 
+## Running with Docker Compose (Phase 17)
+
+`docker-compose.yml` runs the full stack — SQL Server, Redis, the Api, the Worker, and the Angular
+app behind nginx — with `BackgroundJobs:Provider=Hangfire` and `Caching:Provider=Redis` (not the
+zero-config in-process defaults every automated test uses), so this is also the easiest way to
+actually see the Hangfire/Redis code paths run for real rather than just reading about them.
+
+```bash
+cp .env.example .env
+# edit .env: set MSSQL_SA_PASSWORD (must meet SQL Server's complexity policy) and JWT_SIGNING_KEY
+
+docker compose up --build
+```
+
+Then open:
+- **http://localhost:4200** — the Angular app (nginx, reverse-proxying `/api` and `/health` to the Api container)
+- **http://localhost:5000/swagger** — Swagger UI directly against the Api container
+- **http://localhost:5000/hangfire** — the Hangfire Dashboard (job history, retries, server status)
+
+`docker compose down` stops everything; add `-v` to also drop the `sqlserver-data`/`uploads-data`
+volumes (irreversibly — the database and any uploaded statements are gone).
+
+**Individual images** (e.g. to push to a registry) build from the repository root for the two
+backend services, since their Dockerfiles need the sibling project references:
+
+```bash
+docker build -f src/FinancialStatementAI.Api/Dockerfile -t financialstatementai-api .
+docker build -f src/FinancialStatementAI.Worker/Dockerfile -t financialstatementai-worker .
+docker build -t financialstatementai-web frontend/FinancialStatementAI.Web
+```
+
+**Note on this environment**: these Dockerfiles and this compose file were written and reviewed
+carefully but could not be built or run here — no Docker daemon is available in this development
+sandbox. Verify with `docker compose up --build` in an environment where Docker is running before
+relying on them.
+
 ## Development phases
 
 This project is built and committed phase by phase, each on its own branch, per the plan below.
@@ -210,8 +248,8 @@ Completed phases are checked off as they land.
 - [x] Phase 13 — Search / filter / pagination
 - [x] Phase 14 — Hangfire background processing
 - [x] Phase 15 — Redis caching / distributed locks
-- [x] **Phase 16** — Testing (backend xUnit/Moq/FluentAssertions, Angular tests)
-- [ ] Phase 17 — Docker + Docker Compose
+- [x] Phase 16 — Testing (backend xUnit/Moq/FluentAssertions, Angular tests)
+- [x] **Phase 17** — Docker + Docker Compose
 - [ ] Phase 18 — Documentation pass
 
 ## AI usage disclosure

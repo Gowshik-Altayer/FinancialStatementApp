@@ -1,0 +1,95 @@
+# Full-stack demo: real SQL Server + Redis + Hangfire (BackgroundJobs:Provider=Hangfire,
+# Caching:Provider=Redis) rather than the zero-config in-process defaults every automated test
+# uses — this is meant to actually exercise the Worker/Redis/Hangfire code paths end-to-end, not
+# just prove the app starts. Copy .env.example to .env and set MSSQL_SA_PASSWORD/JWT_SIGNING_KEY
+# before running `docker compose up --build`. See README.md for full instructions.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env — see README}"
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q 'SELECT 1' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: src/FinancialStatementAI.Api/Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      # Development, deliberately, even in this "full-stack" compose file: it's what enables
+      # Swagger, the Hangfire dashboard, and Program.cs's own migrate-and-seed-on-startup
+      # convenience block (which only ever runs in Development — see Program.cs) — without it,
+      # nothing would create the database schema at all in this compose setup. A real production
+      # deployment would apply migrations explicitly instead and run Production.
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=FinancialStatementAI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      Jwt__SigningKey: "${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env — see README}"
+      FileStorage__Provider: "Local"
+      FileStorage__Local__RootPath: "/app/App_Data/uploads"
+      BackgroundJobs__Provider: "Hangfire"
+      Hangfire__Storage: "SqlServer"
+      Caching__Provider: "Redis"
+      Caching__Redis__ConnectionString: "redis:6379"
+    volumes:
+      - uploads-data:/app/App_Data/uploads
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/FinancialStatementAI.Worker/Dockerfile
+    environment:
+      ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=FinancialStatementAI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      BackgroundJobs__Provider: "Hangfire"
+      Hangfire__Storage: "SqlServer"
+      Caching__Provider: "Redis"
+      Caching__Redis__ConnectionString: "redis:6379"
+    depends_on:
+      sqlserver:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      # Not a guarantee api has finished migrating the database by the time worker starts — only
+      # that its container has started — since Compose has no built-in way to wait on "an
+      # arbitrary in-app startup step finished". In practice Hangfire's own SQL Server storage
+      # creates its schema lazily on first use regardless of ordering, and any transient failure
+      # here is retried by Hangfire's own job/server retry behavior.
+      api:
+        condition: service_started
+
+  web:
+    build:
+      context: frontend/FinancialStatementAI.Web
+    ports:
+      - "4200:80"
+    depends_on:
+      - api
+
+volumes:
+  sqlserver-data:
+  uploads-data:
