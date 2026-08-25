@@ -1,5 +1,6 @@
 using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Domain.Entities;
+using FinancialStatementAI.Domain.Enums;
 using FinancialStatementAI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -49,6 +50,44 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
         }
 
         dbContext.Transactions.AddRange(newTransactions);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Transaction>> GetByStatementIdAsync(Guid statementId, CancellationToken cancellationToken = default) =>
+        await dbContext.Transactions
+            .Where(t => t.StatementId == statementId)
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+    public async Task ApplyClassificationAsync(
+        Guid transactionId,
+        Guid categoryId,
+        decimal confidenceScore,
+        ClassificationMethod method,
+        string? reason,
+        CancellationToken cancellationToken = default)
+    {
+        var previousCurrent = await dbContext.TransactionClassifications
+            .Where(c => c.TransactionId == transactionId && c.IsCurrent)
+            .ToListAsync(cancellationToken);
+        foreach (var previous in previousCurrent)
+        {
+            previous.IsCurrent = false;
+        }
+
+        dbContext.TransactionClassifications.Add(new TransactionClassification
+        {
+            TransactionId = transactionId,
+            CategoryId = categoryId,
+            ConfidenceScore = confidenceScore,
+            ClassificationMethod = method,
+            Reason = reason,
+            IsCurrent = true
+        });
+
+        var transaction = await dbContext.Transactions.SingleAsync(t => t.Id == transactionId, cancellationToken);
+        transaction.CategoryId = categoryId;
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

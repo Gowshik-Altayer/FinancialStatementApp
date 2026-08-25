@@ -65,15 +65,15 @@ to someone else.
 Lightweight `{ id, processingStatus, uploadedAt, processedAt }` — meant for polling processing
 progress once background processing exists (Phase 14) without pulling the full detail payload.
 
-### `POST /api/statements/{id}/reprocess` (Phases 7–9)
+### `POST /api/statements/{id}/reprocess` (Phases 7–10)
 
-Runs the full extraction pipeline (direct PDF text or OCR fallback, statement-field extraction,
-transaction parsing/normalization — see `docs/ai-processing.md`) and returns the updated
-`StatementDetailResponse`, including `hasUsableText`, `extractedPageCount`, `extractionMethod`
-(`"DirectPdfText"` or `"Ocr"`), and an updated `transactionCount`. Runs synchronously today; from
-Phase 14 onward this enqueues a Hangfire job and returns `202 Accepted` instead, without changing
-the URL or verb. Re-running it replaces the statement's own previously parsed transactions rather
-than duplicating them.
+Runs the full pipeline (direct PDF text or OCR fallback, statement-field extraction, transaction
+parsing/normalization, then AI classification — see `docs/ai-processing.md`) and returns the
+updated `StatementDetailResponse`, including `hasUsableText`, `extractedPageCount`,
+`extractionMethod` (`"DirectPdfText"` or `"Ocr"`), and an updated `transactionCount`. Runs
+synchronously today; from Phase 14 onward this enqueues a Hangfire job and returns `202 Accepted`
+instead, without changing the URL or verb. Re-running it replaces the statement's own previously
+parsed transactions and reclassifies them from scratch rather than accumulating duplicates.
 
 - `200 OK` → updated `StatementDetailResponse`
 - `404 Not Found` → doesn't exist or belongs to another user

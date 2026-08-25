@@ -1,9 +1,9 @@
 # AI / Document Processing
 
 > Built up phase by phase. This revision covers **Phase 7 (direct PDF text extraction and the
-> OCR-vs-direct decision)**, **Phase 8 (OCR / Document Intelligence abstractions)**, and
-> **Phase 9 (transaction extraction and normalization)**. Classification (Phase 10) and
-> reconciliation (Phase 11) will extend this document as they land.
+> OCR-vs-direct decision)**, **Phase 8 (OCR / Document Intelligence abstractions)**,
+> **Phase 9 (transaction extraction and normalization)**, and **Phase 10 (AI classification)**.
+> Reconciliation (Phase 11) will extend this document as it lands.
 
 ## How we determine whether OCR is required
 
@@ -169,6 +169,93 @@ transaction that matches one already belonging to a *different* statement of the
 `{TransactionDate, Amount, Merchant}`. A flagged transaction still gets saved with
 `IsPotentialDuplicate = true` and `DuplicateOfTransactionId` pointing at the original, surfaced
 for human review (Phase 12) rather than silently dropped.
+
+## AI classification (Phase 10)
+
+### The hybrid ladder, in order, and why each rung exists before the next
+
+`TransactionClassificationService` tries four rungs in order and stops at the first confident
+match, per requirement #17:
+
+1. **Rules** (`Domain.Constants.ClassificationKeywordRules`) — structural keywords checked
+   against the transaction's **description** (not the merchant field — see "a subtle bug" below):
+   `"PAYROLL"` → Payroll, `"RENT PAYMENT"` → Rent, `"OVERDRAFT FEE"` → Bank Fee, etc. These are
+   checked *first*, ahead of merchant matching, because they're more reliable than any merchant
+   name pattern could be for this class of transaction — a payroll deposit is Payroll no matter
+   which bank's payroll system issued it.
+2. **Merchant Mapping** (`Domain.Entities.MerchantMapping`, seeded from
+   `DefaultMerchantMappings` — the exact examples from the challenge doc: `"UBER"` →
+   Transportation, `"WHOLE FOODS"` → Groceries, `"AWS"` → Software & SaaS, `"DELTA AIR"` →
+   Travel — plus other common, unambiguous merchants). A genuinely extensible table (requirement
+   #6), not a hardcoded switch statement — any admin could add a row without a code change.
+3. **Known Classification** — has a human already corrected *this exact merchant* to a specific
+   category before (for this user)? `IClassificationHistoryRepository` looks at
+   `TransactionCorrection` rows with `FieldName = Category`. This is literally how a human
+   correction improves future classification (requirement #9's reasoning question #10) — no
+   retraining involved, just checking whether the answer is already known.
+4. **LLM** (`ITransactionClassifier`) — only reached when none of the above matched. Requirement
+   #46 ("don't send every transaction to the LLM") is enforced structurally: the LLM is
+   physically the last thing tried, not a policy that has to be remembered.
+
+### A subtle bug this ladder's design caught (and fixed) during testing
+
+The keyword-rule check was originally written against `transaction.Merchant ?? transaction
+.Description` — the same "primary text" used for merchant mapping and the LLM. A unit test using
+a transaction with `Merchant = "SOME BANK"` and `Description = "PAYROLL DEPOSIT FROM EMPLOYER"`
+exposed that this missed the rule entirely (it checked "SOME BANK" for "PAYROLL", not the
+description). In production this can't happen today — Phase 9's parser always sets
+`Merchant = Description` — but it's a real latent bug for whenever merchant-name cleanup
+diverges the two fields, so the rule check was changed to test `transaction.Description`
+specifically, which is where structural keywords actually live.
+
+### Never trusting the LLM's output (requirement #15)
+
+`TransactionClassificationService` validates the category name the LLM returns against the
+actual seeded category list before accepting it. If the LLM invents a category that doesn't
+exist (tested explicitly — see `An_Invalid_Category_From_The_Llm_Is_Never_Trusted_And_Falls_Back
+_To_Other`), the transaction is reassigned to `Other` and the confidence is force-capped just
+under the "review recommended" threshold, so it's guaranteed to surface for human review rather
+than silently keeping a wrong result.
+
+### Confidence thresholds
+
+`Domain.Constants.ClassificationConfidenceThresholds` mirrors the challenge's own example
+exactly: `>= 0.80` high confidence, `0.60–0.79` review recommended, `< 0.60` review required.
+Each rung's confidence reflects how much it should be trusted: Rules and Known Classification are
+`0.95` (a keyword match or a human's own prior correction are about as certain as this system
+gets), Merchant Mapping is `0.90`, and the LLM's confidence is whatever it reports (validated,
+never blindly inflated).
+
+### `MockTransactionClassifier` is deliberately honest, not falsely confident
+
+With no real LLM configured (the default), classifying a merchant none of the first three rungs
+recognized always returns `Other` at `0.50` confidence — landing squarely in "review required."
+This mirrors the same design decision as Phase 8's Mock OCR/Document Intelligence services: a
+confident-looking wrong guess is worse than an honest "we don't know." Set
+`Classification:Provider` to `OpenAI` or `AzureOpenAI` (plus the matching endpoint/key via User
+Secrets) for real LLM classification — `OpenAiTransactionClassifier` and
+`AzureOpenAiTransactionClassifier` share one prompt/JSON-parsing implementation
+(`ChatCompletionClassifierCore`), since Azure OpenAI's 2.x SDK generation exposes the same
+`ChatClient` type as the plain OpenAI client and only differs in how that client is constructed.
+
+### AI cost tracking (requirement #46)
+
+Every LLM call — success or failure — is logged as one `AIRequest` row (provider, duration,
+success/failure) *only* when the LLM is actually reached; Rules/Merchant Mapping/Known
+Classification hits never touch this table, since they never called an LLM. This is the concrete
+mechanism behind "don't send every transaction to the LLM, and track what you do send."
+
+### Known limitation: reprocessing does not yet preserve classification/correction history
+
+`ITransactionRepository.ReplaceForStatementAsync` (Phase 9) deletes and recreates a statement's
+transactions wholesale on every reprocess, rather than updating matching rows in place. That
+means today, reprocessing a statement that already has human corrections or prior classifications
+would discard them along with the recreated `Transaction` rows (cascade-deleted with them) —
+tested and documented rather than silently accepted (see
+`Reprocessing_Yields_One_Transaction_With_One_Current_Classification`). Phase 12 (human review)
+will need to address this — most likely by matching parsed transactions against existing ones on
+a natural key (date + amount + description) and updating in place instead of replacing, once
+corrections exist to actually preserve.
 
 ## Trigger: synchronous today, background job from Phase 14
 

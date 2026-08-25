@@ -84,21 +84,33 @@ public class Program
             app.UseSwagger();
             app.UseSwaggerUI();
 
-            // Dev convenience only: apply pending migrations and seed default categories.
-            // Non-fatal if SQL Server isn't reachable yet (e.g. first run before it's
-            // installed, or under a test host with no database configured) so the rest of
-            // the API still starts; production deployments apply migrations explicitly.
+            // Dev convenience only: apply pending migrations and seed default data. Migration
+            // and seeding are in separate try/catch blocks deliberately — the EF Core InMemory
+            // provider (used by integration tests' CustomWebApplicationFactory) doesn't support
+            // MigrateAsync at all, and that failure must not prevent seeding from running.
+            // Non-fatal if SQL Server isn't reachable yet either (e.g. first run before it's
+            // installed) so the rest of the API still starts; production deployments apply
+            // migrations explicitly instead of relying on this block.
             using var scope = app.Services.CreateScope();
             var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
             try
             {
                 await dbContext.Database.MigrateAsync();
-                await CategorySeeder.SeedAsync(dbContext);
             }
             catch (Exception ex)
             {
-                logger.LogWarning(ex, "Skipping database migration/seed — database not reachable.");
+                logger.LogWarning(ex, "Skipping database migration — database not reachable or migrations not supported by this provider.");
+            }
+
+            try
+            {
+                await CategorySeeder.SeedAsync(dbContext);
+                await MerchantMappingSeeder.SeedAsync(dbContext);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Skipping database seed — database not reachable.");
             }
         }
 

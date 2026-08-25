@@ -6,7 +6,7 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 9 of 18 complete.** See [Development Phases](#development-phases) below. Each
+**Status: Phase 10 of 18 complete.** See [Development Phases](#development-phases) below. Each
 phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
 for the full history.
 
@@ -148,6 +148,17 @@ dotnet user-secrets set "Azure:DocumentIntelligence:Endpoint" "https://<resource
 dotnet user-secrets set "Azure:DocumentIntelligence:ApiKey" "..."
 ```
 
+Transaction classification defaults to a Mock LLM (honest low-confidence "Other" for anything
+Rules/Merchant Mapping/prior corrections can't place — see `docs/ai-processing.md`). To use a
+real LLM, set `Classification:Provider` to `OpenAI` or `AzureOpenAI`:
+```bash
+dotnet user-secrets set "OpenAI:ApiKey" "sk-..."
+# or
+dotnet user-secrets set "Azure:OpenAI:Endpoint" "https://<resource>.openai.azure.com/"
+dotnet user-secrets set "Azure:OpenAI:ApiKey" "..."
+dotnet user-secrets set "Azure:OpenAI:DeploymentName" "gpt-4o-mini"
+```
+
 Example SQL Server connection strings:
 
 ```
@@ -171,8 +182,8 @@ Completed phases are checked off as they land.
 - [x] Phase 6 — File upload (Angular + API + validation + storage + Statement creation)
 - [x] Phase 7 — Digital PDF text extraction + text-quality detection
 - [x] Phase 8 — OCR / Document Intelligence / Vision abstraction
-- [x] **Phase 9** — Transaction extraction + normalization
-- [ ] Phase 10 — AI classification (rules → merchant mapping → LLM → confidence)
+- [x] Phase 9 — Transaction extraction + normalization
+- [x] **Phase 10** — AI classification (rules → merchant mapping → LLM → confidence)
 - [ ] Phase 11 — Reconciliation (deterministic financial calculations)
 - [ ] Phase 12 — Human review UI + audit trail (original vs. corrected values)
 - [ ] Phase 13 — Search / filter / pagination

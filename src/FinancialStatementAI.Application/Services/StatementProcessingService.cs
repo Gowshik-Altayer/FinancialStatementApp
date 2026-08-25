@@ -14,7 +14,8 @@ public class StatementProcessingService(
     IPdfTextExtractionService pdfTextExtractionService,
     IOcrService ocrService,
     IStatementFieldExtractionService statementFieldExtractionService,
-    ITransactionExtractionService transactionExtractionService) : IStatementProcessingService
+    ITransactionExtractionService transactionExtractionService,
+    ITransactionClassificationService transactionClassificationService) : IStatementProcessingService
 {
     public async Task<StatementDetailResponse?> ProcessAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
     {
@@ -55,7 +56,9 @@ public class StatementProcessingService(
             var transactions = parsedTransactions.Select(p => ToTransactionEntity(statementId, p, method));
             await transactionRepository.ReplaceForStatementAsync(statementId, userId, transactions, cancellationToken);
 
-            await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.ExtractionComplete, DateTime.UtcNow, cancellationToken);
+            await transactionClassificationService.ClassifyStatementTransactionsAsync(statementId, userId, cancellationToken);
+
+            await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.ClassificationComplete, DateTime.UtcNow, cancellationToken);
         }
 
         var updated = await statementRepository.GetByIdAsync(statementId, cancellationToken);

@@ -9,6 +9,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<Statement> Statements => Set<Statement>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Category> Categories => Set<Category>();
+    public DbSet<MerchantMapping> MerchantMappings => Set<MerchantMapping>();
     public DbSet<StatementExtraction> StatementExtractions => Set<StatementExtraction>();
     public DbSet<TransactionExtraction> TransactionExtractions => Set<TransactionExtraction>();
     public DbSet<TransactionClassification> TransactionClassifications => Set<TransactionClassification>();
