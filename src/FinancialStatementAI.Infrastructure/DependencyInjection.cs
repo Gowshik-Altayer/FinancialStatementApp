@@ -33,8 +33,11 @@ public static class DependencyInjection
         services.AddScoped<IStatementRepository, StatementRepository>();
         services.AddScoped<IProcessingJobRepository, ProcessingJobRepository>();
         services.AddScoped<IStatementExtractionRepository, StatementExtractionRepository>();
+        services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddSingleton<IStatementFileValidator, StatementFileValidator>();
         services.AddSingleton<IPdfTextExtractionService, PdfTextExtractionService>();
+        services.AddSingleton<ITransactionExtractionService, TransactionExtractionService>();
+        services.AddSingleton<IStatementFieldExtractionService, StatementFieldExtractionService>();
 
         services.Configure<LocalFileStorageOptions>(configuration.GetSection(LocalFileStorageOptions.SectionName));
         services.Configure<AzureBlobStorageOptions>(configuration.GetSection(AzureBlobStorageOptions.SectionName));

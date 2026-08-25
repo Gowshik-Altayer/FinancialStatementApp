@@ -1,9 +1,9 @@
 # AI / Document Processing
 
 > Built up phase by phase. This revision covers **Phase 7 (direct PDF text extraction and the
-> OCR-vs-direct decision)** and **Phase 8 (OCR / Document Intelligence abstractions)**.
-> Transaction extraction/normalization (Phase 9), classification (Phase 10), and reconciliation
-> (Phase 11) will extend this document as they land.
+> OCR-vs-direct decision)**, **Phase 8 (OCR / Document Intelligence abstractions)**, and
+> **Phase 9 (transaction extraction and normalization)**. Classification (Phase 10) and
+> reconciliation (Phase 11) will extend this document as they land.
 
 ## How we determine whether OCR is required
 
@@ -99,6 +99,76 @@ extracting from the raw text OCR/direct-extraction already produced. The abstrac
 wired into DI and ready to use (e.g. for pulling `AccountNumber`/`StatementDate` fields more
 reliably from a known layout), but isn't yet called from the processing pipeline — a defensible,
 documented scope boundary rather than a silent gap.
+
+## Transaction extraction and normalization (Phase 9)
+
+### Why rule-based, not LLM-based
+
+`TransactionExtractionService` is a deterministic regex/rule parser, not an LLM call. This is a
+deliberate choice, not a shortcut: extracting an exact date and an exact amount is precisely the
+kind of task where an LLM's failure mode (a plausible-looking but wrong number) is most
+dangerous — requirement #16 draws a hard line that dates, amounts, and reference numbers must
+never be invented or "corrected" by AI, only read verbatim from the source. A rule-based parser
+either finds the value in the text or doesn't; it cannot hallucinate a value that isn't there.
+LLM/AI involvement is reserved for Phase 10's classification, where interpreting what a merchant
+name *means* (judgment) is fundamentally different from reading what a date or amount *is*
+(extraction).
+
+### How transaction rows are identified
+
+For each line of the raw extracted text (from Phase 7/8):
+1. Try to match a date at the start of the line, trying three shapes in order: `MM/DD[/YYYY]` or
+   `MM-DD[-YYYY]`, `DD-Mon` (e.g. `01-Aug`), and `Mon DD` (e.g. `Aug 01`) — covering all three
+   example formats in the challenge doc plus the with-year variants.
+2. If a date matched, look for a trailing amount token in the rest of the line — one requiring
+   **exactly two decimal places** (`\.\d{2}`). This is deliberate: without it, a bare reference
+   number elsewhere on the line (e.g. `REF 123456`) would be mistaken for an amount. The
+   documented tradeoff is that a statement showing whole-dollar amounts with no decimal point
+   wouldn't be recognized — not handled by real-world statement conventions, which reliably
+   include cents.
+3. If both a date and an amount are found, that line is a transaction. If a line has neither
+   (e.g. a header, a footer, "Thank you for banking with us"), it's silently skipped — one
+   unparseable line never fails the whole statement (requirement #14).
+4. A line with **no** leading date is treated as a **continuation of the previous transaction's
+   description** — this is how wrapped/multi-line descriptions (requirement #5) are handled: the
+   overflow line has no date or amount of its own, so it naturally falls into this branch.
+
+### Normalizing dates, amounts, and direction
+
+- **Dates**: since most statement lines omit the year (`01/08`, not `01/08/2026`), a reference
+  year is threaded through from `IStatementFieldExtractionService`'s best guess at the statement
+  period (falling back to the current year if that wasn't found either — see the limitation
+  noted below).
+- **Amounts**: currency symbols (`$`/`€`/`£`), thousands separators (`,`), and parentheses are
+  all stripped/interpreted before parsing; a symbol also sets the transaction's `Currency`.
+- **Direction (Debit/Credit/Payment/Transfer/etc.)**: checked in priority order — an explicit
+  pipe-delimited `Debit`/`Credit` segment (the challenge's second example format) wins outright;
+  otherwise explicit keywords in the line (`credit`, `refund`, `transfer`, `payment`, `debit`,
+  `purchase`) are checked next; only if none of those match does it fall back to the bare sign
+  (negative/parenthesized/`DR`-suffixed → Debit, everything else → Credit). This ordering matters
+  because bank and credit-card statements don't agree on sign convention (a credit card shows
+  purchases as positive, a checking account shows them as negative) — keywords are a more
+  reliable signal than sign alone whenever they're present.
+
+### Known limitation: statement period/year detection is best-effort
+
+`StatementFieldExtractionService`'s label-driven regex approach (`"Opening Balance $1,000.00"`,
+etc.) does not yet parse date **ranges** (`"Statement Period: 01/01/2026 - 01/31/2026"`) — only
+single labeled amounts and short text fields. When the statement period can't be determined, the
+transaction parser's reference year falls back to the current calendar year, which is wrong for
+statements from a different year. This is flagged rather than silently accepted: a natural
+follow-up would extend `StatementFieldExtractionService` with a date-range pattern once real
+statement samples are available to test it against.
+
+### Duplicate detection (requirement #21)
+
+`TransactionRepository.ReplaceForStatementAsync` does two things in one pass: it replaces
+whatever transactions this *same* statement had from a prior parse (so reprocessing doesn't
+accumulate duplicates of its own previous attempt), and it flags — never deletes — any new
+transaction that matches one already belonging to a *different* statement of the same user on
+`{TransactionDate, Amount, Merchant}`. A flagged transaction still gets saved with
+`IsPotentialDuplicate = true` and `DuplicateOfTransactionId` pointing at the original, surfaced
+for human review (Phase 12) rather than silently dropped.
 
 ## Trigger: synchronous today, background job from Phase 14
 
