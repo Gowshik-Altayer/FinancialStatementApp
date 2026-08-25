@@ -1,4 +1,7 @@
+using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Infrastructure.Persistence;
+using FinancialStatementAI.Infrastructure.Repositories;
+using FinancialStatementAI.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +19,12 @@ public static class DependencyInjection
     {
         services.AddDbContext<AppDbContext>(options =>
             options.UseSqlServer(configuration.GetConnectionString("DefaultConnection")));
+
+        services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
+
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
 
         return services;
     }

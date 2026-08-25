@@ -1,13 +1,12 @@
 using System.Net;
-using Microsoft.AspNetCore.Mvc.Testing;
 
 namespace FinancialStatementAI.IntegrationTests;
 
-public class HealthEndpointTests : IClassFixture<WebApplicationFactory<FinancialStatementAI.Api.Program>>
+public class HealthEndpointTests : IClassFixture<CustomWebApplicationFactory>
 {
-    private readonly WebApplicationFactory<FinancialStatementAI.Api.Program> _factory;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public HealthEndpointTests(WebApplicationFactory<FinancialStatementAI.Api.Program> factory)
+    public HealthEndpointTests(CustomWebApplicationFactory factory)
     {
         _factory = factory;
     }

@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, and **Phase 3 (SQL Server + EF Core)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, and **Phase 4 (JWT authentication)**.
 
 ## Solution layout
 
@@ -95,6 +95,36 @@ respectively — see [docs/database.md](database.md) for the full schema, the re
 which tables are append-only audit logs vs. mutable current-state rows, and delete-behavior
 choices. `AddInfrastructure()` (the Phase 2 composition root) now registers `AppDbContext` against
 the `DefaultConnection` connection string.
+
+## Authentication (Phase 4)
+
+`POST /api/auth/register` and `POST /api/auth/login` (`Api/Controllers/AuthController.cs`) are
+thin — validation via `IValidator<T>` (FluentValidation), then delegate to `IAuthService`
+(`Application/Services/AuthService.cs`), which depends only on three Application-defined
+interfaces: `IUserRepository`, `IPasswordHasher`, `IJwtTokenGenerator`. Infrastructure implements
+all three (`Infrastructure/Repositories/UserRepository.cs`, `Infrastructure/Security/`) — the
+Application layer never references EF Core or any JWT library directly, keeping the dependency
+rule intact.
+
+- **Passwords**: PBKDF2-HMAC-SHA256, 210,000 iterations, random 16-byte salt per hash
+  (`PasswordHasher`). No `Microsoft.AspNetCore.Identity` dependency pulled in for something this
+  self-contained.
+- **Tokens**: HMAC-SHA256-signed JWTs (`JwtTokenGenerator`), standard claims (`sub`, `email`,
+  `jti`) plus an explicit `ClaimTypes.Role` claim (the claim `[Authorize(Roles = "...")]` checks
+  by default). Settings (`Issuer`, `Audience`, `ExpiryMinutes`) live in `appsettings.json`;
+  `SigningKey` is deliberately absent there — see Connection strings & secrets in the root README.
+  A **development-only placeholder key** lives in `appsettings.Development.json`, clearly labeled;
+  production must override it via User Secrets or an environment variable.
+- **Roles**: `Admin` / `User` / `Reviewer` (`Domain.Enums.UserRole`). New registrations always get
+  `User` — role elevation is an admin action, not something the register endpoint exposes.
+- **Swagger** has a Bearer auth scheme wired in (Authorize button in the UI) so protected
+  endpoints can be exercised directly from `/swagger` during development/demo.
+
+Integration tests (`AuthControllerTests`) exercise the full register → login → authenticated
+`GET /api/auth/me` flow, plus duplicate-email, wrong-password, and validation-failure cases. These
+(and `HealthEndpointTests`) now run against a `CustomWebApplicationFactory` that swaps the real
+SQL Server `AppDbContext` registration for a fresh EF Core InMemory database per test-class
+instance — tests are fully self-contained and don't need a real SQL Server running.
 
 Further architecture detail (document-processing pipeline, AI classification, reconciliation)
 will be appended here as each phase lands.
