@@ -1,5 +1,6 @@
 using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Domain.Entities;
+using FinancialStatementAI.Domain.Enums;
 using FinancialStatementAI.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,7 @@ public class StatementRepository(AppDbContext dbContext) : IStatementRepository
     public Task<Statement?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
         dbContext.Statements
             .Include(s => s.Transactions)
+            .Include(s => s.StatementExtraction)
             .AsSplitQuery()
             .AsNoTracking()
             .SingleOrDefaultAsync(s => s.Id == id, cancellationToken);
@@ -23,8 +25,25 @@ public class StatementRepository(AppDbContext dbContext) : IStatementRepository
     public async Task<IReadOnlyList<Statement>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default) =>
         await dbContext.Statements
             .Include(s => s.Transactions)
+            .Include(s => s.StatementExtraction)
             .AsSplitQuery()
             .AsNoTracking()
             .Where(s => s.UserId == userId)
             .ToListAsync(cancellationToken);
+
+    public async Task UpdateStatusAsync(
+        Guid statementId,
+        StatementProcessingStatus status,
+        DateTime? processedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var statement = await dbContext.Statements.SingleAsync(s => s.Id == statementId, cancellationToken);
+        statement.ProcessingStatus = status;
+        if (processedAt.HasValue)
+        {
+            statement.ProcessedAt = processedAt;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

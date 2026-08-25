@@ -3,6 +3,14 @@
   align-items: center;
   gap: 1rem;
   margin-bottom: 1rem;
+
+  .spacer {
+    flex: 1 1 auto;
+  }
+}
+
+.placeholder {
+  color: var(--mat-sys-on-surface-variant);
 }
 
 .cards {

@@ -43,6 +43,8 @@ export interface StatementDetail {
   uploadedAt: string;
   processedAt: string | null;
   transactionCount: number;
+  hasUsableText: boolean | null;
+  extractedPageCount: number | null;
 }
 
 export interface StatementStatus {

@@ -64,3 +64,13 @@ to someone else.
 
 Lightweight `{ id, processingStatus, uploadedAt, processedAt }` — meant for polling processing
 progress once background processing exists (Phase 14) without pulling the full detail payload.
+
+### `POST /api/statements/{id}/reprocess` (Phase 7)
+
+Runs direct PDF text extraction (see `docs/ai-processing.md`) and returns the updated
+`StatementDetailResponse`, now including `hasUsableText` and `extractedPageCount`. Runs
+synchronously today; from Phase 14 onward this enqueues a Hangfire job and returns `202 Accepted`
+instead, without changing the URL or verb.
+
+- `200 OK` → updated `StatementDetailResponse`
+- `404 Not Found` → doesn't exist or belongs to another user

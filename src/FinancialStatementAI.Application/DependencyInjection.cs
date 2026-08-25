@@ -17,6 +17,7 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(typeof(DependencyInjection).Assembly);
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IStatementService, StatementService>();
+        services.AddScoped<IStatementProcessingService, StatementProcessingService>();
 
         return services;
     }

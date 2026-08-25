@@ -26,4 +26,8 @@ public class StatementDetailResponse
     public DateTime UploadedAt { get; set; }
     public DateTime? ProcessedAt { get; set; }
     public int TransactionCount { get; set; }
+
+    /// <summary>Null until this statement has gone through text extraction (Phase 7) at least once.</summary>
+    public bool? HasUsableText { get; set; }
+    public int? ExtractedPageCount { get; set; }
 }

@@ -6,7 +6,7 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 6 of 18 complete.** See [Development Phases](#development-phases) below. Each
+**Status: Phase 7 of 18 complete.** See [Development Phases](#development-phases) below. Each
 phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
 for the full history.
 
@@ -158,8 +158,8 @@ Completed phases are checked off as they land.
 - [x] Phase 3 — SQL Server + EF Core (entities, `AppDbContext`, migrations, seed data)
 - [x] Phase 4 — Authentication (JWT, roles, login/registration)
 - [x] Phase 5 — Angular layout (routing, Material shell, core/shared, auth, dashboard shell)
-- [x] **Phase 6** — File upload (Angular + API + validation + storage + Statement creation)
-- [ ] Phase 7 — Digital PDF text extraction + text-quality detection
+- [x] Phase 6 — File upload (Angular + API + validation + storage + Statement creation)
+- [x] **Phase 7** — Digital PDF text extraction + text-quality detection
 - [ ] Phase 8 — OCR / Document Intelligence / Vision abstraction
 - [ ] Phase 9 — Transaction extraction + normalization
 - [ ] Phase 10 — AI classification (rules → merchant mapping → LLM → confidence)

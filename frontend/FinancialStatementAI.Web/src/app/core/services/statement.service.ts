@@ -24,4 +24,8 @@ export class StatementService {
   getStatus(id: string): Observable<StatementStatus> {
     return this.http.get<StatementStatus>(`/api/statements/${id}/status`);
   }
+
+  reprocess(id: string): Observable<StatementDetail> {
+    return this.http.post<StatementDetail>(`/api/statements/${id}/reprocess`, null);
+  }
 }

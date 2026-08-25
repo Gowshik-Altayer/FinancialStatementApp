@@ -7,6 +7,14 @@
   <div class="header">
     <h1>{{ s.originalFileName }}</h1>
     <mat-chip>{{ s.processingStatus }}</mat-chip>
+    <span class="spacer"></span>
+    <button mat-stroked-button [disabled]="isReprocessing()" (click)="reprocess()">
+      @if (isReprocessing()) {
+        <mat-spinner diameter="18" />
+      } @else {
+        Reprocess
+      }
+    </button>
   </div>
 
   <div class="cards">
@@ -46,6 +54,19 @@
           <dt>Uploaded</dt><dd>{{ s.uploadedAt | date: 'medium' }}</dd>
           <dt>Processed</dt><dd>{{ s.processedAt ? (s.processedAt | date: 'medium') : 'Not yet processed' }}</dd>
         </dl>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header><mat-card-title>Text extraction</mat-card-title></mat-card-header>
+      <mat-card-content>
+        @if (s.hasUsableText === null) {
+          <p class="placeholder">Not yet processed — click Reprocess to extract text.</p>
+        } @else if (s.hasUsableText) {
+          <p>✓ Usable text extracted directly from {{ s.extractedPageCount }} page(s).</p>
+        } @else {
+          <p>Insufficient embedded text — this document will need OCR/Vision (Phase 8) once available.</p>
+        }
       </mat-card-content>
     </mat-card>
   </div>

@@ -49,4 +49,14 @@ describe('StatementService', () => {
     expect(req.request.method).toBe('GET');
     req.flush(detail);
   });
+
+  it('reprocess() posts to the reprocess endpoint', () => {
+    const detail: Partial<StatementDetail> = { id: 'abc', processingStatus: 'ExtractionComplete' };
+
+    service.reprocess('abc').subscribe((result) => expect(result).toEqual(detail));
+
+    const req = httpMock.expectOne('/api/statements/abc/reprocess');
+    expect(req.request.method).toBe('POST');
+    req.flush(detail);
+  });
 });
