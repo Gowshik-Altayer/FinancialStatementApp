@@ -1,8 +1,9 @@
 # AI / Document Processing
 
-> Built up phase by phase. This revision covers **Phase 7 — direct PDF text extraction and the
-> OCR-vs-direct decision**. Transaction extraction/normalization (Phase 9), classification
-> (Phase 10), and reconciliation (Phase 11) will extend this document as they land.
+> Built up phase by phase. This revision covers **Phase 7 (direct PDF text extraction and the
+> OCR-vs-direct decision)** and **Phase 8 (OCR / Document Intelligence abstractions)**.
+> Transaction extraction/normalization (Phase 9), classification (Phase 10), and reconciliation
+> (Phase 11) will extend this document as they land.
 
 ## How we determine whether OCR is required
 
@@ -64,6 +65,40 @@ parses transactions out of this raw text) — `StatementExtraction` is the docum
 we get off the page" record that both feeds Phase 9 and, on its own, already answers "does this
 statement need OCR" for the UI (the Statement Detail screen's "Text extraction" card) without
 needing anything downstream to exist yet.
+
+## OCR and Document Intelligence (Phase 8)
+
+Two abstractions, per requirements #13/#14 — the business layer never depends on an Azure SDK
+class directly, only on `IOcrService` / `IDocumentIntelligenceService`:
+
+| Interface | Real implementation | Purpose |
+|---|---|---|
+| `IOcrService` | `AzureOcrService` (Azure AI Vision, Read feature) | Convert an image or scanned PDF page into plain text |
+| `IDocumentIntelligenceService` | `AzureDocumentIntelligenceService` (`prebuilt-document` model) | Pull structured fields/layout out of a document |
+
+Both default to a **Mock** implementation (`MockOcrService`, `MockDocumentIntelligenceService`) —
+selected via `Ocr:Provider` / `DocumentIntelligence:Provider` config, same pattern as Phase 6's
+`FileStorage:Provider` switch. This isn't a shortcut: it's the only way to make the OCR branch of
+the pipeline demoable and testable without an Azure subscription, and the challenge explicitly
+allows Mock implementations as a valid deliverable. Mock output is unambiguously labeled
+(`"[MOCK OCR OUTPUT - simulated for local development, not a real OCR result]"`) so it's never
+mistaken for genuine extracted data — this matters given requirement #16's hallucination-
+prevention principle: even *simulated* data has to be honest about not being real.
+
+**Where OCR sits in the pipeline** (`StatementProcessingService`): PDFs try direct extraction
+(Phase 7) first; only when that finds no usable text does OCR run. Images skip straight to OCR
+since they have no text layer to try extracting directly at all. If OCR *also* fails to produce
+usable text, the statement is marked `ExtractionFailed` — both extraction paths have now been
+exhausted.
+
+**Why Document Intelligence isn't on the critical path yet**: it extracts structured
+fields/tables, which is genuinely valuable for well-known statement layouts, but building that
+against Mock output wouldn't demonstrate anything beyond "the interface compiles" — a bank
+statement's *transaction table* is exactly what Phase 9's own parsing logic is responsible for
+extracting from the raw text OCR/direct-extraction already produced. The abstraction exists,
+wired into DI and ready to use (e.g. for pulling `AccountNumber`/`StatementDate` fields more
+reliably from a known layout), but isn't yet called from the processing pipeline — a defensible,
+documented scope boundary rather than a silent gap.
 
 ## Trigger: synchronous today, background job from Phase 14
 

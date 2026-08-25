@@ -47,6 +47,7 @@ public static class StatementMapper
         ProcessedAt = statement.ProcessedAt,
         TransactionCount = statement.Transactions.Count,
         HasUsableText = statement.StatementExtraction?.HasUsableText,
-        ExtractedPageCount = statement.StatementExtraction?.PageCount
+        ExtractedPageCount = statement.StatementExtraction?.PageCount,
+        ExtractionMethod = statement.StatementExtraction?.ExtractionMethod.ToString()
     };
 }
