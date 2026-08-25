@@ -6,8 +6,9 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 1 of 18 complete — solution scaffold only.** See [Development Phases](#development-phases)
-below. Each phase is implemented and committed on its own branch before merging.
+**Status: Phase 2 of 18 complete.** See [Development Phases](#development-phases) below. Each
+phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
+for the full history.
 
 ## Technology stack
 
@@ -134,8 +135,8 @@ Server=localhost;Database=FinancialStatementAI;User Id=sa;Password=YOUR_PASSWORD
 This project is built and committed phase by phase, each on its own branch, per the plan below.
 Completed phases are checked off as they land.
 
-- [x] **Phase 1** — Visual Studio solution setup (this commit)
-- [ ] Phase 2 — Clean Architecture wiring (DI composition, extensions)
+- [x] Phase 1 — Visual Studio solution setup
+- [x] **Phase 2** — Clean Architecture wiring (DI composition, extensions)
 - [ ] Phase 3 — SQL Server + EF Core (entities, `AppDbContext`, migrations, seed data)
 - [ ] Phase 4 — Authentication (JWT, roles, login/registration)
 - [ ] Phase 5 — Angular layout (routing, Material shell, core/shared, auth, dashboard shell)

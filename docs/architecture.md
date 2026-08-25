@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 — solution setup only**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)** and **Phase 2 (Clean Architecture DI wiring)**.
 
 ## Solution layout
 
@@ -64,5 +64,26 @@ day-to-day development. The API also has a CORS policy (`AngularDevClient`) allo
 - `npm test` (Vitest, via Angular CLI) passes for the Angular shell.
 - Swagger UI is available at `/swagger` in Development.
 
-Further architecture detail (DI wiring, entities, document-processing pipeline, AI classification,
+## Composition root (Phase 2)
+
+Each layer below `Api`/`Worker` exposes a single `AddXxx(IServiceCollection ...)` extension method
+rather than letting the hosts reach into its internals:
+
+- `FinancialStatementAI.Application.DependencyInjection.AddApplication(this IServiceCollection)`
+- `FinancialStatementAI.Infrastructure.DependencyInjection.AddInfrastructure(this IServiceCollection, IConfiguration)`
+
+Both `Program.cs` (Api) and `Program.cs` (Worker) call both extension methods at startup. Right now
+they're intentionally no-ops (`return services;`) — there's nothing to register yet since Domain/
+Application/Infrastructure have no entities or services. Later phases add registrations *inside*
+these two methods (EF Core's `AppDbContext` and repositories in Phase 3, FluentValidation
+validators in Phase 4+, Hangfire/Redis/OCR/AI/storage services in their respective phases) without
+ever touching `Program.cs` again — that's the point of the composition-root pattern: hosts stay
+thin, and each layer owns registering its own pieces.
+
+A cross-project unit test (`DependencyInjectionTests`) builds a real `ServiceCollection`, calls
+both extensions, and calls `BuildServiceProvider(validateScopes: true)` to catch any future
+lifetime/scope mismatches (e.g. a singleton depending on a scoped service) as soon as they're
+introduced.
+
+Further architecture detail (entities, document-processing pipeline, AI classification,
 reconciliation) will be appended here as each phase lands.
