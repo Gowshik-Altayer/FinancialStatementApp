@@ -1,0 +1,75 @@
+.drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 3rem 1rem;
+  border: 2px dashed var(--mat-sys-outline);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+
+  mat-icon {
+    font-size: 2.5rem;
+    width: 2.5rem;
+    height: 2.5rem;
+    opacity: 0.6;
+  }
+
+  .hint {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.85rem;
+  }
+
+  &.drag-over {
+    border-color: var(--mat-sys-primary);
+    background-color: var(--mat-sys-surface-variant);
+  }
+}
+
+.preview-section {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  gap: 1.5rem;
+}
+
+.preview img {
+  max-width: 100%;
+  border-radius: 4px;
+}
+
+.metadata {
+  dl {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.25rem 1rem;
+    margin: 0.5rem 0 1rem;
+  }
+
+  dt {
+    font-weight: 500;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    word-break: break-word;
+  }
+}
+
+.error-message {
+  color: var(--mat-sys-error);
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 720px) {
+  .preview-section {
+    grid-template-columns: 1fr;
+  }
+}

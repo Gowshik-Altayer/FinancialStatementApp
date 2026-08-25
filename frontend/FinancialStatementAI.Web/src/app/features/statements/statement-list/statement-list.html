@@ -1,0 +1,56 @@
+<div class="header">
+  <h1>Statements</h1>
+  <a mat-flat-button color="primary" routerLink="/statements/upload">
+    Upload statement
+  </a>
+</div>
+
+@if (isLoading()) {
+  <mat-spinner diameter="32" />
+} @else if (statements().length === 0) {
+  <p class="empty-state">No statements uploaded yet.</p>
+} @else {
+  <table mat-table [dataSource]="statements()" matSort (matSortChange)="sortData($event)" class="mat-elevation-z1">
+    <ng-container matColumnDef="originalFileName">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>File</th>
+      <td mat-cell *matCellDef="let s">
+        <a [routerLink]="['/statements', s.id]">{{ s.originalFileName }}</a>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="providerName">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Provider</th>
+      <td mat-cell *matCellDef="let s">{{ s.providerName ?? '—' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="transactionCount">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Transactions</th>
+      <td mat-cell *matCellDef="let s">{{ s.transactionCount }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="totalDebits">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Total Debits</th>
+      <td mat-cell *matCellDef="let s">{{ s.totalDebits != null ? (s.totalDebits | number: '1.2-2') : '—' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="totalCredits">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Total Credits</th>
+      <td mat-cell *matCellDef="let s">{{ s.totalCredits != null ? (s.totalCredits | number: '1.2-2') : '—' }}</td>
+    </ng-container>
+
+    <ng-container matColumnDef="processingStatus">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Status</th>
+      <td mat-cell *matCellDef="let s">
+        <mat-chip>{{ s.processingStatus }}</mat-chip>
+      </td>
+    </ng-container>
+
+    <ng-container matColumnDef="uploadedAt">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Uploaded</th>
+      <td mat-cell *matCellDef="let s">{{ s.uploadedAt | date: 'medium' }}</td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
+    <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
+  </table>
+}

@@ -1,7 +1,9 @@
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Infrastructure.Documents;
 using FinancialStatementAI.Infrastructure.Persistence;
 using FinancialStatementAI.Infrastructure.Repositories;
 using FinancialStatementAI.Infrastructure.Security;
+using FinancialStatementAI.Infrastructure.Storage;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,6 +27,24 @@ public static class DependencyInjection
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+
+        services.AddScoped<IStatementRepository, StatementRepository>();
+        services.AddScoped<IProcessingJobRepository, ProcessingJobRepository>();
+        services.AddSingleton<IStatementFileValidator, StatementFileValidator>();
+
+        services.Configure<LocalFileStorageOptions>(configuration.GetSection(LocalFileStorageOptions.SectionName));
+        services.Configure<AzureBlobStorageOptions>(configuration.GetSection(AzureBlobStorageOptions.SectionName));
+
+        // "FileStorage:Provider" = "Azure" switches to Azure Blob Storage (production); anything
+        // else (including unset) defaults to local disk storage for development.
+        if (string.Equals(configuration["FileStorage:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IFileStorageService, AzureBlobStorageService>();
+        }
+        else
+        {
+            services.AddSingleton<IFileStorageService, LocalFileStorageService>();
+        }
 
         return services;
     }

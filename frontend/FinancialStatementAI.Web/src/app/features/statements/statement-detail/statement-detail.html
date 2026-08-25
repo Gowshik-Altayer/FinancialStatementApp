@@ -1,0 +1,54 @@
+@if (isLoading()) {
+  <mat-spinner diameter="32" />
+} @else if (notFound()) {
+  <p>Statement not found.</p>
+  <a mat-button routerLink="/statements">Back to statements</a>
+} @else if (statement(); as s) {
+  <div class="header">
+    <h1>{{ s.originalFileName }}</h1>
+    <mat-chip>{{ s.processingStatus }}</mat-chip>
+  </div>
+
+  <div class="cards">
+    <mat-card>
+      <mat-card-header><mat-card-title>Statement information</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <dl>
+          <dt>Account holder</dt><dd>{{ s.accountHolderName ?? '—' }}</dd>
+          <dt>Provider</dt><dd>{{ s.providerName ?? '—' }}</dd>
+          <dt>Account number</dt><dd>{{ s.accountNumberMasked ?? '—' }}</dd>
+          <dt>Statement period</dt>
+          <dd>{{ s.statementPeriodStart ?? '—' }} to {{ s.statementPeriodEnd ?? '—' }}</dd>
+          <dt>Currency</dt><dd>{{ s.currency ?? '—' }}</dd>
+        </dl>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header><mat-card-title>Balances</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <dl>
+          <dt>Opening balance</dt><dd>{{ s.openingBalance != null ? (s.openingBalance | number: '1.2-2') : '—' }}</dd>
+          <dt>Closing balance</dt><dd>{{ s.closingBalance != null ? (s.closingBalance | number: '1.2-2') : '—' }}</dd>
+          <dt>Total debits</dt><dd>{{ s.totalDebits != null ? (s.totalDebits | number: '1.2-2') : '—' }}</dd>
+          <dt>Total credits</dt><dd>{{ s.totalCredits != null ? (s.totalCredits | number: '1.2-2') : '—' }}</dd>
+        </dl>
+      </mat-card-content>
+    </mat-card>
+
+    <mat-card>
+      <mat-card-header><mat-card-title>File &amp; processing</mat-card-title></mat-card-header>
+      <mat-card-content>
+        <dl>
+          <dt>Content type</dt><dd>{{ s.contentType }}</dd>
+          <dt>Size</dt><dd>{{ s.fileSizeBytes | number }} bytes</dd>
+          <dt>Transactions</dt><dd>{{ s.transactionCount }}</dd>
+          <dt>Uploaded</dt><dd>{{ s.uploadedAt | date: 'medium' }}</dd>
+          <dt>Processed</dt><dd>{{ s.processedAt ? (s.processedAt | date: 'medium') : 'Not yet processed' }}</dd>
+        </dl>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <a mat-button routerLink="/statements">Back to statements</a>
+}
