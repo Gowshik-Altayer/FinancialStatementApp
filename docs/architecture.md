@@ -1,8 +1,8 @@
 # Architecture
 
 > This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, **Phase 12 (human review + audit trail)**,
-**Phase 13 (search, filter & pagination)**, **Phase 14 (Hangfire background processing)**, and
-**Phase 15 (Redis caching & distributed locks)**.
+**Phase 13 (search, filter & pagination)**, **Phase 14 (Hangfire background processing)**,
+**Phase 15 (Redis caching & distributed locks)**, and **Phase 16 (testing)**.
 
 ## Solution layout
 
@@ -481,3 +481,55 @@ own tests requiring live credentials or a running service — `RedisCacheService
 `RedisDistributedLockService` aren't covered by automated tests here, since no Redis instance is
 available in this environment. `InMemoryCacheService` and `InMemoryDistributedLockService` (the
 default, always-active providers) are fully unit-tested.
+
+## Testing (Phase 16)
+
+### Backend: this project's own strategy, not a new addition
+
+The backend has been tested continuously since Phase 1 (xUnit/Moq/FluentAssertions), not bolted on
+at the end — 108 tests existed before this phase touched anything. What this phase actually
+addressed is the *frontend*, where coverage had lagged behind (see below); the backend side of
+Phase 16 is documenting the deliberate split already in place, since "why isn't there a unit test
+for `StatementService`/`AuthService`/`StatementMapper`/`TransactionMapper`" is a fair question:
+
+- **Orchestration services with little logic of their own** (`AuthService`, `StatementService`,
+  the `StatementMapper`/`TransactionMapper` static mapping helpers) are exercised end-to-end via
+  integration tests (`AuthControllerTests`, `StatementsControllerTests`,
+  `StatementSearchIntegrationTests`, `TransactionReviewIntegrationTests`, and others) rather than
+  unit tests with every dependency mocked. Their value is almost entirely in correct wiring —
+  calling the right repository methods in the right order and mapping the right fields — which an
+  integration test verifies more faithfully (a real EF Core InMemory database, a real HTTP
+  pipeline, real JSON serialization) than a mock-heavy unit test would, without the risk of the
+  test and the implementation sharing the same wrong assumption about how a dependency behaves.
+- **Services with substantial standalone logic** (`TransactionClassificationService`'s hybrid
+  ladder, `ReconciliationService`'s arithmetic, `TransactionRepository`'s natural-key matching,
+  `CategoryService`'s caching, `StatementProcessingService`'s concurrency lock, both
+  `IBackgroundJobScheduler` implementations) get dedicated unit tests with mocked dependencies,
+  since that's what actually isolates the logic worth pinning down from the plumbing around it.
+
+Adding unit tests for the first group now, mocking ten dependencies to re-verify behavior the
+second group of tests already exercises through the real thing, would be pure duplication —
+more tests to maintain, not more bugs caught.
+
+### Frontend: the real gap this phase closes
+
+The Angular app had exactly 6 spec files through Phase 15 — components/services added in
+Phases 9 through 15 (Transactions, Categories, the review workflow, search/pagination) had no
+tests at all, and one existing spec (`statement.service.spec.ts`) had gone stale: Phase 13 changed
+`StatementService.getAll()` from a no-argument call returning a bare array to a query-object call
+returning `PagedResult<StatementSummary>`, and nobody had updated its test to match — a real,
+previously-undetected failure this phase found and fixed (3 of that file's 4 tests were failing).
+
+New coverage added: `TransactionService` and `CategoryService` (previously untested — the HTTP
+methods backing the entire review/search workflow), `error.interceptor` (previously untested —
+the 401-logout-redirect and network/server-error snackbar behavior), and `TransactionTable` (the
+shared component doing the actual work behind both the Review page and the statement detail page:
+inline category correction, its optimistic in-place update, save/cancel, history expand/collapse,
+and the confidence-to-label mapping). The frontend went from 6 spec files / 18 tests (one file
+broken) to 10 spec files / 41 tests, all passing.
+
+Page-level "glue" components (`StatementList`, `StatementDetail`, `Transactions`, `Review`,
+`Dashboard`) remain untested by design, not oversight: each one's own logic is a thin
+fetch-on-init-and-bind-to-already-tested-services shell around components (`TransactionTable`,
+Angular Material) that are either already unit-tested or are themselves a well-tested third-party
+library — the same "test the logic, not the wiring" reasoning as the backend's own split above.
