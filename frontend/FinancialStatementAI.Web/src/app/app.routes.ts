@@ -48,13 +48,15 @@ export const routes: Routes = [
       },
       {
         path: 'review',
-        component: PlaceholderPage,
-        data: { title: 'Review', note: 'Human review and correction of low-confidence transactions arrives in Phase 12.' }
+        loadComponent: () => import('./features/review/review').then((m) => m.Review)
       },
       {
         path: 'reconciliation',
         component: PlaceholderPage,
-        data: { title: 'Reconciliation', note: 'Statement reconciliation results arrive in Phase 11.' }
+        data: {
+          title: 'Reconciliation',
+          note: 'Reconciliation status is shown per statement — see the Statements list or a statement\'s detail page. A dedicated cross-statement reconciliation report may arrive alongside Phase 13\'s search/filter work.'
+        }
       },
       {
         path: 'categories',

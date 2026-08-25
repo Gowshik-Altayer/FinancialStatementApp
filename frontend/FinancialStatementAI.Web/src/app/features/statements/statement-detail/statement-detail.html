@@ -7,7 +7,19 @@
   <div class="header">
     <h1>{{ s.originalFileName }}</h1>
     <mat-chip>{{ s.processingStatus }}</mat-chip>
+    @if (s.reconciliationStatus) {
+      <mat-chip [class]="'reconciliation-' + s.reconciliationStatus">{{ s.reconciliationStatus }}</mat-chip>
+    }
     <span class="spacer"></span>
+    @if (s.processingStatus === 'PendingReview') {
+      <button mat-flat-button color="primary" [disabled]="isVerifying()" (click)="verify()">
+        @if (isVerifying()) {
+          <mat-spinner diameter="18" />
+        } @else {
+          Mark reviewed
+        }
+      </button>
+    }
     <button mat-stroked-button [disabled]="isReprocessing()" (click)="reprocess()">
       @if (isReprocessing()) {
         <mat-spinner diameter="18" />
@@ -73,6 +85,13 @@
       </mat-card-content>
     </mat-card>
   </div>
+
+  <mat-card class="transactions-card">
+    <mat-card-header><mat-card-title>Transactions</mat-card-title></mat-card-header>
+    <mat-card-content>
+      <app-transaction-table [transactions]="transactions()" [showStatementColumn]="false" />
+    </mat-card-content>
+  </mat-card>
 
   <a mat-button routerLink="/statements">Back to statements</a>
 }

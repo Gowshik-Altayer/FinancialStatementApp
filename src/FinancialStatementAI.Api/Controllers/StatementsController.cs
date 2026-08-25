@@ -81,4 +81,25 @@ public class StatementsController(IStatementService statementService, IStatement
         var reconciliation = await statementService.GetReconciliationAsync(id, CurrentUserId, cancellationToken);
         return reconciliation is null ? NotFound() : Ok(reconciliation);
     }
+
+    /// <summary>Marks a statement Verified once a human reviewer is satisfied with its
+    /// AI-classified transactions and reconciliation result (Phase 12). Only valid from
+    /// PendingReview — reprocessing a Verified statement moves it back through the pipeline
+    /// (ending at PendingReview again), so verification is never a dead end.</summary>
+    [HttpPost("{id:guid}/verify")]
+    public async Task<IActionResult> Verify(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await statementService.VerifyAsync(id, CurrentUserId, cancellationToken);
+        if (result.NotFound)
+        {
+            return NotFound();
+        }
+
+        if (!result.Succeeded)
+        {
+            return BadRequest(new ProblemDetails { Title = "Verification rejected", Detail = result.Error, Status = StatusCodes.Status400BadRequest });
+        }
+
+        return Ok(result.Statement);
+    }
 }

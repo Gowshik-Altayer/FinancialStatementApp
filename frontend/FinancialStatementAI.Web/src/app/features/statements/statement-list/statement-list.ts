@@ -27,7 +27,16 @@ import { StatementSummary } from '../../../shared/models/statement.model';
 export class StatementList implements OnInit {
   private readonly statementService = inject(StatementService);
 
-  readonly displayedColumns = ['originalFileName', 'providerName', 'transactionCount', 'totalDebits', 'totalCredits', 'processingStatus', 'uploadedAt'];
+  readonly displayedColumns = [
+    'originalFileName',
+    'providerName',
+    'transactionCount',
+    'totalDebits',
+    'totalCredits',
+    'processingStatus',
+    'reconciliationStatus',
+    'uploadedAt'
+  ];
   readonly statements = signal<StatementSummary[]>([]);
   readonly isLoading = signal(true);
 

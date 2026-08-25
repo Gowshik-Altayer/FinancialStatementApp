@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, and **Phase 11 (deterministic reconciliation)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, and **Phase 12 (human review + audit trail)**.
 
 ## Solution layout
 
@@ -263,3 +263,32 @@ reviewer sees both the AI-classified categories and the deterministic balance ch
 parsing regex bug this phase's tests caught (`\d{1,3}` incorrectly capping the leading digit group,
 corrupting ungrouped four-digit-plus amounts like `1000.00`) — lives in
 [docs/ai-processing.md](ai-processing.md).
+
+## Human review and audit trail (Phase 12)
+
+New `ITransactionService`/`TransactionsController` expose the review surface: a statement-scoped
+transaction list (`GET /api/statements/{id}/transactions`), a cross-statement review queue ordered
+by lowest classification confidence first (`GET /api/transactions/review-queue`), and a category
+correction endpoint (`POST /api/transactions/{id}/corrections`) that writes an immutable
+`TransactionCorrection` audit row (requirement #9) alongside updating the transaction's live
+category. New `POST /api/statements/{id}/verify` (via `IStatementService.VerifyAsync`) is the only
+path to the `Verified` terminal status — a human decision, never inferred from confidence or
+reconciliation results.
+
+The load-bearing fix this phase makes is in `TransactionRepository.ReplaceForStatementAsync`
+(Infrastructure): it now matches a freshly reparsed line against the statement's own existing
+transactions by natural key (date + amount + description) and updates that row in place, instead
+of the delete-and-recreate approach every phase since 9 has used. That's what lets a human's
+category correction — and the classification ladder's "Known Classification" self-healing — survive
+a reprocess, closing the gap Phase 10 had explicitly flagged as a known limitation. New
+`ICategoryService`/`CategoriesController` (`GET /api/categories`) exist only to give the review
+UI's correction picker something to populate from — category management (create/edit/deactivate)
+itself remains a later phase. Full reasoning — including why the correction API is scoped to
+Category only, and why no extra code was needed for corrections to survive reclassification — lives
+in [docs/ai-processing.md](ai-processing.md).
+
+On the frontend, the shared `TransactionTable` component (inline category correction, confidence
+badges, expandable correction history) is reused by both the statement detail page and the new
+global Review page (`/review`, previously a placeholder) so the two surfaces can't drift apart in
+behavior. Statement list/detail also now surface `reconciliationStatus` (a Phase 11 field the UI
+hadn't caught up to yet) and a "Mark reviewed" action gated on `PendingReview`.

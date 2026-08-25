@@ -45,6 +45,17 @@
       </td>
     </ng-container>
 
+    <ng-container matColumnDef="reconciliationStatus">
+      <th mat-header-cell *matHeaderCellDef mat-sort-header>Reconciliation</th>
+      <td mat-cell *matCellDef="let s">
+        @if (s.reconciliationStatus) {
+          <mat-chip [class]="'reconciliation-' + s.reconciliationStatus">{{ s.reconciliationStatus }}</mat-chip>
+        } @else {
+          <span class="empty-state">—</span>
+        }
+      </td>
+    </ng-container>
+
     <ng-container matColumnDef="uploadedAt">
       <th mat-header-cell *matHeaderCellDef mat-sort-header>Uploaded</th>
       <td mat-cell *matCellDef="let s">{{ s.uploadedAt | date: 'medium' }}</td>

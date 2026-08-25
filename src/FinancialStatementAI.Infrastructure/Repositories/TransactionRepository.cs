@@ -15,9 +15,48 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
         CancellationToken cancellationToken = default)
     {
         var existing = await dbContext.Transactions
+            .Include(t => t.Extraction)
             .Where(t => t.StatementId == statementId)
             .ToListAsync(cancellationToken);
-        dbContext.Transactions.RemoveRange(existing);
+
+        // Match reparsed lines against the statement's own existing rows by natural key
+        // (date + amount + description) and update in place rather than deleting and
+        // recreating every row. A prior version of this method always deleted+recreated,
+        // which cascade-deleted any TransactionClassification/TransactionCorrection history
+        // (including human corrections) on every reprocess — see docs/ai-processing.md's
+        // "known limitation" note. Preserving the row's identity here is what lets a human
+        // category correction survive a reprocess: it's the same Transaction.Id, so its
+        // Corrections are untouched, and TransactionClassificationService's "Known
+        // Classification" rung finds that correction again by merchant text.
+        var existingByKey = existing
+            .GroupBy(NaturalKey)
+            .ToDictionary(g => g.Key, g => new Queue<Transaction>(g));
+
+        var newTransactions = transactions.ToList();
+        var resultTransactions = new List<Transaction>(newTransactions.Count);
+        var matchedIds = new HashSet<Guid>();
+
+        foreach (var incoming in newTransactions)
+        {
+            if (existingByKey.TryGetValue(NaturalKey(incoming), out var queue) && queue.Count > 0)
+            {
+                var match = queue.Dequeue();
+                matchedIds.Add(match.Id);
+                ApplyReparsedFields(match, incoming);
+                resultTransactions.Add(match);
+            }
+            else
+            {
+                dbContext.Transactions.Add(incoming);
+                resultTransactions.Add(incoming);
+            }
+        }
+
+        // Anything left over no longer appears in the fresh parse (e.g. the statement text
+        // changed) — its history is no longer meaningful without a matching row, so it's
+        // removed along with its (cascade-deleted) classifications/corrections.
+        var stale = existing.Where(t => !matchedIds.Contains(t.Id));
+        dbContext.Transactions.RemoveRange(stale);
 
         // Duplicate detection (requirement #21) against the same user's OTHER statements —
         // never this statement's own transactions, since re-running this statement's own parse
@@ -34,30 +73,91 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
                 .Select(t => new { t.Id, t.TransactionDate, t.Amount, t.Merchant })
                 .ToListAsync(cancellationToken);
 
-        var newTransactions = transactions.ToList();
-        foreach (var transaction in newTransactions)
+        foreach (var transaction in resultTransactions)
         {
             var duplicate = candidates.FirstOrDefault(c =>
                 c.TransactionDate == transaction.TransactionDate &&
                 c.Amount == transaction.Amount &&
                 string.Equals(c.Merchant, transaction.Merchant, StringComparison.OrdinalIgnoreCase));
 
-            if (duplicate is not null)
-            {
-                transaction.IsPotentialDuplicate = true;
-                transaction.DuplicateOfTransactionId = duplicate.Id;
-            }
+            transaction.IsPotentialDuplicate = duplicate is not null;
+            transaction.DuplicateOfTransactionId = duplicate?.Id;
         }
 
-        dbContext.Transactions.AddRange(newTransactions);
         await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static (DateOnly? Date, decimal? Amount, string Description) NaturalKey(Transaction transaction) =>
+        (transaction.TransactionDate, transaction.Amount, transaction.Description.Trim().ToUpperInvariant());
+
+    /// <summary>Copies every field a fresh reparse can legitimately change onto an existing,
+    /// identity-preserved row. Deliberately excludes <see cref="Transaction.CategoryId"/> —
+    /// classification runs as its own step right after this one, and a human's prior category
+    /// correction must not be silently reset by a bare re-extraction in between.</summary>
+    private static void ApplyReparsedFields(Transaction existingTransaction, Transaction incoming)
+    {
+        existingTransaction.PostingDate = incoming.PostingDate;
+        existingTransaction.Merchant = incoming.Merchant;
+        existingTransaction.ReferenceNumber = incoming.ReferenceNumber;
+        existingTransaction.DebitAmount = incoming.DebitAmount;
+        existingTransaction.CreditAmount = incoming.CreditAmount;
+        existingTransaction.Currency = incoming.Currency;
+        existingTransaction.TransactionType = incoming.TransactionType;
+        existingTransaction.PageSourceLocation = incoming.PageSourceLocation;
+
+        if (existingTransaction.Extraction is not null && incoming.Extraction is not null)
+        {
+            existingTransaction.Extraction.RawText = incoming.Extraction.RawText;
+            existingTransaction.Extraction.ExtractionMethod = incoming.Extraction.ExtractionMethod;
+        }
+        else if (incoming.Extraction is not null)
+        {
+            existingTransaction.Extraction = incoming.Extraction;
+        }
     }
 
     public async Task<IReadOnlyList<Transaction>> GetByStatementIdAsync(Guid statementId, CancellationToken cancellationToken = default) =>
         await dbContext.Transactions
+            .Include(t => t.Category)
+            .Include(t => t.Classifications)
+            .Include(t => t.Corrections)
             .Where(t => t.StatementId == statementId)
+            .OrderBy(t => t.TransactionDate)
+            .AsSplitQuery()
             .AsNoTracking()
             .ToListAsync(cancellationToken);
+
+    public Task<Transaction?> GetByIdAsync(Guid transactionId, CancellationToken cancellationToken = default) =>
+        dbContext.Transactions
+            .Include(t => t.Statement)
+            .Include(t => t.Category)
+            .Include(t => t.Classifications)
+            .Include(t => t.Corrections).ThenInclude(c => c.CorrectedByUser)
+            .AsSplitQuery()
+            .AsNoTracking()
+            .SingleOrDefaultAsync(t => t.Id == transactionId, cancellationToken);
+
+    public async Task<IReadOnlyList<Transaction>> GetReviewQueueAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        await dbContext.Transactions
+            .Include(t => t.Statement)
+            .Include(t => t.Category)
+            .Include(t => t.Classifications)
+            .Include(t => t.Corrections)
+            .Where(t => t.Statement!.UserId == userId && t.Statement.ProcessingStatus == StatementProcessingStatus.PendingReview)
+            .OrderBy(t => t.Classifications.Where(c => c.IsCurrent).Select(c => c.ConfidenceScore).FirstOrDefault())
+            .ThenByDescending(t => t.Statement!.UploadedAt)
+            .AsSplitQuery()
+            .AsNoTracking()
+            .ToListAsync(cancellationToken);
+
+    public async Task ApplyCorrectionAsync(Guid transactionId, Guid categoryId, TransactionCorrection correction, CancellationToken cancellationToken = default)
+    {
+        var transaction = await dbContext.Transactions.SingleAsync(t => t.Id == transactionId, cancellationToken);
+        transaction.CategoryId = categoryId;
+
+        dbContext.TransactionCorrections.Add(correction);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
 
     public async Task ApplyClassificationAsync(
         Guid transactionId,
