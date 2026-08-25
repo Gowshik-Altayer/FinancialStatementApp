@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)** and **Phase 2 (Clean Architecture DI wiring)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, and **Phase 3 (SQL Server + EF Core)**.
 
 ## Solution layout
 
@@ -85,5 +85,16 @@ both extensions, and calls `BuildServiceProvider(validateScopes: true)` to catch
 lifetime/scope mismatches (e.g. a singleton depending on a scoped service) as soon as they're
 introduced.
 
-Further architecture detail (entities, document-processing pipeline, AI classification,
-reconciliation) will be appended here as each phase lands.
+## Persistence (Phase 3)
+
+The 12 Domain entities from requirement #10 (`User`, `Statement`, `Transaction`, `Category`,
+`TransactionExtraction`, `TransactionClassification`, `TransactionCorrection`,
+`ReconciliationResult`, `ProcessingJob`, `ProcessingError`, `AIRequest`, `AIUsageMetric`) and their
+EF Core mapping live in `Domain/Entities` and `Infrastructure/Persistence/Configurations`
+respectively — see [docs/database.md](database.md) for the full schema, the reasoning behind
+which tables are append-only audit logs vs. mutable current-state rows, and delete-behavior
+choices. `AddInfrastructure()` (the Phase 2 composition root) now registers `AppDbContext` against
+the `DefaultConnection` connection string.
+
+Further architecture detail (document-processing pipeline, AI classification, reconciliation)
+will be appended here as each phase lands.

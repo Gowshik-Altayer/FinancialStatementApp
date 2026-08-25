@@ -1,11 +1,14 @@
 using FinancialStatementAI.Application;
 using FinancialStatementAI.Infrastructure;
+using FinancialStatementAI.Infrastructure.Persistence;
+using FinancialStatementAI.Infrastructure.Persistence.Seed;
+using Microsoft.EntityFrameworkCore;
 
 namespace FinancialStatementAI.Api;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         var builder = WebApplication.CreateBuilder(args);
 
@@ -37,6 +40,23 @@ public class Program
         {
             app.UseSwagger();
             app.UseSwaggerUI();
+
+            // Dev convenience only: apply pending migrations and seed default categories.
+            // Non-fatal if SQL Server isn't reachable yet (e.g. first run before it's
+            // installed, or under a test host with no database configured) so the rest of
+            // the API still starts; production deployments apply migrations explicitly.
+            using var scope = app.Services.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+            try
+            {
+                await dbContext.Database.MigrateAsync();
+                await CategorySeeder.SeedAsync(dbContext);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Skipping database migration/seed — database not reachable.");
+            }
         }
 
         app.UseHttpsRedirection();
@@ -48,6 +68,6 @@ public class Program
         app.MapControllers();
         app.MapHealthChecks("/health");
 
-        app.Run();
+        await app.RunAsync();
     }
 }
