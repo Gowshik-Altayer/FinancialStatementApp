@@ -3,8 +3,8 @@
 Swagger/OpenAPI is live at `/swagger` in the Development environment (with a Bearer auth scheme
 wired in — use the Authorize button after logging in) for whatever endpoints exist at any given
 point. Endpoints are added phase by phase (Statements/Upload in Phase 6, Reconciliation in
-Phase 11, Transactions/Review in Phase 12, search/filter/pagination in Phase 13); this file is
-filled in as each area is built.
+Phase 11, Transactions/Review in Phase 12, search/filter/pagination in Phase 13, background
+processing in Phase 14); this file is filled in as each area is built.
 
 Paginated endpoints all return the same shape:
 
@@ -52,8 +52,9 @@ why 404 rather than 403).
 `multipart/form-data` with a `file` field. Accepts PDF, JPG, JPEG, PNG up to 20 MB. Validates the
 file's actual bytes (magic numbers), not just its extension or Content-Type header; for PDFs,
 also confirms the file opens and isn't password-protected. Returns immediately after creating the
-`Statement` row (status `Uploaded`) and a pending `ProcessingJob` — no OCR/AI processing happens
-synchronously (that begins once Hangfire is wired up in Phase 14 and consumes pending jobs).
+`Statement` row (status `Uploaded`) and a `Pending` `ProcessingJob` (stage `Upload`) — no OCR/AI
+processing happens automatically on upload; a client calls `POST .../reprocess` (below) to
+actually run the pipeline, synchronously or via Hangfire depending on configuration.
 
 - `201 Created` → `StatementDetailResponse` (Location header points at `GET /api/statements/{id}`)
 - `400 Bad Request` → no file, empty file, unsupported type, oversized, corrupted/password-protected PDF, or content/extension mismatch
@@ -80,24 +81,29 @@ to someone else.
 
 ### `GET /api/statements/{id}/status`
 
-Lightweight `{ id, processingStatus, uploadedAt, processedAt }` — meant for polling processing
-progress once background processing exists (Phase 14) without pulling the full detail payload.
+Lightweight `{ id, processingStatus, uploadedAt, processedAt }` — for polling processing progress
+without pulling the full detail payload; the natural thing to poll after a `202 Accepted` from
+reprocess (below) when Hangfire is the active provider.
 
-### `POST /api/statements/{id}/reprocess` (Phases 7–11)
+### `POST /api/statements/{id}/reprocess` (Phases 7–14)
 
 Runs the full pipeline (direct PDF text or OCR fallback, statement-field extraction, transaction
 parsing/normalization, AI classification, then deterministic reconciliation — see
-`docs/ai-processing.md`) and returns the updated `StatementDetailResponse`, including
-`hasUsableText`, `extractedPageCount`, `extractionMethod` (`"DirectPdfText"` or `"Ocr"`), an
-updated `transactionCount`, and `reconciliationStatus` (`"Reconciled"`, `"Mismatch"`,
-`"InsufficientInformation"`, or `null` if reconciliation hasn't run yet). Runs synchronously today;
-from Phase 14 onward this enqueues a Hangfire job and returns `202 Accepted` instead, without
-changing the URL or verb. Re-running it replaces the statement's own previously parsed transactions
-and reclassifies them from scratch rather than accumulating duplicates, and appends a new
-reconciliation result rather than overwriting the previous one.
+`docs/ai-processing.md`), either synchronously (default) or via a Hangfire background job
+(`BackgroundJobs:Provider` = `Hangfire`, Phase 14) — the URL and verb never change between the two:
 
-- `200 OK` → updated `StatementDetailResponse`
+- **Synchronous (default)**: `200 OK` → the updated `StatementDetailResponse`, including
+  `hasUsableText`, `extractedPageCount`, `extractionMethod` (`"DirectPdfText"` or `"Ocr"`), an
+  updated `transactionCount`, and `reconciliationStatus` (`"Reconciled"`, `"Mismatch"`,
+  `"InsufficientInformation"`, or `null`).
+- **Hangfire-backed**: `202 Accepted` → a `StatementDetailResponse` snapshot with
+  `processingStatus: "Processing"` and the statement's *previous* field values (the job hasn't run
+  yet) — poll `GET .../status` for progress.
 - `404 Not Found` → doesn't exist or belongs to another user
+
+Re-running it replaces the statement's own previously parsed transactions and reclassifies them
+from scratch rather than accumulating duplicates, and appends a new reconciliation result rather
+than overwriting the previous one — true either way the pipeline actually gets triggered.
 
 ### `GET /api/statements/{id}/reconciliation` (Phase 11)
 
@@ -166,5 +172,19 @@ is preserved in the returned transaction's `corrections` array, never overwritte
 
 Active categories, for the review UI's correction picker. Full category management
 (create/edit/deactivate) is a later phase.
+
+## Background processing (Phase 14)
+
+Not a REST resource, but relevant to every endpoint that triggers processing (`reprocess` above):
+
+| Config key | Values | Effect |
+|---|---|---|
+| `BackgroundJobs:Provider` | `Immediate` (default) / `Hangfire` | Whether `reprocess` runs synchronously or is enqueued for a separate `FinancialStatementAI.Worker` process |
+| `Hangfire:Storage` | `SqlServer` (default) / `InMemory` | Where Hangfire persists jobs, when it's the active provider — `InMemory` is for local dev/tests without a SQL Server instance, never production |
+
+When Hangfire is active, `/hangfire` (Development environment only) serves the Hangfire Dashboard —
+job history, retry/delete controls, server status. See `docs/architecture.md` for why its
+authorization filter allows every request (an honest limitation of pairing a JWT-only API with an
+interactive dashboard, not a real security boundary) and why it's Development-gated as a result.
 
 - `200 OK` → `{ id, name }[]`

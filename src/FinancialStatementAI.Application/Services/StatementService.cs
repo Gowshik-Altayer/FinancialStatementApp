@@ -12,7 +12,8 @@ public class StatementService(
     IFileStorageService fileStorage,
     IStatementRepository statementRepository,
     IProcessingJobRepository processingJobRepository,
-    IReconciliationRepository reconciliationRepository) : IStatementService
+    IReconciliationRepository reconciliationRepository,
+    IBackgroundJobScheduler backgroundJobScheduler) : IStatementService
 {
     public async Task<UploadStatementResult> UploadAsync(
         Guid userId,
@@ -120,5 +121,19 @@ public class StatementService(
 
         var updated = await statementRepository.GetByIdAsync(statementId, cancellationToken);
         return VerifyStatementResult.Success(StatementMapper.ToDetailResponse(updated!));
+    }
+
+    public async Task<StatementDetailResponse?> RequestReprocessAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var statement = await statementRepository.GetByIdAsync(statementId, cancellationToken);
+        if (statement is null || statement.UserId != userId)
+        {
+            return null;
+        }
+
+        await backgroundJobScheduler.EnqueueStatementReprocessAsync(statementId, userId, cancellationToken);
+
+        var refreshed = await statementRepository.GetByIdAsync(statementId, cancellationToken);
+        return StatementMapper.ToDetailResponse(refreshed!);
     }
 }

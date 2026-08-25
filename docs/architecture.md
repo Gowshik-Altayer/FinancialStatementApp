@@ -1,7 +1,7 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, **Phase 12 (human review + audit trail)**, and
-**Phase 13 (search, filter & pagination)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, **Phase 12 (human review + audit trail)**,
+**Phase 13 (search, filter & pagination)**, and **Phase 14 (Hangfire background processing)**.
 
 ## Solution layout
 
@@ -192,8 +192,9 @@ SDK directly.
   `FileStorage:Azure:ConnectionString` via User Secrets/environment — never in `appsettings.json`).
 - Upload creates a `Statement` (status `Uploaded`) and a `ProcessingJob` (status `Pending`, stage
   `Upload`) in the same request, then returns immediately — no OCR/AI processing happens
-  synchronously (requirement #11). Nothing consumes that pending job yet; Phase 14 (Hangfire)
-  is what turns "a `Pending` row exists" into actual background work.
+  synchronously (requirement #11). That specific row is still a bookkeeping placeholder nothing
+  consumes (no automatic trigger fires on upload) — Phase 14 gives the *reprocess* endpoint real
+  background-job support; see below.
 - **Why 404, not 403, for another user's statement**: `GetByIdAsync`/`GetStatusAsync` check
   `statement.UserId == userId` and return `null` (→ `404`) rather than distinguishing "not found"
   from "not yours" — leaking the existence of another user's resource via a 403 is itself an
@@ -223,8 +224,9 @@ changed in each:
 - **Phase 7** — `PdfTextExtractionService` (PdfPig) extracts a PDF's embedded text directly, and
   judges it "usable" via a per-page character-count threshold. New `StatementExtraction` entity
   (1:1 with `Statement`) persists the raw text, page/character counts, and that verdict.
-  `POST /api/statements/{id}/reprocess` triggers it (synchronously for now — Phase 14 moves this
-  to a Hangfire job without changing the endpoint's contract).
+  `POST /api/statements/{id}/reprocess` triggers it — synchronously by default, or via a Hangfire
+  job depending on configuration as of Phase 14 (see below), without the endpoint's URL/verb ever
+  changing.
 - **Phase 8** — `IOcrService` / `IDocumentIntelligenceService` abstractions, each with a real
   Azure implementation and a Mock default (`Ocr:Provider` / `DocumentIntelligence:Provider`
   config switch, same pattern as Phase 6's `FileStorage:Provider`). `StatementProcessingService`
@@ -328,3 +330,85 @@ misleading). The `/transactions` route — a `PlaceholderPage` since Phase 5 —
 reusing Phase 12's shared `TransactionTable` component with the same search/filter/paginate pattern,
 so a transaction can be corrected from either the global list or the per-statement view without two
 different implementations to keep in sync.
+
+## Hangfire background processing (Phase 14)
+
+### One more provider-switch abstraction, same shape as every other one
+
+New `IBackgroundJobScheduler` (Application) decides how `POST /api/statements/{id}/reprocess`
+actually runs `IStatementProcessingService.ProcessAsync` — the exact same "interface in
+Application, Mock-or-real implementation behind a config switch in Infrastructure" pattern as
+`IFileStorageService`, `IOcrService`, and `ITransactionClassifier`:
+
+- **`ImmediateBackgroundJobScheduler`** (default, zero configuration) — runs `ProcessAsync`
+  synchronously, in the same request, exactly like every phase before this one did. Every existing
+  test exercises this path unchanged; nothing about the reprocess endpoint's observable behavior
+  changed for a default deployment.
+- **`HangfireBackgroundJobScheduler`** (`BackgroundJobs:Provider` = `Hangfire`) — flips the
+  statement to `Processing`, enqueues `service => service.ProcessAsync(statementId, userId,
+  CancellationToken.None)` against `IStatementProcessingService` via Hangfire's `IBackgroundJobClient`
+  (resolved from DI at execution time by Hangfire's own job activator — not a captured closure over
+  an injected instance, which is what lets the call survive serialization and run later, possibly in
+  a different process), and records a `Pending` `ProcessingJob` row carrying Hangfire's own job id.
+
+`StatementService.RequestReprocessAsync` is what the controller actually calls now (not
+`IStatementProcessingService.ProcessAsync` directly, which never depends on the scheduler itself —
+avoiding a circular dependency, since the Immediate scheduler injects
+`IStatementProcessingService`). The controller inspects the resulting snapshot's
+`ProcessingStatus`: `"Processing"` means the work is still ahead (→ `202 Accepted`), anything else
+means it already finished (→ `200 OK`) — so the same controller code serves both providers without
+a separate response type.
+
+### Storage: SQL Server for real deployments, in-memory for tests
+
+`Hangfire:Storage` = `SqlServer` (default, reusing `ConnectionStrings:DefaultConnection`) or
+`InMemory` (Hangfire's own official in-process store — for local dev/tests without a SQL Server
+instance, never for production, where a durable store is the entire point of using Hangfire rather
+than an in-process queue). A global `AutomaticRetryAttribute { Attempts = 3 }` filter covers
+genuine transient failures (a DB/network blip mid-pipeline); it doesn't meaningfully cover "the PDF
+was actually bad," since `StatementProcessingService.ProcessAsync` handles that by setting
+`ExtractionFailed` rather than throwing — retrying an unrecoverable failure wouldn't fix it.
+
+### Why the Worker project runs the server, and the Api project never does
+
+`FinancialStatementAI.Worker` (a `Microsoft.NET.Sdk.Worker` project scaffolded back in Phase 1,
+previously just a placeholder heartbeat `BackgroundService`) now calls a new
+`AddHangfireProcessingServer` extension, which registers Hangfire's actual `BackgroundJobServer`
+hosted service — but only when `BackgroundJobs:Provider` = `Hangfire`; it's a deliberate no-op
+otherwise, so Worker can call it unconditionally regardless of environment. The Api host never
+calls this — it only ever enqueues jobs (via `IBackgroundJobClient`, itself registered by
+`AddHangfire`), never executes them, so a slow/failing job can never block or crash a web request.
+This is the standard Hangfire deployment shape: one process accepting requests, a separate process
+(or several, horizontally scaled) actually running jobs.
+
+### The dashboard, and an honest limitation
+
+`app.UseHangfireDashboard("/hangfire", ...)` is mapped only in the Development environment and
+only when Hangfire is the active provider. Its `HangfireDashboardAuthorizationFilter` authorizes
+every request unconditionally — documented in the filter itself as a deliberate, honest tradeoff
+rather than a fake security boundary: this API authenticates via JWT bearer tokens, and there's no
+practical way to gate a plain browser `GET` to an interactive dashboard behind a Bearer scheme
+without a separate cookie-based login bridge, which is out of scope here. A real deployment should
+put the dashboard behind IP allow-listing or a reverse-proxy auth gate rather than trust this
+filter for anything beyond local development.
+
+### Testing an asynchronous provider without flakiness
+
+`HangfireWebApplicationFactory` (integration tests) swaps in the Hangfire scheduler with
+`Hangfire:Storage=InMemory`, but deliberately never starts a Hangfire server
+(`AddHangfireServer()`) — so the enqueued job sits in storage indefinitely rather than racing the
+test's assertions. Tests check the *fact of enqueueing* (a matching `Job` appears in
+`JobStorage.GetMonitoringApi().EnqueuedJobs(...)`, the statement flips to `Processing`, a `Pending`
+`ProcessingJob` row exists with a `HangfireJobId`) rather than waiting for eventual completion,
+which is both deterministic and exactly what's actually being asked of `IBackgroundJobScheduler` —
+whether the job *runs* is Hangfire's own well-tested responsibility, not this codebase's.
+
+One non-obvious lesson from building this test: overriding `IConfiguration` values via
+`WebApplicationFactory.ConfigureWebHost`'s `ConfigureAppConfiguration` arrives too late to affect
+`Infrastructure.DependencyInjection.AddInfrastructure`'s own conditional service registration in a
+minimal-hosting-model app, because that call runs in `Program.cs` *before* the test factory's
+customizations are merged into the builder. `ConfigureServices` doesn't have this problem — it runs
+against the already-populated `IServiceCollection` and can freely replace what `AddInfrastructure`
+already registered — which is what `HangfireWebApplicationFactory` does instead (removing the
+default `IBackgroundJobScheduler` registration and adding the Hangfire one directly, rather than
+trying to influence *which one* `AddInfrastructure` would have chosen).

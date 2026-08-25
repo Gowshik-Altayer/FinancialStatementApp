@@ -1,9 +1,12 @@
 using System.Text;
+using FinancialStatementAI.Api;
 using FinancialStatementAI.Application;
 using FinancialStatementAI.Infrastructure;
 using FinancialStatementAI.Infrastructure.Persistence;
 using FinancialStatementAI.Infrastructure.Persistence.Seed;
 using FinancialStatementAI.Infrastructure.Security;
+using Hangfire;
+using Hangfire.Dashboard;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -111,6 +114,19 @@ public class Program
             catch (Exception ex)
             {
                 logger.LogWarning(ex, "Skipping database seed — database not reachable.");
+            }
+
+            // Dashboard is only mapped in Development — see HangfireDashboardAuthorizationFilter
+            // for why this API's JWT bearer auth can't meaningfully gate it, and why that's an
+            // acceptable tradeoff only because of this environment restriction. No-ops (route
+            // never gets mapped) unless "BackgroundJobs:Provider" = "Hangfire" actually
+            // registered Hangfire's services in the container.
+            if (string.Equals(builder.Configuration["BackgroundJobs:Provider"], "Hangfire", StringComparison.OrdinalIgnoreCase))
+            {
+                app.UseHangfireDashboard("/hangfire", new DashboardOptions
+                {
+                    Authorization = [new HangfireDashboardAuthorizationFilter()]
+                });
             }
         }
 

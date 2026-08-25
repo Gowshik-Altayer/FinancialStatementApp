@@ -2,12 +2,14 @@ using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Application.Services;
 using FinancialStatementAI.Infrastructure.AI.Classification;
 using FinancialStatementAI.Infrastructure.AI.DocumentIntelligence;
+using FinancialStatementAI.Infrastructure.BackgroundJobs;
 using FinancialStatementAI.Infrastructure.Documents;
 using FinancialStatementAI.Infrastructure.OCR;
 using FinancialStatementAI.Infrastructure.Persistence;
 using FinancialStatementAI.Infrastructure.Repositories;
 using FinancialStatementAI.Infrastructure.Security;
 using FinancialStatementAI.Infrastructure.Storage;
+using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -102,6 +104,51 @@ public static class DependencyInjection
             };
         });
         services.AddScoped<ITransactionClassificationService, TransactionClassificationService>();
+
+        // Both default to "Immediate" (works with zero configuration — every existing test
+        // exercises this path). Set "BackgroundJobs:Provider" = "Hangfire" to enqueue reprocess
+        // requests for a separate FinancialStatementAI.Worker process instead (Phase 14).
+        // "Hangfire:Storage" = "InMemory" swaps SQL Server storage for Hangfire's own in-process
+        // store — for local dev/tests without a SQL Server instance, never for production.
+        if (string.Equals(configuration["BackgroundJobs:Provider"], "Hangfire", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHangfire(config =>
+            {
+                config.SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+                    .UseSimpleAssemblyNameTypeSerializer()
+                    .UseRecommendedSerializerSettings()
+                    .UseFilter(new AutomaticRetryAttribute { Attempts = 3 });
+
+                if (string.Equals(configuration["Hangfire:Storage"], "InMemory", StringComparison.OrdinalIgnoreCase))
+                {
+                    config.UseInMemoryStorage();
+                }
+                else
+                {
+                    config.UseSqlServerStorage(configuration.GetConnectionString("DefaultConnection"));
+                }
+            });
+
+            services.AddScoped<IBackgroundJobScheduler, HangfireBackgroundJobScheduler>();
+        }
+        else
+        {
+            services.AddScoped<IBackgroundJobScheduler, ImmediateBackgroundJobScheduler>();
+        }
+
+        return services;
+    }
+
+    /// <summary>Starts an actual Hangfire processing server that dequeues and runs jobs — called
+    /// only by FinancialStatementAI.Worker, never by the Api host, so a request to the API can
+    /// never block on (or crash from) job execution. No-ops when Hangfire isn't the configured
+    /// provider, so Worker can call this unconditionally regardless of environment.</summary>
+    public static IServiceCollection AddHangfireProcessingServer(this IServiceCollection services, IConfiguration configuration)
+    {
+        if (string.Equals(configuration["BackgroundJobs:Provider"], "Hangfire", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHangfireServer();
+        }
 
         return services;
     }

@@ -10,7 +10,7 @@ namespace FinancialStatementAI.Api.Controllers;
 [ApiController]
 [Authorize]
 [Route("api/statements")]
-public class StatementsController(IStatementService statementService, IStatementProcessingService processingService) : ControllerBase
+public class StatementsController(IStatementService statementService) : ControllerBase
 {
     private Guid CurrentUserId => Guid.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -71,15 +71,24 @@ public class StatementsController(IStatementService statementService, IStatement
         return status is null ? NotFound() : Ok(status);
     }
 
-    /// <summary>Runs the currently-available processing steps (text extraction, transaction
-    /// parsing/classification, reconciliation as of Phase 11) synchronously and returns the
-    /// updated statement. Phase 14 moves this to a Hangfire background job (returning 202
-    /// Accepted instead) without changing the URL/verb.</summary>
+    /// <summary>Runs the processing pipeline (text extraction, transaction parsing/
+    /// classification, reconciliation) for one statement — synchronously by default (200 OK with
+    /// the final result), or enqueued for a separate Hangfire worker (202 Accepted, statement
+    /// immediately flipped to Processing) when "BackgroundJobs:Provider" = "Hangfire" (Phase 14).
+    /// The URL/verb never changes between the two; only the status code and how "finished" the
+    /// returned snapshot is do.</summary>
     [HttpPost("{id:guid}/reprocess")]
     public async Task<IActionResult> Reprocess(Guid id, CancellationToken cancellationToken)
     {
-        var statement = await processingService.ProcessAsync(id, CurrentUserId, cancellationToken);
-        return statement is null ? NotFound() : Ok(statement);
+        var statement = await statementService.RequestReprocessAsync(id, CurrentUserId, cancellationToken);
+        if (statement is null)
+        {
+            return NotFound();
+        }
+
+        return statement.ProcessingStatus == nameof(StatementProcessingStatus.Processing)
+            ? Accepted(statement)
+            : Ok(statement);
     }
 
     /// <summary>The most recent reconciliation run for this statement. 404 both when the
