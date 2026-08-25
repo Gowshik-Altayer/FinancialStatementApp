@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-FinancialStatementAI.Worker-8847592e-3753-4531-ac38-c8d47f080213</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FinancialStatementAI.Application\FinancialStatementAI.Application.csproj" />
+    <ProjectReference Include="..\FinancialStatementAI.Infrastructure\FinancialStatementAI.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

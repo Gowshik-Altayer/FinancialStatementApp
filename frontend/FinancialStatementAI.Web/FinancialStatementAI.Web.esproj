@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/1.0.6453341">
+  <PropertyGroup>
+    <StartupCommand>npm run start</StartupCommand>
+    <JavaScriptTestRoot>src\</JavaScriptTestRoot>
+    <JavaScriptTestFramework>Vitest</JavaScriptTestFramework>
+    <!-- Angular CLI already produces a production build via the Angular build system; -->
+    <!-- building this project from Visual Studio simply proxies to the npm scripts below. -->
+    <BuildCommand>npm run build</BuildCommand>
+    <CleanCommand>npm run clean</CleanCommand>
+  </PropertyGroup>
+</Project>
