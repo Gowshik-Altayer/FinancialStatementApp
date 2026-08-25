@@ -41,6 +41,8 @@ public static class DependencyInjection
         services.AddScoped<IMerchantMappingRepository, MerchantMappingRepository>();
         services.AddScoped<IClassificationHistoryRepository, ClassificationHistoryRepository>();
         services.AddScoped<IAiRequestLogRepository, AiRequestLogRepository>();
+        services.AddScoped<IReconciliationRepository, ReconciliationRepository>();
+        services.AddScoped<IReconciliationService, Application.Services.ReconciliationService>();
         services.AddSingleton<IStatementFileValidator, StatementFileValidator>();
         services.AddSingleton<IPdfTextExtractionService, PdfTextExtractionService>();
         services.AddSingleton<ITransactionExtractionService, TransactionExtractionService>();

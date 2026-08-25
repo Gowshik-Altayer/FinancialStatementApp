@@ -2,8 +2,8 @@
 
 Swagger/OpenAPI is live at `/swagger` in the Development environment (with a Bearer auth scheme
 wired in — use the Authorize button after logging in) for whatever endpoints exist at any given
-point. Endpoints are added phase by phase (Statements/Upload in Phase 6, Transactions/Review in
-Phase 12, Reconciliation in Phase 11, Dashboard/Search in Phase 13); this file is filled in as
+point. Endpoints are added phase by phase (Statements/Upload in Phase 6, Reconciliation in
+Phase 11, Transactions/Review in Phase 12, Dashboard/Search in Phase 13); this file is filled in as
 each area is built.
 
 ## Authentication (Phase 4)
@@ -65,15 +65,29 @@ to someone else.
 Lightweight `{ id, processingStatus, uploadedAt, processedAt }` — meant for polling processing
 progress once background processing exists (Phase 14) without pulling the full detail payload.
 
-### `POST /api/statements/{id}/reprocess` (Phases 7–10)
+### `POST /api/statements/{id}/reprocess` (Phases 7–11)
 
 Runs the full pipeline (direct PDF text or OCR fallback, statement-field extraction, transaction
-parsing/normalization, then AI classification — see `docs/ai-processing.md`) and returns the
-updated `StatementDetailResponse`, including `hasUsableText`, `extractedPageCount`,
-`extractionMethod` (`"DirectPdfText"` or `"Ocr"`), and an updated `transactionCount`. Runs
-synchronously today; from Phase 14 onward this enqueues a Hangfire job and returns `202 Accepted`
-instead, without changing the URL or verb. Re-running it replaces the statement's own previously
-parsed transactions and reclassifies them from scratch rather than accumulating duplicates.
+parsing/normalization, AI classification, then deterministic reconciliation — see
+`docs/ai-processing.md`) and returns the updated `StatementDetailResponse`, including
+`hasUsableText`, `extractedPageCount`, `extractionMethod` (`"DirectPdfText"` or `"Ocr"`), an
+updated `transactionCount`, and `reconciliationStatus` (`"Reconciled"`, `"Mismatch"`,
+`"InsufficientInformation"`, or `null` if reconciliation hasn't run yet). Runs synchronously today;
+from Phase 14 onward this enqueues a Hangfire job and returns `202 Accepted` instead, without
+changing the URL or verb. Re-running it replaces the statement's own previously parsed transactions
+and reclassifies them from scratch rather than accumulating duplicates, and appends a new
+reconciliation result rather than overwriting the previous one.
 
 - `200 OK` → updated `StatementDetailResponse`
 - `404 Not Found` → doesn't exist or belongs to another user
+
+### `GET /api/statements/{id}/reconciliation` (Phase 11)
+
+The most recent reconciliation run for this statement — `{ status, expectedClosingBalance,
+discrepancy, notes, reconciledAt }` (see `docs/ai-processing.md` for what each `status` value
+means and why there are three of them, not two).
+
+- `200 OK` → `ReconciliationResponse`
+- `404 Not Found` → the statement doesn't exist or belongs to another user, **or** it exists but
+  has never been reconciled yet (no successful reprocess run to completion) — the client can tell
+  the difference from the statement's own `processingStatus`

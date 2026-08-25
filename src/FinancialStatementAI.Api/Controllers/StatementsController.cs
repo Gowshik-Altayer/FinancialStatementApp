@@ -60,13 +60,25 @@ public class StatementsController(IStatementService statementService, IStatement
         return status is null ? NotFound() : Ok(status);
     }
 
-    /// <summary>Runs the currently-available processing steps (direct PDF text extraction as of
-    /// Phase 7) synchronously and returns the updated statement. Phase 14 moves this to a
-    /// Hangfire background job (returning 202 Accepted instead) without changing the URL/verb.</summary>
+    /// <summary>Runs the currently-available processing steps (text extraction, transaction
+    /// parsing/classification, reconciliation as of Phase 11) synchronously and returns the
+    /// updated statement. Phase 14 moves this to a Hangfire background job (returning 202
+    /// Accepted instead) without changing the URL/verb.</summary>
     [HttpPost("{id:guid}/reprocess")]
     public async Task<IActionResult> Reprocess(Guid id, CancellationToken cancellationToken)
     {
         var statement = await processingService.ProcessAsync(id, CurrentUserId, cancellationToken);
         return statement is null ? NotFound() : Ok(statement);
+    }
+
+    /// <summary>The most recent reconciliation run for this statement. 404 both when the
+    /// statement doesn't exist/isn't yours, and when it exists but hasn't been reconciled yet
+    /// (no reprocess run to completion) — the client can already tell the difference from the
+    /// statement's own processingStatus.</summary>
+    [HttpGet("{id:guid}/reconciliation")]
+    public async Task<IActionResult> GetReconciliation(Guid id, CancellationToken cancellationToken)
+    {
+        var reconciliation = await statementService.GetReconciliationAsync(id, CurrentUserId, cancellationToken);
+        return reconciliation is null ? NotFound() : Ok(reconciliation);
     }
 }

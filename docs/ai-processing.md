@@ -2,8 +2,8 @@
 
 > Built up phase by phase. This revision covers **Phase 7 (direct PDF text extraction and the
 > OCR-vs-direct decision)**, **Phase 8 (OCR / Document Intelligence abstractions)**,
-> **Phase 9 (transaction extraction and normalization)**, and **Phase 10 (AI classification)**.
-> Reconciliation (Phase 11) will extend this document as it lands.
+> **Phase 9 (transaction extraction and normalization)**, **Phase 10 (AI classification)**, and
+> **Phase 11 (deterministic reconciliation)**.
 
 ## How we determine whether OCR is required
 
@@ -256,6 +256,67 @@ tested and documented rather than silently accepted (see
 will need to address this — most likely by matching parsed transactions against existing ones on
 a natural key (date + amount + description) and updating in place instead of replacing, once
 corrections exist to actually preserve.
+
+## Deterministic reconciliation (Phase 11)
+
+### Why this step has zero AI involvement
+
+Reconciliation is pure arithmetic, not interpretation — there is nothing here for an LLM to add
+except hallucination risk (requirement #16). `ReconciliationService.ReconcileAsync` computes:
+
+```
+Opening Balance + Total Credits − Total Debits = Expected Closing Balance
+```
+
+using the statement's own parsed transactions (`Amount > 0` sums into credits, `Amount < 0` sums
+into debits, by absolute value), then compares that to the statement's *reported* Closing Balance
+(from `StatementFieldExtractionService`, Phase 7) within a fixed `0.01` tolerance to absorb
+rounding noise, not to paper over real discrepancies.
+
+### Three outcomes, not two
+
+A binary "matched / didn't match" would silently misrepresent statements this system simply
+doesn't have enough information about, which is its own kind of dishonesty (the same principle
+behind `MockOcrService`'s low-confidence-not-false-confidence design in Phase 8):
+
+- **`Reconciled`** — expected and reported closing balances agree within tolerance.
+- **`Mismatch`** — both balances are known and they genuinely disagree; `Discrepancy` (expected −
+  reported) and a human-readable note are recorded so a reviewer isn't just told "no."
+- **`InsufficientInformation`** — the statement is missing its Opening or Closing Balance (label
+  wasn't found on the page, e.g. an unusual layout). No expected balance is guessed in this case;
+  `ExpectedClosingBalance`/`Discrepancy` stay `null` rather than being computed from an assumed
+  value.
+
+### One row per run, not an update-in-place
+
+Every `ReconcileAsync` call persists a *new* `ReconciliationResult` row via
+`IReconciliationRepository.AddAsync` rather than overwriting the previous one, so a statement's
+reconciliation history across multiple reprocess runs stays inspectable (mirrors
+`docs/database.md`'s note that `ReconciliationResult` is an append-only history, not
+current-state-only). `GetReconciliation` (statement detail/list surfaces) and the
+`GET /api/statements/{id}/reconciliation` endpoint both read only the *latest* row
+(`GetLatestAsync`, ordered by `CreatedAt` descending).
+
+### Where it sits in the pipeline
+
+`StatementProcessingService.ProcessAsync` runs reconciliation immediately after classification
+completes, then marks the statement `PendingReview` — reconciliation output (deterministic, no AI
+judgment calls) is exactly the kind of signal a human reviewer should see *before* deciding whether
+to trust the AI-classified categories underneath it.
+
+### A found-and-fixed bug this phase's tests surfaced
+
+Writing `ReconciliationIntegrationTests` (a real four-digit balance, `$1000.00`, with no comma
+thousands-separator) exposed that both amount-matching regexes in
+`Infrastructure/Documents` — `StatementFieldExtractionService.AmountAfterLabel` and
+`TransactionExtractionService.TrailingAmountRegex` — used a leading `\d{1,3}` digit-group cap
+(intended only to bound the *comma-grouped* case, e.g. `1,234.56`). For a plain ungrouped number
+of four or more digits, that cap forced the regex engine to backtrack and match starting mid-number
+(e.g. matching `"000.00"` out of `"1000.00"`, silently parsing it as `0.00`) instead of failing to
+match at all — a genuine, previously-untested correctness bug for any real statement whose amounts
+are written without thousands separators. Fixed by relaxing both patterns' leading group to `\d+`,
+which is a strict superset of what `\d{1,3}` could already match, so no prior passing case (e.g.
+`129.45`, `1,234.56`) regressed.
 
 ## Trigger: synchronous today, background job from Phase 14
 

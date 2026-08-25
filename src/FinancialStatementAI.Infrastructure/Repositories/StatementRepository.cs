@@ -19,6 +19,7 @@ public class StatementRepository(AppDbContext dbContext) : IStatementRepository
         dbContext.Statements
             .Include(s => s.Transactions)
             .Include(s => s.StatementExtraction)
+            .Include(s => s.ReconciliationResults)
             .AsSplitQuery()
             .AsNoTracking()
             .SingleOrDefaultAsync(s => s.Id == id, cancellationToken);
@@ -27,6 +28,7 @@ public class StatementRepository(AppDbContext dbContext) : IStatementRepository
         await dbContext.Statements
             .Include(s => s.Transactions)
             .Include(s => s.StatementExtraction)
+            .Include(s => s.ReconciliationResults)
             .AsSplitQuery()
             .AsNoTracking()
             .Where(s => s.UserId == userId)

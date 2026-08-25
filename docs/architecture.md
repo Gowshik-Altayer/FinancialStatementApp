@@ -1,6 +1,6 @@
 # Architecture
 
-> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, and **Phase 10 (AI classification)**.
+> This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, and **Phase 11 (deterministic reconciliation)**.
 
 ## Solution layout
 
@@ -246,4 +246,20 @@ including a real bug the test suite caught (rules were checking the wrong field)
 limitation (reprocessing doesn't yet preserve classification history) — lives in
 [docs/ai-processing.md](ai-processing.md).
 
-Further architecture detail (reconciliation) will be appended here as it lands.
+## Deterministic reconciliation (Phase 11)
+
+New `IReconciliationService` (pure arithmetic — Opening Balance + Credits − Debits compared to the
+statement's reported Closing Balance within a 0.01 tolerance; no AI involvement, per requirement
+#16) plus `IReconciliationRepository`, which appends one `ReconciliationResult` row per reprocess
+run rather than overwriting, so reconciliation history stays inspectable across reprocesses. Three
+possible outcomes — `Reconciled`, `Mismatch`, or `InsufficientInformation` (when a balance label
+wasn't found on the page) — deliberately avoid collapsing "we don't know" into either a false match
+or a false mismatch. `StatementProcessingService.ProcessAsync` now runs reconciliation immediately
+after classification and marks the statement `PendingReview` as its terminal state, so a human
+reviewer sees both the AI-classified categories and the deterministic balance check together.
+`StatementRepository` now eager-loads `ReconciliationResults` alongside `Transactions` and
+`StatementExtraction` so the statement list/detail responses can surface the latest
+`ReconciliationStatus` without an extra round trip. Full reasoning — including a real amount-
+parsing regex bug this phase's tests caught (`\d{1,3}` incorrectly capping the leading digit group,
+corrupting ungrouped four-digit-plus amounts like `1000.00`) — lives in
+[docs/ai-processing.md](ai-processing.md).

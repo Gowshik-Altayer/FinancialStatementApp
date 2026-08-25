@@ -6,7 +6,7 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 10 of 18 complete.** See [Development Phases](#development-phases) below. Each
+**Status: Phase 11 of 18 complete.** See [Development Phases](#development-phases) below. Each
 phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
 for the full history.
 
@@ -183,8 +183,8 @@ Completed phases are checked off as they land.
 - [x] Phase 7 — Digital PDF text extraction + text-quality detection
 - [x] Phase 8 — OCR / Document Intelligence / Vision abstraction
 - [x] Phase 9 — Transaction extraction + normalization
-- [x] **Phase 10** — AI classification (rules → merchant mapping → LLM → confidence)
-- [ ] Phase 11 — Reconciliation (deterministic financial calculations)
+- [x] Phase 10 — AI classification (rules → merchant mapping → LLM → confidence)
+- [x] **Phase 11** — Reconciliation (deterministic financial calculations)
 - [ ] Phase 12 — Human review UI + audit trail (original vs. corrected values)
 - [ ] Phase 13 — Search / filter / pagination
 - [ ] Phase 14 — Hangfire background processing

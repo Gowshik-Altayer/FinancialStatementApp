@@ -15,7 +15,8 @@ public class StatementProcessingService(
     IOcrService ocrService,
     IStatementFieldExtractionService statementFieldExtractionService,
     ITransactionExtractionService transactionExtractionService,
-    ITransactionClassificationService transactionClassificationService) : IStatementProcessingService
+    ITransactionClassificationService transactionClassificationService,
+    IReconciliationService reconciliationService) : IStatementProcessingService
 {
     public async Task<StatementDetailResponse?> ProcessAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
     {
@@ -57,8 +58,13 @@ public class StatementProcessingService(
             await transactionRepository.ReplaceForStatementAsync(statementId, userId, transactions, cancellationToken);
 
             await transactionClassificationService.ClassifyStatementTransactionsAsync(statementId, userId, cancellationToken);
-
             await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.ClassificationComplete, DateTime.UtcNow, cancellationToken);
+
+            // Deterministic balance check (never AI — requirement #20), then hand off to a human
+            // regardless of the outcome: a clean reconciliation still has low-confidence
+            // classifications that may need review, and a mismatch needs a human to investigate.
+            await reconciliationService.ReconcileAsync(statementId, cancellationToken);
+            await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.PendingReview, DateTime.UtcNow, cancellationToken);
         }
 
         var updated = await statementRepository.GetByIdAsync(statementId, cancellationToken);
