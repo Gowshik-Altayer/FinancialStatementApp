@@ -6,7 +6,7 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 13 of 18 complete.** See [Development Phases](#development-phases) below. Each
+**Status: Phase 14 of 18 complete.** See [Development Phases](#development-phases) below. Each
 phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
 for the full history.
 
@@ -94,6 +94,11 @@ dotnet test FinancialStatementAI.sln
 # Backend: run just the API (Swagger at https://localhost:7031/swagger, health at /health)
 dotnet run --project src/FinancialStatementAI.Api
 
+# Backend: the background-job worker — only does anything once BackgroundJobs:Provider=Hangfire
+# is set (see below); with the default "Immediate" provider, reprocess runs synchronously inside
+# the Api process and this isn't needed at all.
+dotnet run --project src/FinancialStatementAI.Worker
+
 # Frontend
 cd frontend/FinancialStatementAI.Web
 npm install
@@ -159,6 +164,16 @@ dotnet user-secrets set "Azure:OpenAI:ApiKey" "..."
 dotnet user-secrets set "Azure:OpenAI:DeploymentName" "gpt-4o-mini"
 ```
 
+Statement reprocessing defaults to running synchronously in the Api process (no configuration
+needed — this is what every automated test exercises). To enqueue it as a Hangfire background job
+for `FinancialStatementAI.Worker` to pick up instead, set `BackgroundJobs:Provider` to `Hangfire`
+in `appsettings.json` for **both** the Api and Worker projects (they must agree), then run the
+Worker alongside the Api (see "Running from the command line" above). Hangfire defaults to storing
+jobs in SQL Server (`ConnectionStrings:DefaultConnection`, the same database as everything else);
+set `Hangfire:Storage` to `InMemory` instead for local experimentation without a SQL Server
+instance (never for production — jobs vanish on restart). The dashboard at `/hangfire` (Development
+environment only) shows job history and status once Hangfire is active.
+
 Example SQL Server connection strings:
 
 ```
@@ -186,8 +201,8 @@ Completed phases are checked off as they land.
 - [x] Phase 10 — AI classification (rules → merchant mapping → LLM → confidence)
 - [x] Phase 11 — Reconciliation (deterministic financial calculations)
 - [x] Phase 12 — Human review UI + audit trail (original vs. corrected values)
-- [x] **Phase 13** — Search / filter / pagination
-- [ ] Phase 14 — Hangfire background processing
+- [x] Phase 13 — Search / filter / pagination
+- [x] **Phase 14** — Hangfire background processing
 - [ ] Phase 15 — Redis caching / distributed locks
 - [ ] Phase 16 — Testing (backend xUnit/Moq/FluentAssertions, Angular tests)
 - [ ] Phase 17 — Docker + Docker Compose

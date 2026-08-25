@@ -33,4 +33,13 @@ public interface IStatementService
     /// <summary>Marks a statement Verified — the terminal state after a human has reviewed its
     /// AI-classified transactions and reconciliation result. Only valid from PendingReview.</summary>
     Task<VerifyStatementResult> VerifyAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default);
+
+    /// <summary>Requests a reprocess of one statement via the configured IBackgroundJobScheduler
+    /// (Phase 14) — synchronous by default, or enqueued for a separate Hangfire worker when
+    /// "BackgroundJobs:Provider" = "Hangfire". Returns a snapshot of the statement taken right
+    /// after scheduling: the final result for the synchronous default, or the just-set
+    /// "Processing" state for the Hangfire path — the caller can tell which happened from
+    /// <c>ProcessingStatus</c> alone. Null if the statement doesn't exist or belongs to another
+    /// user (no job is scheduled in that case).</summary>
+    Task<StatementDetailResponse?> RequestReprocessAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default);
 }

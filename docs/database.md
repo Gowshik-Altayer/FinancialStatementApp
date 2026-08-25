@@ -90,6 +90,11 @@ isn't reachable yet, the API logs a warning and still starts rather than crashin
   `Restrict` delete — a category referenced by a mapping can't be deleted out from under it),
   seeded by `MerchantMappingSeeder` after `CategorySeeder` runs.
 
+No EF Core migration was needed for Phase 14 (`ProcessingJob.HangfireJobId` already existed since
+`InitialCreate`). When `Hangfire:Storage` = `SqlServer` is active, Hangfire creates and manages its
+*own* `[HangFire]` schema and tables in the same database on first run — entirely separate from,
+and unmanaged by, this project's own EF Core migrations.
+
 ## Running migrations
 
 See the root [README.md](../README.md#database-migrations-from-phase-3-onward) for both the
