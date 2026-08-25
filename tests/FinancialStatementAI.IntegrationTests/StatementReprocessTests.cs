@@ -127,9 +127,9 @@ public class StatementReprocessTests : IClassFixture<CustomWebApplicationFactory
 
         Assert.Equal(HttpStatusCode.OK, reprocessResponse.StatusCode);
         var result = await reprocessResponse.Content.ReadFromJsonAsync<JsonElement>();
-        // As of Phase 10, a successful synchronous reprocess runs all the way through
-        // classification, not just extraction.
-        Assert.Equal("ClassificationComplete", result.GetProperty("processingStatus").GetString());
+        // As of Phase 11, a successful synchronous reprocess runs all the way through
+        // classification and reconciliation, ending at PendingReview for a human to check.
+        Assert.Equal("PendingReview", result.GetProperty("processingStatus").GetString());
         Assert.True(result.GetProperty("hasUsableText").GetBoolean());
         Assert.Equal(1, result.GetProperty("extractedPageCount").GetInt32());
     }
@@ -154,8 +154,8 @@ public class StatementReprocessTests : IClassFixture<CustomWebApplicationFactory
         Assert.Equal(HttpStatusCode.OK, reprocessResponse.StatusCode);
         var result = await reprocessResponse.Content.ReadFromJsonAsync<JsonElement>();
         // MockOcrService (the default provider) always succeeds with usable simulated text, so
-        // a PDF with no direct text layer should still reach ClassificationComplete via OCR.
-        Assert.Equal("ClassificationComplete", result.GetProperty("processingStatus").GetString());
+        // a PDF with no direct text layer should still reach PendingReview via OCR.
+        Assert.Equal("PendingReview", result.GetProperty("processingStatus").GetString());
         Assert.Equal("Ocr", result.GetProperty("extractionMethod").GetString());
     }
 

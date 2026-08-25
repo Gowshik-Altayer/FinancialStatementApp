@@ -9,7 +9,8 @@ public class StatementService(
     IStatementFileValidator fileValidator,
     IFileStorageService fileStorage,
     IStatementRepository statementRepository,
-    IProcessingJobRepository processingJobRepository) : IStatementService
+    IProcessingJobRepository processingJobRepository,
+    IReconciliationRepository reconciliationRepository) : IStatementService
 {
     public async Task<UploadStatementResult> UploadAsync(
         Guid userId,
@@ -80,5 +81,17 @@ public class StatementService(
             UploadedAt = statement.UploadedAt,
             ProcessedAt = statement.ProcessedAt
         };
+    }
+
+    public async Task<ReconciliationResponse?> GetReconciliationAsync(Guid statementId, Guid userId, CancellationToken cancellationToken = default)
+    {
+        var statement = await statementRepository.GetByIdAsync(statementId, cancellationToken);
+        if (statement is null || statement.UserId != userId)
+        {
+            return null;
+        }
+
+        var latest = await reconciliationRepository.GetLatestAsync(statementId, cancellationToken);
+        return latest is null ? null : ReconciliationService.ToResponse(latest);
     }
 }

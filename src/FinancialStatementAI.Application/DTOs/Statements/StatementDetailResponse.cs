@@ -31,4 +31,5 @@ public class StatementDetailResponse
     public bool? HasUsableText { get; set; }
     public int? ExtractedPageCount { get; set; }
     public string? ExtractionMethod { get; set; }
+    public string? ReconciliationStatus { get; set; }
 }

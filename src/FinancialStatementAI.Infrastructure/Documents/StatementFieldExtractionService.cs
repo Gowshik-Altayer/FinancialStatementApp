@@ -11,7 +11,9 @@ namespace FinancialStatementAI.Infrastructure.Documents;
 /// gracefully" and requirement #16's hallucination-prevention principle.</summary>
 public class StatementFieldExtractionService : IStatementFieldExtractionService
 {
-    private static readonly Regex AmountAfterLabel = new(@"[$€£]?\s*(?<amount>-?\d{1,3}(?:,\d{3})*\.\d{2})", RegexOptions.IgnoreCase);
+    // \d+ (not \d{1,3}) for the leading digit group — it must match a plain 4+-digit number
+    // with no thousands separator (e.g. "1000.00"), not just comma-grouped ones ("1,000.00").
+    private static readonly Regex AmountAfterLabel = new(@"[$€£]?\s*(?<amount>-?\d+(?:,\d{3})*\.\d{2})", RegexOptions.IgnoreCase);
 
     public ExtractedStatementFields Extract(string rawText)
     {

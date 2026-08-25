@@ -19,6 +19,7 @@ public static class StatementMapper
         TotalDebits = statement.TotalDebits,
         TotalCredits = statement.TotalCredits,
         ProcessingStatus = statement.ProcessingStatus.ToString(),
+        ReconciliationStatus = LatestReconciliationStatus(statement),
         UploadedAt = statement.UploadedAt
     };
 
@@ -48,6 +49,12 @@ public static class StatementMapper
         TransactionCount = statement.Transactions.Count,
         HasUsableText = statement.StatementExtraction?.HasUsableText,
         ExtractedPageCount = statement.StatementExtraction?.PageCount,
-        ExtractionMethod = statement.StatementExtraction?.ExtractionMethod.ToString()
+        ExtractionMethod = statement.StatementExtraction?.ExtractionMethod.ToString(),
+        ReconciliationStatus = LatestReconciliationStatus(statement)
     };
+
+    private static string? LatestReconciliationStatus(Statement statement) =>
+        statement.ReconciliationResults
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefault()?.Status.ToString();
 }

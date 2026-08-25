@@ -11,5 +11,6 @@ public class StatementSummaryResponse
     public decimal? TotalDebits { get; set; }
     public decimal? TotalCredits { get; set; }
     public string ProcessingStatus { get; set; } = string.Empty;
+    public string? ReconciliationStatus { get; set; }
     public DateTime UploadedAt { get; set; }
 }

@@ -31,8 +31,10 @@ public class TransactionExtractionService : ITransactionExtractionService
 
     // Requires exactly two decimal places so a bare reference number (e.g. "REF 123456") is
     // never mistaken for an amount — see class-level doc comment.
+    // \d+ (not \d{1,3}) for the leading digit group — it must match a plain 4+-digit number
+    // with no thousands separator (e.g. "1000.00"), not just comma-grouped ones ("1,000.00").
     private static readonly Regex TrailingAmountRegex = new(
-        @"[-+]?\(?\s*[$€£]?\s*\d{1,3}(?:,\d{3})*\.\d{2}\)?\s*(?:CR|DR)?\s*$",
+        @"[-+]?\(?\s*[$€£]?\s*\d+(?:,\d{3})*\.\d{2}\)?\s*(?:CR|DR)?\s*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static readonly string[] MonthAbbreviations =
