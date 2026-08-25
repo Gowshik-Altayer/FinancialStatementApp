@@ -1,0 +1,30 @@
+<h1>Welcome{{ authService.currentUser()?.firstName ? ', ' + authService.currentUser()?.firstName : '' }}</h1>
+
+<div class="summary-grid">
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Statements</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="placeholder">Summary data arrives once statement upload (Phase 6) and the dashboard summary endpoint are wired up.</p>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Pending Review</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="placeholder">Low-confidence transactions requiring review will surface here.</p>
+    </mat-card-content>
+  </mat-card>
+
+  <mat-card>
+    <mat-card-header>
+      <mat-card-title>Reconciliation</mat-card-title>
+    </mat-card-header>
+    <mat-card-content>
+      <p class="placeholder">Reconciliation status across statements will surface here.</p>
+    </mat-card-content>
+  </mat-card>
+</div>

@@ -1,0 +1,10 @@
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.placeholder {
+  color: var(--mat-sys-on-surface-variant);
+}

@@ -1,0 +1,28 @@
+.auth-page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+}
+
+.full-width {
+  width: 100%;
+  display: block;
+  margin-top: 0.5rem;
+}
+
+.error-message {
+  color: var(--mat-sys-error);
+  margin: 0 0 0.75rem;
+}
+
+.footer {
+  padding: 1rem;
+  text-align: center;
+}
