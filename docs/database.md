@@ -23,6 +23,8 @@ User 1───* Statement 1───1 StatementExtraction  (Phase 7 — raw ext
 AIRequest ──0..1── Statement
           ──0..1── Transaction
 
+ExceptionLog  (standalone — nullable UserId only, no other FKs; see GlobalExceptionHandler)
+
 AIUsageMetric  (standalone daily rollup, no FKs)
 Category ──* Transaction (CategoryId, current effective category)
 Category ──* MerchantMapping  (Phase 10 — merchant-pattern → Category, seeded + extensible)
@@ -92,6 +94,11 @@ isn't reachable yet, the API logs a warning and still starts rather than crashin
 - **`AddMerchantMapping`** (Phase 10) — adds the `MerchantMappings` table (`Category` FK,
   `Restrict` delete — a category referenced by a mapping can't be deleted out from under it),
   seeded by `MerchantMappingSeeder` after `CategorySeeder` runs.
+- **`AddExceptionLog`** — adds the standalone `ExceptionLogs` table (no FKs — a nullable `UserId`
+  column only, since the request that failed might not even be authenticated) backing the
+  app-wide `GlobalExceptionHandler` (see `docs/architecture.md`'s "Global exception handling"
+  section). Distinct from `ProcessingError`, which only ever records recoverable failures inside
+  the document-processing pipeline.
 
 No EF Core migration was needed for Phase 14 (`ProcessingJob.HangfireJobId` already existed since
 `InitialCreate`). When `Hangfire:Storage` = `SqlServer` is active, Hangfire creates and manages its
@@ -103,7 +110,8 @@ and unmanaged by, this project's own EF Core migrations.
 See the root [README.md](../README.md#database-migrations-from-phase-3-onward) for both the
 `dotnet ef` CLI and Visual Studio Package Manager Console workflows. `InitialCreate`
 (`src/FinancialStatementAI.Infrastructure/Persistence/Migrations/`) creates the original 12
-entities' tables; `AddStatementExtraction` and `AddMerchantMapping` (above) bring the total to 14.
+entities' tables; `AddStatementExtraction`, `AddMerchantMapping`, and `AddExceptionLog` (above)
+bring the total to 15.
 
 > **Note on verification in this environment:** the sandbox this was built in has no running SQL
 > Server engine (LocalDB is registered but its process fails to start here), so the migration was

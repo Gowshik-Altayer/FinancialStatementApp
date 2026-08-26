@@ -46,6 +46,12 @@ public class Program
         });
         builder.Services.AddHealthChecks();
 
+        // Global exception handling (see GlobalExceptionHandler.cs): catches anything unhandled
+        // anywhere in the pipeline, logs it to the ExceptionLogs table, and always returns a
+        // generic ProblemDetails response — never a raw exception message/stack trace.
+        builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+        builder.Services.AddProblemDetails();
+
         builder.Services.AddApplication();
         builder.Services.AddInfrastructure(builder.Configuration);
 
@@ -82,6 +88,11 @@ public class Program
         var app = builder.Build();
 
         // Configure the HTTP request pipeline.
+
+        // Registered first so it wraps every other middleware/controller action below —
+        // anything unhandled anywhere in the request pipeline gets caught here.
+        app.UseExceptionHandler();
+
         if (app.Environment.IsDevelopment())
         {
             app.UseSwagger();

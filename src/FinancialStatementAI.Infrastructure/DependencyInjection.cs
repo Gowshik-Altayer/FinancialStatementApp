@@ -39,6 +39,7 @@ public static class DependencyInjection
 
         services.AddScoped<IStatementRepository, StatementRepository>();
         services.AddScoped<IProcessingJobRepository, ProcessingJobRepository>();
+        services.AddScoped<IExceptionLogRepository, ExceptionLogRepository>();
         services.AddScoped<IStatementExtractionRepository, StatementExtractionRepository>();
         services.AddScoped<ITransactionRepository, TransactionRepository>();
         services.AddScoped<ICategoryRepository, CategoryRepository>();

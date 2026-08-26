@@ -27,6 +27,7 @@ Docker Compose)**, and **Phase 18 (this documentation pass)**.
 - [Redis caching & distributed locks (Phase 15)](#redis-caching--distributed-locks-phase-15)
 - [Testing (Phase 16)](#testing-phase-16)
 - [Docker & Docker Compose (Phase 17)](#docker--docker-compose-phase-17)
+- [Global exception handling](#global-exception-handling)
 
 ## Processing pipeline overview
 
@@ -628,3 +629,53 @@ but this development environment has no Docker daemon available, so they could n
 built or run here. Anyone using this Phase should run `docker compose up --build` themselves
 before relying on it, the same way any other unverified-in-this-environment code should be
 checked before being trusted.
+
+## Global exception handling
+
+A standalone addition after the 18-phase plan, requested directly: catch every unhandled
+exception anywhere in the API, not just inside the document-processing pipeline, and make it
+visible in the database rather than only in log files.
+
+### Distinct from `ProcessingError`, on purpose
+
+`ProcessingError` (Phase 1) only ever records *recoverable* failures the pipeline already knows
+how to handle — one bad transaction that shouldn't take down the rest of a statement (requirement
+#14). `GlobalExceptionHandler` (`src/FinancialStatementAI.Api/GlobalExceptionHandler.cs`) is the
+catch-all for everything else: a bug, an unexpected null reference, a database timeout on an
+endpoint that has nothing to do with statement processing. It implements .NET 8's `IExceptionHandler`
+and is wired in via `app.UseExceptionHandler()` as the very first middleware in `Program.cs`, so it
+wraps every other middleware and controller action below it.
+
+### Never leaks the exception itself to the client
+
+Every unhandled exception is logged via `ILogger` (as before) *and* persisted to a new
+`ExceptionLogs` table (`ExceptionType`, `Message`, `StackTrace`, `RequestPath`, `RequestMethod`,
+the current user's id if authenticated, and the status code returned) — but the HTTP response
+sent back is always a fixed, generic `ProblemDetails` body ("An unexpected error occurred... The
+error has been logged."), never the exception's own message or stack trace. Leaking either to a
+client is itself an information-disclosure risk, and it's exactly the same principle the Angular
+`error.interceptor` already applies for 5xx responses on the frontend side (Phase 16) — this is
+that same "never a bare unhandled failure" rule enforced on the backend, at the source.
+
+### A captive-dependency bug this feature's own migration command caught
+
+`AddExceptionHandler<T>` registers the handler as a **singleton** — but `IExceptionLogRepository`
+(like every repository backed by `AppDbContext`) is **scoped**. Injecting it directly into
+`GlobalExceptionHandler`'s constructor is a captive-dependency bug: ASP.NET Core's DI container
+validates scope lifetimes in Development by default, so this would have thrown immediately on the
+very first exception it tried to handle. `dotnet ef migrations add` surfaced this before any test
+did, because EF's design-time host building also validates the container. Fixed with the standard
+pattern for this exact situation: inject `IServiceScopeFactory` instead, and resolve
+`IExceptionLogRepository` from a short-lived scope created per exception.
+
+### Testing an exception handler without a throw-on-purpose endpoint in production code
+
+`GlobalExceptionHandlerTests` (unit) exercises the handler class directly — a real
+`DefaultHttpContext`, a mocked `IExceptionLogRepository`, asserting the logged row's fields, the
+generic response body, and that a *failure to log* the exception doesn't itself crash the handler
+or prevent a response. `GlobalExceptionHandlerIntegrationTests` proves the same thing through the
+real HTTP pipeline (`Program.cs`'s actual `app.UseExceptionHandler()`, not just the handler class
+in isolation) via `GlobalExceptionHandlerWebApplicationFactory`, which swaps `ICategoryRepository`
+for a stub that always throws — the least invasive way to trigger a genuine unhandled exception
+through a real endpoint (`GET /api/categories`) without adding test-only throwing code to any
+production controller.

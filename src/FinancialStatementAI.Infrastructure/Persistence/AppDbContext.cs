@@ -19,6 +19,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ProcessingError> ProcessingErrors => Set<ProcessingError>();
     public DbSet<AIRequest> AIRequests => Set<AIRequest>();
     public DbSet<AIUsageMetric> AIUsageMetrics => Set<AIUsageMetric>();
+    public DbSet<ExceptionLog> ExceptionLogs => Set<ExceptionLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

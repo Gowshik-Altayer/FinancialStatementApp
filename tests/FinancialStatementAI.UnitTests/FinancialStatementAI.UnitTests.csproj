@@ -29,6 +29,7 @@
     <ProjectReference Include="..\..\src\FinancialStatementAI.Domain\FinancialStatementAI.Domain.csproj" />
     <ProjectReference Include="..\..\src\FinancialStatementAI.Application\FinancialStatementAI.Application.csproj" />
     <ProjectReference Include="..\..\src\FinancialStatementAI.Infrastructure\FinancialStatementAI.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\FinancialStatementAI.Api\FinancialStatementAI.Api.csproj" />
   </ItemGroup>
 
 </Project>
