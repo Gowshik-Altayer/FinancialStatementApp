@@ -9,11 +9,13 @@ schema is defined — entity configurations live one-per-entity under
 ## Entity-relationship overview
 
 ```
-User 1───* Statement 1───* Transaction 1───1 TransactionExtraction
-                  │              │
-                  │              ├──* TransactionClassification *───1 Category
-                  │              ├──* TransactionCorrection ────────1 User (CorrectedByUser)
-                  │              └──* ProcessingError
+User 1───* Statement 1───1 StatementExtraction  (Phase 7 — raw extracted text + verdict)
+                  │
+                  ├──* Transaction 1───1 TransactionExtraction
+                  │        │
+                  │        ├──* TransactionClassification *───1 Category
+                  │        ├──* TransactionCorrection ────────1 User (CorrectedByUser)
+                  │        └──* ProcessingError
                   │
                   ├──* ProcessingJob ──* ProcessingError
                   └──* ReconciliationResult
@@ -23,6 +25,7 @@ AIRequest ──0..1── Statement
 
 AIUsageMetric  (standalone daily rollup, no FKs)
 Category ──* Transaction (CategoryId, current effective category)
+Category ──* MerchantMapping  (Phase 10 — merchant-pattern → Category, seeded + extensible)
 ```
 
 ## Why some history is append-only
@@ -98,9 +101,9 @@ and unmanaged by, this project's own EF Core migrations.
 ## Running migrations
 
 See the root [README.md](../README.md#database-migrations-from-phase-3-onward) for both the
-`dotnet ef` CLI and Visual Studio Package Manager Console workflows. The `InitialCreate`
-migration (`src/FinancialStatementAI.Infrastructure/Persistence/Migrations/`) creates all 12
-tables described above.
+`dotnet ef` CLI and Visual Studio Package Manager Console workflows. `InitialCreate`
+(`src/FinancialStatementAI.Infrastructure/Persistence/Migrations/`) creates the original 12
+entities' tables; `AddStatementExtraction` and `AddMerchantMapping` (above) bring the total to 14.
 
 > **Note on verification in this environment:** the sandbox this was built in has no running SQL
 > Server engine (LocalDB is registered but its process fails to start here), so the migration was

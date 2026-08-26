@@ -2,8 +2,64 @@
 
 > This document is built up phase by phase alongside the implementation. This revision covers **Phase 1 (solution setup)**, **Phase 2 (Clean Architecture DI wiring)**, **Phase 3 (SQL Server + EF Core)**, **Phase 4 (JWT authentication)**, **Phase 5 (Angular layout)**, **Phase 6 (file upload)**, **Phase 7 (PDF text extraction)**, **Phase 8 (OCR / Document Intelligence)**, **Phase 9 (transaction extraction & normalization)**, **Phase 10 (AI classification)**, **Phase 11 (deterministic reconciliation)**, **Phase 12 (human review + audit trail)**,
 **Phase 13 (search, filter & pagination)**, **Phase 14 (Hangfire background processing)**,
-**Phase 15 (Redis caching & distributed locks)**, **Phase 16 (testing)**, and **Phase 17 (Docker &
-Docker Compose)**.
+**Phase 15 (Redis caching & distributed locks)**, **Phase 16 (testing)**, **Phase 17 (Docker &
+Docker Compose)**, and **Phase 18 (this documentation pass)**.
+
+## Contents
+
+- [Processing pipeline overview](#processing-pipeline-overview)
+- [Solution layout](#solution-layout)
+- [Clean Architecture rule](#clean-architecture-rule)
+- [Why .NET 8 target framework on a newer SDK](#why-net-8-target-framework-on-a-newer-sdk)
+- [Angular project inside the Visual Studio solution](#angular-project-inside-the-visual-studio-solution)
+- [Phase 1 acceptance](#phase-1-acceptance)
+- [Composition root (Phase 2)](#composition-root-phase-2)
+- [Persistence (Phase 3)](#persistence-phase-3)
+- [Authentication (Phase 4)](#authentication-phase-4)
+- [Angular layout (Phase 5)](#angular-layout-phase-5)
+- [File upload (Phase 6)](#file-upload-phase-6)
+- [Document processing: text extraction, OCR, and transaction parsing (Phases 7–9)](#document-processing-text-extraction-ocr-and-transaction-parsing-phases-79)
+- [AI classification (Phase 10)](#ai-classification-phase-10)
+- [Deterministic reconciliation (Phase 11)](#deterministic-reconciliation-phase-11)
+- [Human review and audit trail (Phase 12)](#human-review-and-audit-trail-phase-12)
+- [Search, filter & pagination (Phase 13)](#search-filter--pagination-phase-13)
+- [Hangfire background processing (Phase 14)](#hangfire-background-processing-phase-14)
+- [Redis caching & distributed locks (Phase 15)](#redis-caching--distributed-locks-phase-15)
+- [Testing (Phase 16)](#testing-phase-16)
+- [Docker & Docker Compose (Phase 17)](#docker--docker-compose-phase-17)
+
+## Processing pipeline overview
+
+The end-to-end flow a statement goes through, and which phase built each step (full reasoning for
+every decision below lives in the phase-specific sections further down and in
+[docs/ai-processing.md](ai-processing.md)):
+
+```mermaid
+flowchart TD
+    Upload["Upload (Phase 6)\nvalidate bytes, store file,\ncreate Statement + ProcessingJob"]
+    Trigger["POST .../reprocess (Phase 14)\nsynchronous by default,\nHangfire job when configured"]
+    Extract{"PDF with usable\nembedded text?\n(Phase 7)"}
+    Direct["Direct PdfPig\ntext extraction"]
+    OCR["OCR / Vision fallback\n(Phase 8, Mock by default)"]
+    Fields["Statement field extraction\n(balances, account info)"]
+    Parse["Transaction extraction\n(rule-based, not LLM — Phase 9)"]
+    Classify["Hybrid classification ladder\nRules -> Merchant Mapping ->\nKnown Correction -> LLM (Phase 10)"]
+    Reconcile["Deterministic reconciliation\nOpening + Credits - Debits\n= Expected Closing (Phase 11)"]
+    Review["Human review\ncorrect a category,\naudit trail (Phase 12)"]
+    Verified["Verified\n(human decision, never inferred)"]
+
+    Upload --> Trigger --> Extract
+    Extract -->|"yes"| Direct
+    Extract -->|"no"| OCR
+    Direct --> Fields
+    OCR --> Fields
+    Fields --> Parse --> Classify --> Reconcile --> Review --> Verified
+```
+
+Search/filter/pagination (Phase 13), the Hangfire/Redis infrastructure behind the trigger and the
+review's concurrency lock (Phases 14–15), and the test/Docker work (Phases 16–17) all support this
+one flow rather than adding steps of their own — none of them appear in the diagram above because
+none of them are a *stage* the data itself passes through.
 
 ## Solution layout
 
