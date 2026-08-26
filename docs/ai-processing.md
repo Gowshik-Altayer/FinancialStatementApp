@@ -260,51 +260,6 @@ between. See `TransactionRepository.ReplaceForStatementAsync` and
 replaced `Reprocessing_Yields_One_Transaction_With_One_Current_Classification`, which asserted the
 old, now-fixed behavior).
 
-## Human review and audit trail (Phase 12)
-
-### Category correction only, deliberately
-
-`TransactionCorrection` (Phase 1) is a generic per-field audit row — `CorrectedField` supports
-seven fields — but the Phase 12 API (`POST /api/transactions/{id}/corrections`) only accepts
-`Category`. Two reasons: Amount/date corrections would need to also re-trigger reconciliation
-(new design surface this phase doesn't need), and — more subtly — a live Merchant/Description
-correction would conflict with `ApplyReparsedFields` unconditionally refreshing those fields from
-the raw text on every reprocess, silently reverting the correction exactly the way the pre-fix
-`ReplaceForStatementAsync` used to revert categories. Rather than solve that now for fields the
-challenge doesn't actually need corrected, the scope stays at Category — the field the review
-workflow is actually about — and the limitation is written down rather than guessed around.
-
-### Why a category correction survives on its own, with no special-casing
-
-Once the corrected `Transaction` row survives a reprocess (the fix above), no extra code is needed
-to make the correction "stick": `TransactionClassificationService`'s existing "Known
-Classification" rung (`IClassificationHistoryRepository.FindPreviousCorrectedCategoryAsync`,
-Phase 10) already looks up the most recent human correction for a transaction's merchant text
-before ever reaching the LLM. Reclassification after a reprocess finds that same correction row
-again (same transaction, same merchant, correction row never deleted) and reapplies it with
-`ClassificationMethod.PreviousCorrection` at `0.95` confidence — the correction and the
-self-healing classification ladder were designed independently (Phases 9/10 and 12) but compose
-correctly once the identity-preservation bug is fixed.
-
-### The review queue and "review priority" are computed, never stored
-
-`GET /api/transactions/review-queue` and `GET /api/statements/{id}/transactions` both derive a
-`reviewPriority` (`HighConfidence` / `ReviewRecommended` / `ReviewRequired`) from the transaction's
-current `ConfidenceScore` against `ClassificationConfidenceThresholds` at read time
-(`TransactionMapper.ToResponse`) rather than persisting it — it's a pure function of already-stored
-data, so persisting it would just be a second place for it to drift out of sync. The review queue
-is ordered by that same confidence, ascending, across every one of the user's `PendingReview`
-statements — the transactions most likely to be wrong surface first.
-
-### Verification is a human decision, not a computed one
-
-`POST /api/statements/{id}/verify` is the only way a statement reaches `Verified` — nothing marks
-a statement verified automatically, no matter how high its classification confidences or how clean
-its reconciliation, because "a human looked at this and agreed" is the entire meaning of the state.
-It's only valid from `PendingReview` (a statement that's still `Uploaded`/`Processing` hasn't been
-classified or reconciled yet, and one already `Verified` doesn't need re-verifying without a new
-reprocess putting it back in `PendingReview` first).
-
 ## Deterministic reconciliation (Phase 11)
 
 ### Why this step has zero AI involvement
@@ -366,12 +321,61 @@ are written without thousands separators. Fixed by relaxing both patterns' leadi
 which is a strict superset of what `\d{1,3}` could already match, so no prior passing case (e.g.
 `129.45`, `1,234.56`) regressed.
 
-## Trigger: synchronous today, background job from Phase 14
+## Human review and audit trail (Phase 12)
 
-`POST /api/statements/{id}/reprocess` runs `StatementProcessingService.ProcessAsync` and blocks
-until it's done — practical to build and test the extraction logic against before Hangfire exists,
-and fast enough (single-digit milliseconds per statement, no external calls) that "runs
-synchronously" doesn't currently violate the spirit of requirement #11 (don't do *long-running*
-OCR/AI work in a request). Once Phase 14 wires up Hangfire, the pending `ProcessingJob` row that
-upload already creates (Phase 6) is what actually gets consumed, and this endpoint's contract
-changes to "enqueue and return 202 Accepted" without changing its URL or request/response shape.
+### Category correction only, deliberately
+
+`TransactionCorrection` (Phase 1) is a generic per-field audit row — `CorrectedField` supports
+seven fields — but the Phase 12 API (`POST /api/transactions/{id}/corrections`) only accepts
+`Category`. Two reasons: Amount/date corrections would need to also re-trigger reconciliation
+(new design surface this phase doesn't need), and — more subtly — a live Merchant/Description
+correction would conflict with `ApplyReparsedFields` unconditionally refreshing those fields from
+the raw text on every reprocess, silently reverting the correction exactly the way the pre-fix
+`ReplaceForStatementAsync` used to revert categories. Rather than solve that now for fields the
+challenge doesn't actually need corrected, the scope stays at Category — the field the review
+workflow is actually about — and the limitation is written down rather than guessed around.
+
+### Why a category correction survives on its own, with no special-casing
+
+Once the corrected `Transaction` row survives a reprocess (the fix above), no extra code is needed
+to make the correction "stick": `TransactionClassificationService`'s existing "Known
+Classification" rung (`IClassificationHistoryRepository.FindPreviousCorrectedCategoryAsync`,
+Phase 10) already looks up the most recent human correction for a transaction's merchant text
+before ever reaching the LLM. Reclassification after a reprocess finds that same correction row
+again (same transaction, same merchant, correction row never deleted) and reapplies it with
+`ClassificationMethod.PreviousCorrection` at `0.95` confidence — the correction and the
+self-healing classification ladder were designed independently (Phases 9/10 and 12) but compose
+correctly once the identity-preservation bug is fixed.
+
+### The review queue and "review priority" are computed, never stored
+
+`GET /api/transactions/review-queue` and `GET /api/statements/{id}/transactions` both derive a
+`reviewPriority` (`HighConfidence` / `ReviewRecommended` / `ReviewRequired`) from the transaction's
+current `ConfidenceScore` against `ClassificationConfidenceThresholds` at read time
+(`TransactionMapper.ToResponse`) rather than persisting it — it's a pure function of already-stored
+data, so persisting it would just be a second place for it to drift out of sync. The review queue
+is ordered by that same confidence, ascending, across every one of the user's `PendingReview`
+statements — the transactions most likely to be wrong surface first.
+
+### Verification is a human decision, not a computed one
+
+`POST /api/statements/{id}/verify` is the only way a statement reaches `Verified` — nothing marks
+a statement verified automatically, no matter how high its classification confidences or how clean
+its reconciliation, because "a human looked at this and agreed" is the entire meaning of the state.
+It's only valid from `PendingReview` (a statement that's still `Uploaded`/`Processing` hasn't been
+classified or reconciled yet, and one already `Verified` doesn't need re-verifying without a new
+reprocess putting it back in `PendingReview` first).
+
+## Trigger: synchronous by default, Hangfire job when configured (Phases 11–14)
+
+`POST /api/statements/{id}/reprocess` calls `StatementProcessingService.ProcessAsync` via
+`IBackgroundJobScheduler` (Phase 14) — synchronously by default (fast enough, single-digit
+milliseconds per statement with the Mock providers and no external calls, that this doesn't
+violate the spirit of requirement #11's "don't do *long-running* OCR/AI work in a request"), or
+enqueued for a separate `FinancialStatementAI.Worker` process via Hangfire when
+`BackgroundJobs:Provider` = `Hangfire`. The endpoint's URL and verb never change between the two;
+only the status code does (`200 OK` synchronous, `202 Accepted` when enqueued) — see
+`docs/architecture.md`'s Phase 14 section for the full design (including why this lives in
+`StatementService.RequestReprocessAsync` rather than on `IStatementProcessingService` itself, to
+avoid a circular dependency) and Phase 15 for the per-statement lock that keeps two overlapping
+runs of this same method from corrupting each other's writes.

@@ -6,7 +6,7 @@ categories with confidence scoring, reconciles totals, and supports human review
 
 Built for the DataCaliper AI Innovation Hiring Challenge (Group 3 — Senior).
 
-**Status: Phase 17 of 18 complete.** See [Development Phases](#development-phases) below. Each
+**Status: All 18 phases complete.** See [Development Phases](#development-phases) below. Each
 phase is implemented and committed on its own branch off `main`, then merged in — see `git log`
 for the full history.
 
@@ -16,7 +16,7 @@ for the full history.
 |---|---|
 | Frontend | Angular (standalone components), TypeScript, Angular Material, RxJS, Reactive Forms, Angular Router, HttpClient |
 | Backend | ASP.NET Core Web API, .NET 8, C# |
-| Database | Microsoft SQL Server, EF Core (+ Dapper for read-heavy queries) |
+| Database | Microsoft SQL Server, EF Core (LINQ projections for read-heavy list/search queries — see docs/architecture.md's Phase 13 section) |
 | Auth | JWT Bearer + role-based authorization |
 | Background jobs | Hangfire |
 | Cache | Redis |
@@ -24,7 +24,7 @@ for the full history.
 | Document processing | Direct PDF text extraction, OCR, Azure AI Document Intelligence — all behind abstractions |
 | AI | Azure OpenAI / OpenAI — behind `ITransactionClassifier`, hybrid rules + merchant mapping + LLM |
 | Validation | FluentValidation |
-| Logging | Serilog / `Microsoft.Extensions.Logging` |
+| Logging | `Microsoft.Extensions.Logging` (`ILogger<T>`) |
 | Testing | xUnit, Moq, FluentAssertions (backend); Angular CLI unit tests (frontend) |
 | Containerization | Docker, Docker Compose |
 | IDE | **Visual Studio 2022** |
@@ -249,11 +249,13 @@ Completed phases are checked off as they land.
 - [x] Phase 14 — Hangfire background processing
 - [x] Phase 15 — Redis caching / distributed locks
 - [x] Phase 16 — Testing (backend xUnit/Moq/FluentAssertions, Angular tests)
-- [x] **Phase 17** — Docker + Docker Compose
-- [ ] Phase 18 — Documentation pass
+- [x] Phase 17 — Docker + Docker Compose
+- [x] **Phase 18** — Documentation pass
 
 ## AI usage disclosure
 
 Built with AI-assisted development (Claude Code) per the challenge's AI usage & disclosure
-requirement — used for scaffolding, code generation, and documentation across phases. Prompt
-history is exported alongside the submission as required.
+requirement — used for scaffolding, code generation, tests, and documentation across all 18
+phases, with a human reviewing and directing the work phase by phase (branch → implement → test →
+document → merge, per commit history). The full prompt/session history for this work is available
+and can be provided alongside the submission if the challenge's disclosure process requires it.
