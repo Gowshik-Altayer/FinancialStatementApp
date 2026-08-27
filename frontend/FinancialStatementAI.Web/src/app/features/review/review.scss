@@ -1,9 +1,208 @@
-.subtitle {
-  color: var(--mat-sys-on-surface-variant);
-  margin-top: -0.5rem;
-  margin-bottom: 1rem;
+@use 'styles/breakpoints' as bp;
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--fsai-space-4);
+  margin-bottom: var(--fsai-space-5);
 }
 
-.empty-state {
-  color: var(--mat-sys-on-surface-variant);
+.review-card {
+  background: var(--mat-sys-surface-container-low);
+  border-radius: var(--fsai-radius);
+  box-shadow: var(--fsai-card-shadow);
+  padding: var(--fsai-card-padding);
+  margin-bottom: var(--fsai-space-7);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-5);
+}
+
+.review-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--fsai-space-2);
+}
+
+.review-progress {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--fsai-warning);
+  background: var(--fsai-warning-bg);
+  padding: var(--fsai-space-1) var(--fsai-space-3);
+  border-radius: 999px;
+}
+
+.source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fsai-space-1);
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: var(--fsai-info);
+
+  mat-icon {
+    font-size: 1.1rem;
+    width: 1.1rem;
+    height: 1.1rem;
+  }
+}
+
+.review-transaction {
+  display: flex;
+  gap: var(--fsai-space-6);
+  flex-wrap: wrap;
+  padding-bottom: var(--fsai-space-4);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.review-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-1);
+}
+
+.review-field.wide {
+  flex: 1 1 auto;
+  min-width: 200px;
+}
+
+.review-field-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.review-field-value {
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.review-field-value.amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.review-field-value.amount.negative {
+  color: var(--fsai-danger);
+}
+
+.ai-recommendation {
+  background: var(--fsai-info-bg);
+  border-radius: var(--fsai-radius-sm);
+  padding: var(--fsai-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-3);
+}
+
+.ai-recommendation-header {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-2);
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--fsai-info);
+}
+
+.ai-recommendation-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--fsai-space-4);
+}
+
+.ai-category {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-1);
+}
+
+.ai-reason {
+  margin: 0;
+  font-size: 0.8rem;
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.review-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--fsai-space-4);
+  flex-wrap: wrap;
+}
+
+.category-select {
+  min-width: 220px;
+}
+
+.review-buttons {
+  display: flex;
+  gap: var(--fsai-space-2);
+  flex-wrap: wrap;
+}
+
+.review-history {
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  padding-top: var(--fsai-space-3);
+
+  h3 {
+    margin: 0 0 var(--fsai-space-2) 0;
+    font-size: 0.85rem;
+  }
+}
+
+.history-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--fsai-space-3);
+  font-size: 0.8rem;
+  padding: var(--fsai-space-1) 0;
+  flex-wrap: wrap;
+}
+
+.history-meta {
+  opacity: 0.6;
+}
+
+.section {
+  margin-bottom: var(--fsai-space-6);
+}
+
+.section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 var(--fsai-space-4) 0;
+}
+
+.transaction-table-card {
+  background: var(--mat-sys-surface-container-low);
+  border-radius: var(--fsai-radius);
+  box-shadow: var(--fsai-card-shadow);
+  padding: var(--fsai-space-2);
+  overflow-x: auto;
+}
+
+@include bp.respond(mobile) {
+  .review-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .category-select {
+    min-width: unset;
+    width: 100%;
+  }
+
+  .review-buttons {
+    justify-content: stretch;
+
+    button {
+      flex: 1 1 auto;
+    }
+  }
 }

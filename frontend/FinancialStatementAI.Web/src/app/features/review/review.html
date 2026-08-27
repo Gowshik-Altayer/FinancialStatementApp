@@ -1,14 +1,104 @@
-<h1>Review</h1>
-<p class="subtitle">Transactions across all statements still awaiting human review, lowest classification confidence first.</p>
+<app-page-header title="Review" subtitle="Transactions still awaiting human review, lowest confidence first.">
+</app-page-header>
+
+<div class="kpi-row">
+  <app-kpi-card label="Pending Review" [value]="remainingCount()" icon="fact_check" [tone]="remainingCount() > 0 ? 'warning' : 'success'" />
+  <app-kpi-card label="Low Confidence" [value]="lowConfidenceCount()" icon="report_problem" [tone]="lowConfidenceCount() > 0 ? 'danger' : 'success'" />
+</div>
 
 @if (isLoading()) {
-  <mat-spinner diameter="32" />
-} @else if (transactions().length === 0) {
-  <p class="empty-state">Nothing to review right now — every statement is either still processing or already verified.</p>
+  <app-loading-state message="Loading the review queue…" />
+} @else if (loadError()) {
+  <app-error-state message="We couldn't load the review queue." (retry)="retry()" />
+} @else if (!current()) {
+  <app-empty-state icon="task_alt" message="Nothing to review right now — every statement is either still processing or already verified." />
 } @else {
-  <mat-card>
-    <mat-card-content>
-      <app-transaction-table [transactions]="transactions()" [showStatementColumn]="true" />
-    </mat-card-content>
-  </mat-card>
+  <div class="review-card">
+    <div class="review-card-header">
+      <span class="review-progress">{{ remainingCount() }} remaining</span>
+      <a [routerLink]="['/statements', current()!.statementId]" class="source-link">
+        <mat-icon>description</mat-icon>
+        {{ current()!.statementFileName }}
+      </a>
+    </div>
+
+    <div class="review-transaction">
+      <div class="review-field">
+        <span class="review-field-label">Date</span>
+        <span class="review-field-value">{{ current()!.transactionDate || '—' }}</span>
+      </div>
+      <div class="review-field wide">
+        <span class="review-field-label">Description</span>
+        <span class="review-field-value">{{ current()!.description }}</span>
+      </div>
+      <div class="review-field">
+        <span class="review-field-label">Amount</span>
+        <span class="review-field-value amount" [class.negative]="(current()!.amount ?? 0) < 0">{{ current()!.amount | number: '1.2-2' }}</span>
+      </div>
+    </div>
+
+    <div class="ai-recommendation">
+      <div class="ai-recommendation-header">
+        <mat-icon>psychology</mat-icon>
+        <span>AI Recommendation</span>
+      </div>
+      <div class="ai-recommendation-body">
+        <div class="ai-category">
+          <span class="review-field-label">Suggested Category</span>
+          <span class="review-field-value">{{ current()!.categoryName || 'Uncategorized' }}</span>
+        </div>
+        @if (current()!.classificationConfidence !== null) {
+          <app-confidence-indicator [score]="current()!.classificationConfidence!" [priority]="current()!.reviewPriority" />
+        }
+      </div>
+      @if (current()!.classificationReason) {
+        <p class="ai-reason">{{ current()!.classificationReason }}</p>
+      }
+    </div>
+
+    <div class="review-actions">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="category-select">
+        <mat-label>Change category</mat-label>
+        <mat-select [(ngModel)]="selectedCategoryName">
+          @for (c of categories(); track c.id) {
+            <mat-option [value]="c.name">{{ c.name }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
+
+      <div class="review-buttons">
+        <button mat-stroked-button type="button" (click)="skip()">
+          <mat-icon>skip_next</mat-icon>
+          Skip
+        </button>
+        <button mat-stroked-button type="button" (click)="acceptSuggestion()">
+          <mat-icon>check</mat-icon>
+          Accept AI Suggestion
+        </button>
+        <button mat-flat-button color="primary" type="button" [disabled]="saving()" (click)="saveAndNext()">
+          <mat-icon>arrow_forward</mat-icon>
+          Save &amp; Next
+        </button>
+      </div>
+    </div>
+
+    @if (current()!.corrections.length > 0) {
+      <div class="review-history">
+        <h3>Review History</h3>
+        @for (correction of current()!.corrections; track correction.id) {
+          <div class="history-row">
+            <span>{{ correction.fieldName }}: {{ correction.originalValue || '—' }} → {{ correction.correctedValue }}</span>
+            <span class="history-meta">{{ correction.correctedByUserName }} · {{ correction.correctedAt | date: 'MMM d, h:mm a' }}</span>
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <section class="section">
+    <h2 class="section-title">Full Queue</h2>
+    <div class="transaction-table-card">
+      <app-transaction-table [transactions]="queue()" [showStatementColumn]="true" />
+    </div>
+  </section>
 }
