@@ -1,9 +1,21 @@
+@use 'styles/breakpoints' as bp;
+
 .shell {
   height: 100vh;
 }
 
 .sidenav {
   width: 240px;
+  border-right: 1px solid var(--mat-sys-outline-variant);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-2);
+  padding: var(--fsai-space-5) var(--fsai-space-4);
+  font-weight: 700;
+  font-size: 1rem;
 }
 
 .toolbar {
@@ -17,11 +29,14 @@
 }
 
 .content {
-  padding: 1.5rem;
+  padding: var(--fsai-space-6);
+  background: var(--mat-sys-surface-container-lowest);
+  min-height: calc(100vh - 64px);
+  box-sizing: border-box;
 }
 
 .menu-role {
-  padding: 0.5rem 1rem;
+  padding: var(--fsai-space-2) var(--fsai-space-4);
   font-size: 0.75rem;
   opacity: 0.6;
   text-transform: uppercase;
@@ -29,4 +44,14 @@
 
 .active-link {
   background-color: var(--mat-sys-secondary-container);
+}
+
+@include bp.respond(mobile) {
+  .content {
+    padding: var(--fsai-space-4);
+  }
+
+  .user-name {
+    display: none;
+  }
 }

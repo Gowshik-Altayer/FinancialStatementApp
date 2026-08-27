@@ -1,0 +1,18 @@
+<div class="chart-card">
+  <h3 class="chart-title">{{ title }}</h3>
+
+  <div class="chart-body" [style.height.px]="height">
+    @if (loading) {
+      <div class="chart-state">
+        <mat-spinner diameter="32" />
+      </div>
+    } @else if (isEmpty) {
+      <div class="chart-state chart-empty">
+        <mat-icon>bar_chart</mat-icon>
+        <span>No data yet</span>
+      </div>
+    } @else {
+      <canvas baseChart [type]="type" [data]="data" [options]="options"></canvas>
+    }
+  </div>
+</div>

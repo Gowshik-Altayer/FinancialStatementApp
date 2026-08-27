@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { authGuard } from './core/guards/auth.guard';
 import { Shell } from './core/layout/shell/shell';
 import { PlaceholderPage } from './shared/components/placeholder-page/placeholder-page';
@@ -20,7 +21,11 @@ export const routes: Routes = [
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
       {
         path: 'dashboard',
-        loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard)
+        loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
+        // Chart.js registered here (not globally, see app.config.ts) so its ~120kB only loads
+        // when a chart-bearing route is actually visited. Reconciliation/Categories routes get
+        // the same providers once they're built.
+        providers: [provideCharts(withDefaultRegisterables())]
       },
       {
         path: 'statements',

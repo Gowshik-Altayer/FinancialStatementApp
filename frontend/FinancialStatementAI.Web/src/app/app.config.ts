@@ -16,5 +16,9 @@ export const appConfig: ApplicationConfig = {
     // engine internally. Only the imperative trigger()/state()/animate() authoring API is
     // deprecated in favor of animate.enter/leave — provideAnimationsAsync() itself is not.
     provideAnimationsAsync()
+    // provideCharts() is intentionally NOT global — it's ~120kB and only the Dashboard,
+    // Reconciliation, and Categories routes render charts. Each of those routes supplies it in
+    // its own `providers` array (see app.routes.ts) so Chart.js only loads on navigation to a
+    // chart-bearing page, keeping the initial bundle within budget.
   ]
 };

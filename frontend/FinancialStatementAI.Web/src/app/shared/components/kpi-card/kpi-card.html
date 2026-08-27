@@ -1,0 +1,24 @@
+<div class="kpi-card" [class.clickable]="clickable" [class]="'tone-' + tone">
+  <div class="kpi-icon-well">
+    @if (icon) {
+      <mat-icon>{{ icon }}</mat-icon>
+    }
+  </div>
+
+  <div class="kpi-body">
+    <span class="kpi-label">{{ label }}</span>
+
+    @if (loading) {
+      <mat-spinner diameter="24" />
+    } @else {
+      <span class="kpi-value">{{ value }}</span>
+    }
+
+    @if (trend && !loading) {
+      <span class="kpi-trend" [class]="'trend-' + trend.tone">
+        <mat-icon class="trend-icon">{{ trend.value > 0 ? 'trending_up' : trend.value < 0 ? 'trending_down' : 'trending_flat' }}</mat-icon>
+        {{ trend.value > 0 ? '+' : '' }}{{ trend.value }}{{ trend.label ? ' ' + trend.label : '' }}
+      </span>
+    }
+  </div>
+</div>

@@ -1,0 +1,11 @@
+<div class="confidence" [class.compact]="compact" [class]="'tone-' + tone">
+  <div class="confidence-bar-track">
+    <div class="confidence-bar-fill" [style.width.%]="percentDisplay"></div>
+  </div>
+  <div class="confidence-meta">
+    <span class="confidence-percent">{{ percentDisplay }}%</span>
+    @if (!compact) {
+      <span class="confidence-label">{{ label }}</span>
+    }
+  </div>
+</div>

@@ -1,0 +1,42 @@
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fsai-space-1);
+  padding: var(--fsai-space-1) var(--fsai-space-3);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.badge-icon {
+  font-size: 1rem;
+  width: 1rem;
+  height: 1rem;
+}
+
+.tone-success {
+  background: var(--fsai-success-bg);
+  color: var(--fsai-success);
+}
+
+.tone-warning {
+  background: var(--fsai-warning-bg);
+  color: var(--fsai-warning);
+}
+
+.tone-danger {
+  background: var(--fsai-danger-bg);
+  color: var(--fsai-danger);
+}
+
+.tone-info {
+  background: var(--fsai-info-bg);
+  color: var(--fsai-info);
+}
+
+.tone-neutral {
+  background: var(--fsai-neutral-bg);
+  color: var(--fsai-neutral);
+}

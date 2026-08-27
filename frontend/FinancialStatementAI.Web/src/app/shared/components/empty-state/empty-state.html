@@ -1,0 +1,7 @@
+<div class="empty-state">
+  <mat-icon>{{ icon }}</mat-icon>
+  <p>{{ message }}</p>
+  @if (actionLabel) {
+    <button mat-stroked-button (click)="action.emit()">{{ actionLabel }}</button>
+  }
+</div>

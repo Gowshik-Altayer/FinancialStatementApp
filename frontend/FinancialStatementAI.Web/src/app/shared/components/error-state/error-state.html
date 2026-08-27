@@ -1,0 +1,5 @@
+<div class="error-state">
+  <mat-icon>error_outline</mat-icon>
+  <p>{{ message }}</p>
+  <button mat-stroked-button (click)="retry.emit()">{{ retryLabel }}</button>
+</div>

@@ -1,0 +1,66 @@
+// Design tokens layered on top of Angular Material's mat.theme() system variables
+// (--mat-sys-*, set up in src/styles.scss). These cover what Material's semantic color
+// roles don't: a financial-app-specific status vocabulary (success/warning/danger/info/neutral
+// for reconciliation results, confidence levels, and processing statuses), a spacing scale, and
+// shared card geometry — so every new shared component (kpi-card, chart-card, status-badge, ...)
+// pulls from one place instead of hardcoding colors/spacing per component.
+:root {
+  // Spacing scale (4px base)
+  --fsai-space-1: 0.25rem;
+  --fsai-space-2: 0.5rem;
+  --fsai-space-3: 0.75rem;
+  --fsai-space-4: 1rem;
+  --fsai-space-5: 1.5rem;
+  --fsai-space-6: 2rem;
+  --fsai-space-7: 3rem;
+  --fsai-space-8: 4rem;
+
+  // Card geometry, shared by every card-like component
+  --fsai-radius: 12px;
+  --fsai-radius-sm: 8px;
+  --fsai-card-padding: var(--fsai-space-5);
+  --fsai-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
+  --fsai-card-shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.1);
+
+  // Status vocabulary — used by status-badge, confidence-indicator, KPI trend coloring,
+  // reconciliation/processing charts. Named by MEANING (success/warning/danger), not by the
+  // specific enum value that happens to map to it today, so new statuses can adopt an existing
+  // color without inventing a new token.
+  --fsai-success: #1a7f4b;
+  --fsai-success-bg: #e6f6ec;
+  --fsai-warning: #b25e02;
+  --fsai-warning-bg: #fdf1e0;
+  --fsai-danger: #b3241d;
+  --fsai-danger-bg: #fbe9e8;
+  --fsai-info: #1857b2;
+  --fsai-info-bg: #e8f0fc;
+  --fsai-neutral: #56606f;
+  --fsai-neutral-bg: #eef1f4;
+
+  // Chart palette — fixed, consistent ordering so the same category/status always renders the
+  // same color across every chart on the dashboard (not re-randomized per chart instance).
+  --fsai-chart-1: #2f6fed;
+  --fsai-chart-2: #1a7f4b;
+  --fsai-chart-3: #b25e02;
+  --fsai-chart-4: #b3241d;
+  --fsai-chart-5: #7c4dc4;
+  --fsai-chart-6: #0f8a8a;
+  --fsai-chart-7: #c2478a;
+  --fsai-chart-8: #56606f;
+}
+
+// Dark theme: Material's own --mat-sys-* tokens already flip automatically via mat.theme()'s
+// color-scheme handling; the status/chart palette below is deliberately kept a little brighter
+// so it stays legible against Material's dark surface tokens.
+:root[data-theme='dark'] {
+  --fsai-success: #4ade80;
+  --fsai-success-bg: #14301f;
+  --fsai-warning: #fbbf24;
+  --fsai-warning-bg: #3a2a0c;
+  --fsai-danger: #f87171;
+  --fsai-danger-bg: #3a1414;
+  --fsai-info: #60a5fa;
+  --fsai-info-bg: #122540;
+  --fsai-neutral: #9aa5b1;
+  --fsai-neutral-bg: #262b31;
+}

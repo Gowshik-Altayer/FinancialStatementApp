@@ -1,0 +1,39 @@
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-3);
+  padding: var(--fsai-card-padding);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface-container-low);
+  box-shadow: var(--fsai-card-shadow);
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.chart-title {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.chart-body {
+  position: relative;
+  width: 100%;
+}
+
+.chart-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--fsai-space-2);
+  height: 100%;
+  color: var(--fsai-neutral);
+}
+
+.chart-empty mat-icon {
+  font-size: 2rem;
+  width: 2rem;
+  height: 2rem;
+  opacity: 0.5;
+}

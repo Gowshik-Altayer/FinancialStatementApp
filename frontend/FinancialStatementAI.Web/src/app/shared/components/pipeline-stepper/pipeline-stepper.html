@@ -1,0 +1,21 @@
+<div class="pipeline-stepper">
+  @for (stage of stages; track stage.key; let last = $last) {
+    <button
+      type="button"
+      class="stage"
+      [class]="'state-' + stage.state"
+      [matTooltip]="stage.label + ': ' + stage.count"
+      (click)="stageClick.emit(stage)"
+    >
+      <span class="stage-icon-well">
+        <mat-icon>{{ iconFor(stage.key) }}</mat-icon>
+      </span>
+      <span class="stage-count">{{ stage.count }}</span>
+      <span class="stage-label">{{ stage.label }}</span>
+    </button>
+
+    @if (!last) {
+      <mat-icon class="stage-connector">chevron_right</mat-icon>
+    }
+  }
+</div>

@@ -1,0 +1,29 @@
+<div class="filter-panel">
+  <div class="filter-row-main">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+      <mat-icon matPrefix>search</mat-icon>
+      <input
+        matInput
+        [placeholder]="searchPlaceholder"
+        [ngModel]="searchValue"
+        (ngModelChange)="onSearchInput($event)"
+      />
+    </mat-form-field>
+
+    <button mat-stroked-button class="filters-toggle" type="button" (click)="toggleExpanded()">
+      <mat-icon>tune</mat-icon>
+      Filters
+      @if (hasActiveFilters) {
+        <span class="filters-dot"></span>
+      }
+    </button>
+
+    @if (hasActiveFilters) {
+      <button mat-button type="button" (click)="clearFilters.emit()">Clear</button>
+    }
+  </div>
+
+  <div class="filter-row-extra" [class.expanded]="expanded()">
+    <ng-content></ng-content>
+  </div>
+</div>

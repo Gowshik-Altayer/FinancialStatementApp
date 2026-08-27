@@ -1,0 +1,28 @@
+// Breakpoint mixin matching Angular CDK's Breakpoints.Handset/Tablet/Web boundaries, so
+// CSS-only layout reflow (this mixin) and JS-level behavior (BreakpointObserver, used where a
+// component needs to actually switch template — e.g. table vs. card-list) agree on the same
+// mobile / tablet / desktop cutoffs.
+//   mobile:  <= 599px
+//   tablet:  600px – 959px
+//   desktop: >= 960px
+@mixin respond($breakpoint) {
+  @if $breakpoint == mobile {
+    @media (max-width: 599px) {
+      @content;
+    }
+  } @else if $breakpoint == tablet {
+    @media (min-width: 600px) and (max-width: 959px) {
+      @content;
+    }
+  } @else if $breakpoint == tablet-up {
+    @media (min-width: 600px) {
+      @content;
+    }
+  } @else if $breakpoint == desktop {
+    @media (min-width: 960px) {
+      @content;
+    }
+  } @else {
+    @warn "Unknown breakpoint: #{$breakpoint}";
+  }
+}

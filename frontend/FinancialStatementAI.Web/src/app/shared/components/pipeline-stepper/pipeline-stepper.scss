@@ -1,0 +1,85 @@
+@use 'styles/breakpoints' as bp;
+
+.pipeline-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-1);
+  padding: var(--fsai-card-padding);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface-container-low);
+  box-shadow: var(--fsai-card-shadow);
+  overflow-x: auto;
+}
+
+.stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--fsai-space-1);
+  padding: var(--fsai-space-3) var(--fsai-space-2);
+  border-radius: var(--fsai-radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  min-width: 84px;
+  flex: 1 1 0;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.stage:hover {
+  background: var(--fsai-neutral-bg);
+}
+
+.stage-icon-well {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--fsai-neutral-bg);
+  color: var(--fsai-neutral);
+}
+
+.stage.state-complete .stage-icon-well {
+  background: var(--fsai-success-bg);
+  color: var(--fsai-success);
+}
+
+.stage.state-in-progress .stage-icon-well {
+  background: var(--fsai-info-bg);
+  color: var(--fsai-info);
+}
+
+.stage.state-failed .stage-icon-well {
+  background: var(--fsai-danger-bg);
+  color: var(--fsai-danger);
+}
+
+.stage-count {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.stage-label {
+  font-size: 0.7rem;
+  text-align: center;
+  opacity: 0.75;
+  white-space: nowrap;
+}
+
+.stage-connector {
+  flex-shrink: 0;
+  opacity: 0.3;
+}
+
+@include bp.respond(mobile) {
+  .pipeline-stepper {
+    justify-content: flex-start;
+  }
+
+  .stage {
+    min-width: 76px;
+  }
+}
