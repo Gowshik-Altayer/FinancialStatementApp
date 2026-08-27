@@ -1,8 +1,7 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
-import { MatChipsModule } from '@angular/material/chips';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -11,11 +10,27 @@ import { TransactionService } from '../../../core/services/transaction.service';
 import { StatementDetail as StatementDetailModel } from '../../../shared/models/statement.model';
 import { Transaction } from '../../../shared/models/transaction.model';
 import { TransactionTable } from '../../../shared/components/transaction-table/transaction-table';
+import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { StatusBadge } from '../../../shared/components/status-badge/status-badge';
+import { LoadingState } from '../../../shared/components/loading-state/loading-state';
+import { PipelineStepper, PipelineStageViewModel } from '../../../shared/components/pipeline-stepper/pipeline-stepper';
+import { processingStatusLabel, processingStatusTone, reconciliationStatusTone } from '../../../shared/utils/status-tone.util';
 
 @Component({
   selector: 'app-statement-detail',
   standalone: true,
-  imports: [CommonModule, RouterLink, MatCardModule, MatChipsModule, MatProgressSpinnerModule, MatButtonModule, TransactionTable],
+  imports: [
+    CommonModule,
+    RouterLink,
+    MatCardModule,
+    MatProgressSpinnerModule,
+    MatButtonModule,
+    TransactionTable,
+    PageHeader,
+    StatusBadge,
+    LoadingState,
+    PipelineStepper
+  ],
   templateUrl: './statement-detail.html',
   styleUrl: './statement-detail.scss'
 })
@@ -31,6 +46,37 @@ export class StatementDetail implements OnInit {
   readonly isReprocessing = signal(false);
   readonly isVerifying = signal(false);
   readonly notFound = signal(false);
+
+  readonly processingStatusLabel = processingStatusLabel;
+  readonly processingStatusTone = processingStatusTone;
+  readonly reconciliationStatusTone = reconciliationStatusTone;
+
+  // Mirrors DashboardService.BuildPipelineStages' reached-stage funnel logic (see backend
+  // comments there), just scoped to this one statement instead of aggregated across many —
+  // count is 1 (reached) or 0 (not yet), so the shared PipelineStepper renders identically here
+  // and on the Dashboard.
+  readonly pipelineStages = computed<PipelineStageViewModel[]>(() => {
+    const s = this.statement();
+    if (!s) return [];
+
+    const stage = (key: string, label: string, reached: boolean): PipelineStageViewModel => ({
+      key,
+      label,
+      count: reached ? 1 : 0,
+      state: reached ? 'complete' : 'pending'
+    });
+
+    return [
+      stage('upload', 'Upload', true),
+      stage('text-extraction', 'Text Extraction', s.extractionMethod === 'DirectPdfText'),
+      stage('ocr', 'OCR', s.extractionMethod !== null && s.extractionMethod !== 'DirectPdfText'),
+      stage('transaction-extraction', 'Transaction Extraction', s.transactionCount > 0),
+      stage('ai-classification', 'AI Classification', ['ClassificationComplete', 'PendingReview', 'Verified'].includes(s.processingStatus)),
+      stage('review', 'Review', ['PendingReview', 'Verified'].includes(s.processingStatus)),
+      stage('reconciliation', 'Reconciliation', s.reconciliationStatus !== null),
+      stage('completed', 'Completed', s.processingStatus === 'Verified')
+    ];
+  });
 
   private statementId = '';
 

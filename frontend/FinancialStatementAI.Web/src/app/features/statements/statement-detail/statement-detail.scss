@@ -1,12 +1,6 @@
-.header {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1rem;
-
-  .spacer {
-    flex: 1 1 auto;
-  }
+app-pipeline-stepper {
+  display: block;
+  margin-bottom: var(--fsai-space-4);
 }
 
 .placeholder {
@@ -38,16 +32,4 @@ dd {
 
 .transactions-card {
   margin-bottom: 1rem;
-}
-
-mat-chip.reconciliation-Reconciled {
-  --mat-chip-selected-container-color: color-mix(in srgb, #2e7d32 20%, transparent);
-}
-
-mat-chip.reconciliation-Mismatch {
-  --mat-chip-selected-container-color: color-mix(in srgb, var(--mat-sys-error) 20%, transparent);
-}
-
-mat-chip.reconciliation-InsufficientInformation {
-  --mat-chip-selected-container-color: color-mix(in srgb, #f9a825 25%, transparent);
 }

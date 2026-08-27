@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StatementService } from '../../../core/services/statement.service';
+import { PageHeader } from '../../../shared/components/page-header/page-header';
 
 const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
 const MAX_SIZE_BYTES = 20 * 1024 * 1024;
@@ -15,7 +16,7 @@ const MAX_SIZE_BYTES = 20 * 1024 * 1024;
 @Component({
   selector: 'app-statement-upload',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatIconModule, MatProgressBarModule],
+  imports: [CommonModule, MatCardModule, MatButtonModule, MatIconModule, MatProgressBarModule, PageHeader],
   templateUrl: './statement-upload.html',
   styleUrl: './statement-upload.scss'
 })

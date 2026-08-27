@@ -1,16 +1,14 @@
 @if (isLoading()) {
-  <mat-spinner diameter="32" />
+  <app-loading-state message="Loading statement…" />
 } @else if (notFound()) {
   <p>Statement not found.</p>
   <a mat-button routerLink="/statements">Back to statements</a>
 } @else if (statement(); as s) {
-  <div class="header">
-    <h1>{{ s.originalFileName }}</h1>
-    <mat-chip>{{ s.processingStatus }}</mat-chip>
+  <app-page-header [title]="s.originalFileName">
+    <app-status-badge [label]="processingStatusLabel(s.processingStatus)" [tone]="processingStatusTone(s.processingStatus)" />
     @if (s.reconciliationStatus) {
-      <mat-chip [class]="'reconciliation-' + s.reconciliationStatus">{{ s.reconciliationStatus }}</mat-chip>
+      <app-status-badge [label]="processingStatusLabel(s.reconciliationStatus)" [tone]="reconciliationStatusTone(s.reconciliationStatus)" />
     }
-    <span class="spacer"></span>
     @if (s.processingStatus === 'PendingReview') {
       <button mat-flat-button color="primary" [disabled]="isVerifying()" (click)="verify()">
         @if (isVerifying()) {
@@ -27,7 +25,9 @@
         Reprocess
       }
     </button>
-  </div>
+  </app-page-header>
+
+  <app-pipeline-stepper [stages]="pipelineStages()" />
 
   <div class="cards">
     <mat-card>

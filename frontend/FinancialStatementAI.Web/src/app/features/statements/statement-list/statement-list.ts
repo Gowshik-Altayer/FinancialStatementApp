@@ -4,15 +4,18 @@ import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatButtonModule } from '@angular/material/button';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
 import { StatementService } from '../../../core/services/statement.service';
 import { StatementSummary } from '../../../shared/models/statement.model';
+import { PageHeader } from '../../../shared/components/page-header/page-header';
+import { FilterPanel } from '../../../shared/components/filter-panel/filter-panel';
+import { StatusBadge } from '../../../shared/components/status-badge/status-badge';
+import { LoadingState } from '../../../shared/components/loading-state/loading-state';
+import { EmptyState } from '../../../shared/components/empty-state/empty-state';
+import { processingStatusLabel, processingStatusTone, reconciliationStatusTone } from '../../../shared/utils/status-tone.util';
 
 const STATUS_OPTIONS = ['Uploaded', 'Processing', 'ExtractionFailed', 'ExtractionComplete', 'ClassificationComplete', 'PendingReview', 'Verified'];
 const RECONCILIATION_OPTIONS = ['Reconciled', 'Mismatch', 'InsufficientInformation'];
@@ -26,19 +29,21 @@ const RECONCILIATION_OPTIONS = ['Reconciled', 'Mismatch', 'InsufficientInformati
     FormsModule,
     MatTableModule,
     MatButtonModule,
-    MatChipsModule,
-    MatProgressSpinnerModule,
+    MatIconModule,
     MatFormFieldModule,
-    MatInputModule,
     MatSelectModule,
-    MatPaginatorModule
+    MatPaginatorModule,
+    PageHeader,
+    FilterPanel,
+    StatusBadge,
+    LoadingState,
+    EmptyState
   ],
   templateUrl: './statement-list.html',
   styleUrl: './statement-list.scss'
 })
 export class StatementList implements OnInit {
   private readonly statementService = inject(StatementService);
-  private readonly searchChanged = new Subject<void>();
 
   readonly displayedColumns = [
     'originalFileName',
@@ -63,16 +68,29 @@ export class StatementList implements OnInit {
   pageIndex = 0;
   pageSize = 20;
 
+  readonly processingStatusTone = processingStatusTone;
+  readonly processingStatusLabel = processingStatusLabel;
+  readonly reconciliationStatusTone = reconciliationStatusTone;
+
+  get hasActiveFilters(): boolean {
+    return !!this.status || !!this.reconciliationStatus;
+  }
+
   ngOnInit(): void {
-    this.searchChanged.pipe(debounceTime(300), distinctUntilChanged()).subscribe(() => {
-      this.pageIndex = 0;
-      this.load();
-    });
     this.load();
   }
 
-  onSearchInput(): void {
-    this.searchChanged.next();
+  onSearchValueChange(value: string): void {
+    this.search = value;
+    this.pageIndex = 0;
+    this.load();
+  }
+
+  clearFilters(): void {
+    this.status = '';
+    this.reconciliationStatus = '';
+    this.pageIndex = 0;
+    this.load();
   }
 
   onFilterChange(): void {
