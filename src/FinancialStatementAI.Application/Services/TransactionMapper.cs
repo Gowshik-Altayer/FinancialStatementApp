@@ -56,7 +56,10 @@ public static class TransactionMapper
         CorrectionReason = correction.CorrectionReason
     };
 
-    private static string? ReviewPriority(decimal? confidence) => confidence switch
+    /// <summary>Public so DashboardService's confidence-distribution chart buckets transactions
+    /// identically to how the review queue itself labels them — one source of truth for what
+    /// "high confidence" vs "review required" means.</summary>
+    public static string? ReviewPriority(decimal? confidence) => confidence switch
     {
         null => null,
         _ when confidence >= ClassificationConfidenceThresholds.HighConfidenceMinimum => "HighConfidence",

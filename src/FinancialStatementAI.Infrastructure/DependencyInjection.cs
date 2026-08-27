@@ -49,6 +49,10 @@ public static class DependencyInjection
         services.AddScoped<IAiRequestLogRepository, AiRequestLogRepository>();
         services.AddScoped<IReconciliationRepository, ReconciliationRepository>();
         services.AddScoped<IReconciliationService, Application.Services.ReconciliationService>();
+        services.AddScoped<IDashboardRepository, DashboardRepository>();
+        services.AddScoped<IDashboardService, Application.Services.DashboardService>();
+        services.AddScoped<IDashboardConfigRepository, DashboardConfigRepository>();
+        services.AddScoped<IDashboardConfigService, Application.Services.DashboardConfigService>();
         services.AddSingleton<IStatementFileValidator, StatementFileValidator>();
         services.AddSingleton<IPdfTextExtractionService, PdfTextExtractionService>();
         services.AddSingleton<ITransactionExtractionService, TransactionExtractionService>();

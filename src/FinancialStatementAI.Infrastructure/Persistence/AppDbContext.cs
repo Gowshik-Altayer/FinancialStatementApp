@@ -22,6 +22,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<ExceptionLog> ExceptionLogs => Set<ExceptionLog>();
     public DbSet<OcrTextBlock> OcrTextBlocks => Set<OcrTextBlock>();
     public DbSet<OcrTableRegion> OcrTableRegions => Set<OcrTableRegion>();
+    public DbSet<DashboardWidgetPreference> DashboardWidgetPreferences => Set<DashboardWidgetPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
