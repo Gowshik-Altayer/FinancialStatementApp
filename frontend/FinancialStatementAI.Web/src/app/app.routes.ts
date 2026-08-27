@@ -56,11 +56,8 @@ export const routes: Routes = [
       },
       {
         path: 'reconciliation',
-        component: PlaceholderPage,
-        data: {
-          title: 'Reconciliation',
-          note: 'Reconciliation status is shown per statement — see the Statements list (filterable by reconciliation status) or a statement\'s detail page. A dedicated cross-statement reconciliation report may arrive in a later phase.'
-        }
+        loadComponent: () => import('./features/reconciliation/reconciliation').then((m) => m.Reconciliation),
+        providers: [provideCharts(withDefaultRegisterables())]
       },
       {
         path: 'categories',

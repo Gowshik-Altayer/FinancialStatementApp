@@ -1,0 +1,95 @@
+<app-page-header title="Reconciliation" subtitle="Deterministic balance checks across every statement — opening balance + credits − debits vs. the reported closing balance.">
+</app-page-header>
+
+@if (counts(); as c) {
+  <div class="kpi-row">
+    <app-kpi-card label="Reconciled" [value]="c.reconciledCount" icon="check_circle" tone="success" />
+    <app-kpi-card label="Mismatch" [value]="c.mismatchCount" icon="error" [tone]="c.mismatchCount > 0 ? 'danger' : 'success'" />
+    <app-kpi-card label="Pending" [value]="c.pendingCount" icon="hourglass_empty" tone="neutral" />
+    <app-kpi-card label="Total Discrepancy" [value]="(c.totalDiscrepancyAmount | number: '1.2-2') ?? '0.00'" icon="currency_exchange" [tone]="c.totalDiscrepancyAmount > 0 ? 'warning' : 'success'" />
+  </div>
+
+  <div class="chart-row">
+    <app-chart-card title="Reconciliation Status" type="doughnut" [data]="statusChartData" [options]="chartOptions" [height]="220" />
+  </div>
+}
+
+<app-filter-panel
+  searchPlaceholder="Search by file name…"
+  [searchValue]="search"
+  [hasActiveFilters]="hasActiveFilters"
+  (searchValueChange)="onSearchValueChange($event)"
+  (clearFilters)="clearFilters()"
+>
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Status</mat-label>
+    <mat-select [(ngModel)]="status" (ngModelChange)="onFilterChange()">
+      <mat-option value="">Any status</mat-option>
+      <mat-option value="Reconciled">Reconciled</mat-option>
+      <mat-option value="Mismatch">Mismatch</mat-option>
+      <mat-option value="InsufficientInformation">Insufficient information</mat-option>
+    </mat-select>
+  </mat-form-field>
+</app-filter-panel>
+
+@if (isLoading()) {
+  <app-loading-state message="Loading reconciliation results…" />
+} @else if (loadError()) {
+  <app-error-state message="We couldn't load reconciliation data." (retry)="retry()" />
+} @else if (items().length === 0) {
+  <app-empty-state icon="balance" message="No reconciled statements match these filters yet." />
+} @else {
+  <div class="reconciliation-list">
+    @for (item of items(); track item.statementId) {
+      <div class="reconciliation-row" (click)="toggleExpanded(item)">
+        <div class="row-main">
+          <a [routerLink]="['/statements', item.statementId]" (click)="$event.stopPropagation()" class="file-link">
+            <mat-icon>description</mat-icon>
+            {{ item.statementFileName }}
+          </a>
+          <app-status-badge [label]="processingStatusLabel(item.status)" [tone]="reconciliationStatusTone(item.status)" />
+          <span class="row-discrepancy" [class.negative]="(item.discrepancy ?? 0) !== 0">
+            {{ item.discrepancy !== null ? (item.discrepancy | number: '1.2-2') : '—' }}
+          </span>
+          <mat-icon class="expand-icon">{{ expandedId() === item.statementId ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </div>
+
+        @if (expandedId() === item.statementId) {
+          <div class="row-detail" (click)="$event.stopPropagation()">
+            <div class="detail-field">
+              <span class="detail-label">Opening Balance</span>
+              <span>{{ item.openingBalance !== null ? (item.openingBalance | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Credits</span>
+              <span>{{ item.totalCredits !== null ? (item.totalCredits | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Debits</span>
+              <span>{{ item.totalDebits !== null ? (item.totalDebits | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Expected Closing</span>
+              <span>{{ item.expectedClosingBalance !== null ? (item.expectedClosingBalance | number: '1.2-2') : '—' }}</span>
+            </div>
+            <div class="detail-field">
+              <span class="detail-label">Actual Closing</span>
+              <span>{{ item.statementClosingBalance !== null ? (item.statementClosingBalance | number: '1.2-2') : '—' }}</span>
+            </div>
+            @if (item.notes) {
+              <p class="detail-notes">{{ item.notes }}</p>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+
+  <mat-paginator
+    [length]="totalCount()"
+    [pageSize]="pageSize"
+    [pageIndex]="pageIndex"
+    [pageSizeOptions]="[10, 20, 50, 100]"
+    (page)="onPage($event)"
+  />
+}

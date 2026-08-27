@@ -1,3 +1,4 @@
+using FinancialStatementAI.Application.DTOs.Common;
 using FinancialStatementAI.Application.DTOs.Statements;
 using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Domain.Entities;
@@ -68,6 +69,44 @@ public class ReconciliationService(
 
         return ToResponse(result);
     }
+
+    public async Task<PagedResult<ReconciliationSummaryResponse>> GetSummaryForUserAsync(
+        Guid userId, ReconciliationStatus? status, string? search, int page, int pageSize, CancellationToken cancellationToken = default)
+    {
+        var result = await reconciliationRepository.GetCurrentForUserAsync(userId, status, search, page, pageSize, cancellationToken);
+        var items = result.Items.Select(x => ToSummaryResponse(x.Result, x.Statement)).ToList();
+        return PagedResult<ReconciliationSummaryResponse>.Create(items, result.TotalCount, result.Page, result.PageSize);
+    }
+
+    public async Task<ReconciliationSummaryCountsResponse> GetSummaryCountsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var (reconciled, mismatch, insufficientInformation, pending, totalDiscrepancy) =
+            await reconciliationRepository.GetSummaryCountsAsync(userId, cancellationToken);
+
+        return new ReconciliationSummaryCountsResponse
+        {
+            ReconciledCount = reconciled,
+            MismatchCount = mismatch,
+            InsufficientInformationCount = insufficientInformation,
+            PendingCount = pending,
+            TotalDiscrepancyAmount = totalDiscrepancy
+        };
+    }
+
+    private static ReconciliationSummaryResponse ToSummaryResponse(ReconciliationResult result, Statement statement) => new()
+    {
+        StatementId = statement.Id,
+        StatementFileName = statement.OriginalFileName,
+        OpeningBalance = result.OpeningBalance,
+        TotalCredits = result.TotalCredits,
+        TotalDebits = result.TotalDebits,
+        ExpectedClosingBalance = result.ExpectedClosingBalance,
+        StatementClosingBalance = result.StatementClosingBalance,
+        Discrepancy = result.Discrepancy,
+        Status = result.Status.ToString(),
+        Notes = result.Notes,
+        CreatedAt = result.CreatedAt
+    };
 
     internal static ReconciliationResponse ToResponse(ReconciliationResult result) => new()
     {
