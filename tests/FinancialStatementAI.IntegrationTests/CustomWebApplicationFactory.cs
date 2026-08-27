@@ -1,9 +1,11 @@
+using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Infrastructure.Persistence;
 using FinancialStatementAI.Infrastructure.Storage;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 
 namespace FinancialStatementAI.IntegrationTests;
 
@@ -29,6 +31,12 @@ public class CustomWebApplicationFactory : WebApplicationFactory<FinancialStatem
             services.AddDbContext<AppDbContext>(options => options.UseInMemoryDatabase(_databaseName));
 
             services.Configure<LocalFileStorageOptions>(options => options.RootPath = _uploadsPath);
+
+            // The real IOcrService (PaddleOcrService) calls out to the ocr-service/ Python
+            // microservice over HTTP — not available in this test run, and not something these
+            // tests should depend on. See FakeOcrService's own doc comment.
+            services.RemoveAll<IOcrService>();
+            services.AddSingleton<IOcrService, FakeOcrService>();
         });
     }
 

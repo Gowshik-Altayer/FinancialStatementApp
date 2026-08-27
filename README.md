@@ -46,7 +46,8 @@ FinancialStatementAI.sln
 │   └── FinancialStatementAI.Web             Angular app (also wired into the .sln via .esproj; Dockerfile + nginx.conf)
 ├── docs/                                    architecture.md, api.md, database.md, ai-processing.md
 ├── sample-data/                             Sample statements for exercising the pipeline
-├── docker-compose.yml                       Full stack: SQL Server, Redis, Api, Worker, Web (Phase 17)
+├── ocr-service/                             Real OCR: PaddleOCR (PP-OCRv6/PP-StructureV3) FastAPI microservice + its own Dockerfile
+├── docker-compose.yml                       Full stack: SQL Server, Redis, OCR service, Api, Worker, Web
 └── .env.example                             Template for docker-compose.yml's required secrets
 ```
 
@@ -64,7 +65,8 @@ Dependency direction follows Clean Architecture: `Api`/`Worker` → `Application
 4. **SQL Server** (LocalDB, Developer Edition, or a container) — needed starting Phase 3
 5. **SQL Server Management Studio** (optional, for inspecting the database)
 6. **Redis** (local install or via Docker) — optional; only needed if you set `Caching:Provider` to `Redis` (Phase 15). The default `InMemory` provider needs nothing extra.
-7. Git
+7. **Python 3.11** and the OCR microservice (`ocr-service/`), or Docker to run it as a container — needed for the OCR-fallback path (scanned/image statements) to actually extract text; see `ocr-service/README.md`.
+8. Git
 
 ## Running from Visual Studio 2022
 
@@ -145,9 +147,16 @@ To use Azure Blob Storage instead of local disk for uploaded statements, set
 `FileStorage:Provider` to `Azure` in `appsettings.json` and add the connection string via the
 same User Secrets mechanism: `dotnet user-secrets set "FileStorage:Azure:ConnectionString" "..."`.
 
-OCR and Document Intelligence default to Mock implementations (no configuration needed). To use
-real Azure services instead, set `Ocr:Provider` / `DocumentIntelligence:Provider` to `Azure` and
-add the corresponding endpoint/key via User Secrets:
+OCR defaults to a real, open-source engine — [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)
+(PP-OCRv6), run as a standalone Python service in `ocr-service/` and called over HTTP; see
+`ocr-service/README.md` for how to run it and [docs/ai-processing.md](docs/ai-processing.md) for
+why it was chosen over Tesseract/Surya. It needs to be running (default `http://localhost:8000`,
+configurable via `Ocr:PaddleOcr:BaseUrl`) for the OCR-fallback path to actually extract text; the
+easiest way to run it locally is Docker (see "Running with Docker Compose" below). Document
+Intelligence (table/layout structure) defaults to Mock; set `DocumentIntelligence:Provider` to
+`PaddleOcr` to use the same service's PP-StructureV3 pipeline instead. To use real Azure services
+instead of PaddleOCR for either, set `Ocr:Provider` / `DocumentIntelligence:Provider` to `Azure`
+and add the corresponding endpoint/key via User Secrets:
 ```bash
 dotnet user-secrets set "Azure:Vision:Endpoint" "https://<resource>.cognitiveservices.azure.com/"
 dotnet user-secrets set "Azure:Vision:ApiKey" "..."
@@ -194,10 +203,13 @@ Server=localhost;Database=FinancialStatementAI;User Id=sa;Password=YOUR_PASSWORD
 
 ## Running with Docker Compose (Phase 17)
 
-`docker-compose.yml` runs the full stack — SQL Server, Redis, the Api, the Worker, and the Angular
-app behind nginx — with `BackgroundJobs:Provider=Hangfire` and `Caching:Provider=Redis` (not the
-zero-config in-process defaults every automated test uses), so this is also the easiest way to
-actually see the Hangfire/Redis code paths run for real rather than just reading about them.
+`docker-compose.yml` runs the full stack — SQL Server, Redis, the OCR microservice, the Api, the
+Worker, and the Angular app behind nginx — with `BackgroundJobs:Provider=Hangfire` and
+`Caching:Provider=Redis` (not the zero-config in-process defaults every automated test uses), so
+this is also the easiest way to actually see the Hangfire/Redis/PaddleOCR code paths run for real
+rather than just reading about them. The `ocr-service` container downloads PP-OCRv6/PP-StructureV3
+model weights (a few hundred MB) on first use and caches them in a named volume, so only the very
+first `docker compose up` is slow to reach a healthy OCR service.
 
 ```bash
 cp .env.example .env

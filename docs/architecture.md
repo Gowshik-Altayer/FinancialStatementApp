@@ -28,6 +28,7 @@ Docker Compose)**, and **Phase 18 (this documentation pass)**.
 - [Testing (Phase 16)](#testing-phase-16)
 - [Docker & Docker Compose (Phase 17)](#docker--docker-compose-phase-17)
 - [Global exception handling](#global-exception-handling)
+- [Real OCR: PaddleOCR integration](#real-ocr-paddleocr-integration)
 
 ## Processing pipeline overview
 
@@ -679,3 +680,61 @@ in isolation) via `GlobalExceptionHandlerWebApplicationFactory`, which swaps `IC
 for a stub that always throws — the least invasive way to trigger a genuine unhandled exception
 through a real endpoint (`GET /api/categories`) without adding test-only throwing code to any
 production controller.
+
+## Real OCR: PaddleOCR integration
+
+Another standalone addition after the 18-phase plan: `MockOcrService` — Phase 8's placeholder,
+always-succeeds `IOcrService` — is replaced by a real, open-source OCR engine, per an explicit
+requirement to never rely on a paid/cloud OCR service as the primary path. See
+[docs/ai-processing.md](ai-processing.md#ocr-and-document-intelligence-phase-8-real-engine-added-later)
+for why PaddleOCR (PP-OCRv6 + PP-StructureV3) was chosen over Tesseract and Surya.
+
+### A Python microservice, not an in-process library
+
+PaddleOCR runs on PaddlePaddle, a Python ML framework with no .NET binding. Rather than compromise
+this project's Clean Architecture boundary (Application/Domain staying free of any OCR SDK, per
+requirements #13/#14) or take on a Python-interop dependency inside the .NET process, OCR now runs
+as its own service: `ocr-service/`, a small FastAPI app exposing `POST /ocr` (PP-OCRv6 text +
+confidence + bounding boxes) and `POST /structure` (PP-StructureV3 table-structure reconstruction
+to HTML). `PaddleOcrService` and `PaddleDocumentStructureService`
+(`src/FinancialStatementAI.Infrastructure/OCR/PaddleOcr/`) are typed `HttpClient` implementations
+of `IOcrService`/`IDocumentIntelligenceService` that call it — the same provider-switch pattern as
+every other external integration in this codebase (`FileStorage:Provider`,
+`Classification:Provider`, `Caching:Provider`, …), selected via `Ocr:Provider` /
+`DocumentIntelligence:Provider` config and registered with `AddHttpClient<TInterface, TImpl>()` in
+`DependencyInjection.cs`. `MockOcrService` is deleted outright rather than kept as a fallback —
+there's no requirement to preserve a placeholder once a real implementation exists, and keeping a
+dead code path around would just be another provider option nobody should pick.
+
+### Extending the pipeline: confidence, bounding boxes, and tables now flow through
+
+`StatementProcessingService` previously discarded everything from `IOcrService.ExtractTextAsync`
+except the raw text. It now also captures `OcrResult.ConfidenceScore` and `OcrResult.TextBlocks`,
+and — specifically on the OCR fallback path, where a scanned document's layout is otherwise lost —
+calls the newly-injected `IDocumentIntelligenceService.AnalyzeAsync` for PP-StructureV3 table
+reconstruction. All of it lands on `StatementExtraction` via two new cascade-delete child
+collections, `OcrTextBlock` and `OcrTableRegion` (see `docs/database.md`'s migrations section).
+None of this is a gate on the pipeline continuing: a failed or unconfigured
+`IDocumentIntelligenceService` call is caught and simply means no table regions get stored for
+that extraction, consistent with requirement #16 (never let an enrichment step fabricate a
+success or crash a pipeline that otherwise worked).
+
+### Keeping the existing integration tests hermetic
+
+Every other external-service-backed implementation in this codebase (Azure services, real
+Hangfire, real Redis) is deliberately never exercised against the live thing in tests — see
+[Testing (Phase 16)](#testing-phase-16). Replacing `MockOcrService` (which always "succeeded" with
+simulated text, in-process, with nothing to configure) with `PaddleOcrService` (a real HTTP call to
+a service that isn't running in the test environment) would otherwise break every integration test
+that relies on the OCR-fallback path actually producing usable text. `CustomWebApplicationFactory`
+now swaps `IOcrService` for a `FakeOcrService` test double the same way `GlobalExceptionHandler`
+WebApplicationFactory swaps `ICategoryRepository` — a minimal, always-succeeds fake that keeps
+`StatementReprocessTests`/`StatementSearchIntegrationTests`'s OCR-dependent assertions passing
+without a live PaddleOCR instance.
+
+### An honest limitation: the Python side hasn't been run yet
+
+`ocr-service/`'s code was written and reviewed but not executed in this environment (no Python
+runtime available here) — the exact PaddleOCR 3.x result-object key names its `ocr_engine.py`/
+`structure_engine.py` assume should be validated against a real run before depending on this in
+production. See `ocr-service/README.md` for how to run it standalone and verify it end-to-end.

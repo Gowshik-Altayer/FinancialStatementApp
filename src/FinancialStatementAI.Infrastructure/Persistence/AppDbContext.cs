@@ -20,6 +20,8 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<AIRequest> AIRequests => Set<AIRequest>();
     public DbSet<AIUsageMetric> AIUsageMetrics => Set<AIUsageMetric>();
     public DbSet<ExceptionLog> ExceptionLogs => Set<ExceptionLog>();
+    public DbSet<OcrTextBlock> OcrTextBlocks => Set<OcrTextBlock>();
+    public DbSet<OcrTableRegion> OcrTableRegions => Set<OcrTableRegion>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

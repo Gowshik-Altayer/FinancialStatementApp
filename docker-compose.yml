@@ -30,6 +30,23 @@ services:
       timeout: 3s
       retries: 5
 
+  ocr-service:
+    build:
+      context: ocr-service
+    ports:
+      - "8000:8000"
+    volumes:
+      # PaddleOCR/PaddleX downloads PP-OCRv6 and PP-StructureV3's model weights (a few hundred MB
+      # total) on first use and caches them under the container user's home directory — without
+      # this volume, every `docker compose up` recreation would re-download them from scratch.
+      - ocr-models:/root/.paddlex
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
   api:
     build:
       context: .
@@ -47,6 +64,8 @@ services:
       Jwt__SigningKey: "${JWT_SIGNING_KEY:?Set JWT_SIGNING_KEY in .env — see README}"
       FileStorage__Provider: "Local"
       FileStorage__Local__RootPath: "/app/App_Data/uploads"
+      Ocr__Provider: "PaddleOcr"
+      Ocr__PaddleOcr__BaseUrl: "http://ocr-service:8000"
       BackgroundJobs__Provider: "Hangfire"
       Hangfire__Storage: "SqlServer"
       Caching__Provider: "Redis"
@@ -58,6 +77,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ocr-service:
+        condition: service_healthy
 
   worker:
     build:
@@ -65,6 +86,8 @@ services:
       dockerfile: src/FinancialStatementAI.Worker/Dockerfile
     environment:
       ConnectionStrings__DefaultConnection: "Server=sqlserver;Database=FinancialStatementAI;User Id=sa;Password=${MSSQL_SA_PASSWORD};TrustServerCertificate=True;"
+      Ocr__Provider: "PaddleOcr"
+      Ocr__PaddleOcr__BaseUrl: "http://ocr-service:8000"
       BackgroundJobs__Provider: "Hangfire"
       Hangfire__Storage: "SqlServer"
       Caching__Provider: "Redis"
@@ -73,6 +96,8 @@ services:
       sqlserver:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      ocr-service:
         condition: service_healthy
       # Not a guarantee api has finished migrating the database by the time worker starts — only
       # that its container has started — since Compose has no built-in way to wait on "an
@@ -93,3 +118,4 @@ services:
 volumes:
   sqlserver-data:
   uploads-data:
+  ocr-models:

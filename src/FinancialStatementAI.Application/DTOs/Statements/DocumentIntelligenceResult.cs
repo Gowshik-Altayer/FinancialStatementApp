@@ -11,11 +11,20 @@ public class DocumentIntelligenceResult
     /// docs/ai-processing.md); Phase 9's own parsing does the transaction-row extraction.</summary>
     public IReadOnlyDictionary<string, string> Fields { get; private init; } = new Dictionary<string, string>();
 
+    /// <summary>Reconstructed table regions, when the provider does document-layout/table
+    /// analysis (the PaddleOCR-backed implementation, via PP-StructureV3) — null for providers
+    /// that only extract flat fields.</summary>
+    public IReadOnlyList<OcrTableResult>? Tables { get; private init; }
+
     public decimal? ConfidenceScore { get; private init; }
     public string? ErrorMessage { get; private init; }
 
-    public static DocumentIntelligenceResult Success(string rawText, IReadOnlyDictionary<string, string> fields, decimal? confidenceScore) =>
-        new() { IsSuccess = true, RawText = rawText, Fields = fields, ConfidenceScore = confidenceScore };
+    public static DocumentIntelligenceResult Success(
+        string rawText,
+        IReadOnlyDictionary<string, string> fields,
+        decimal? confidenceScore,
+        IReadOnlyList<OcrTableResult>? tables = null) =>
+        new() { IsSuccess = true, RawText = rawText, Fields = fields, ConfidenceScore = confidenceScore, Tables = tables };
 
     public static DocumentIntelligenceResult Failure(string errorMessage) => new() { IsSuccess = false, ErrorMessage = errorMessage };
 }

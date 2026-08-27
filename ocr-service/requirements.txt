@@ -1,0 +1,15 @@
+# CPU-only PaddlePaddle — swap for paddlepaddle-gpu (matching your CUDA version) if a GPU is
+# available; the OCR service code itself doesn't change either way.
+paddlepaddle>=3.0.0
+paddleocr>=3.0.0
+
+fastapi>=0.115.0
+uvicorn[standard]>=0.32.0
+python-multipart>=0.0.12
+
+# Renders PDF pages to images before running OCR on them — PaddleOCR's own pipelines operate on
+# images, not PDF bytes directly. pypdfium2 ships prebuilt binaries (no system Poppler
+# dependency), which keeps the Docker image simple.
+pypdfium2>=4.30.0
+pillow>=10.4.0
+numpy>=1.26.0
