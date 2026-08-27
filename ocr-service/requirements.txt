@@ -3,6 +3,11 @@
 paddlepaddle>=3.0.0
 paddleocr>=3.0.0
 
+# PP-StructureV3 (table/layout analysis) fails at pipeline construction with a DependencyError
+# ("requires additional dependencies") without this extra — confirmed against paddleocr==3.7.0.
+# Plain `paddleocr` alone is enough for PP-OCRv6 (the /ocr endpoint) but not for /structure.
+paddlex[ocr]>=3.0.0
+
 fastapi>=0.115.0
 uvicorn[standard]>=0.32.0
 python-multipart>=0.0.12

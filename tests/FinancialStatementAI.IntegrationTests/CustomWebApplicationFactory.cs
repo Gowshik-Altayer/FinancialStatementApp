@@ -32,11 +32,14 @@ public class CustomWebApplicationFactory : WebApplicationFactory<FinancialStatem
 
             services.Configure<LocalFileStorageOptions>(options => options.RootPath = _uploadsPath);
 
-            // The real IOcrService (PaddleOcrService) calls out to the ocr-service/ Python
-            // microservice over HTTP — not available in this test run, and not something these
-            // tests should depend on. See FakeOcrService's own doc comment.
+            // The real IOcrService/IDocumentIntelligenceService (PaddleOcrService /
+            // PaddleDocumentStructureService) call out to the ocr-service/ Python microservice
+            // over HTTP — not available in this test run, and not something these tests should
+            // depend on. See FakeOcrService's/FakeDocumentIntelligenceService's own doc comments.
             services.RemoveAll<IOcrService>();
             services.AddSingleton<IOcrService, FakeOcrService>();
+            services.RemoveAll<IDocumentIntelligenceService>();
+            services.AddSingleton<IDocumentIntelligenceService, FakeDocumentIntelligenceService>();
         });
     }
 

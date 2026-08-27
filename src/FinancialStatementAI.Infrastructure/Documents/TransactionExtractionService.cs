@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Net;
 using System.Text.RegularExpressions;
 using FinancialStatementAI.Application.DTOs.Statements;
 using FinancialStatementAI.Application.Interfaces;
@@ -39,6 +40,87 @@ public class TransactionExtractionService : ITransactionExtractionService
 
     private static readonly string[] MonthAbbreviations =
         ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+    private static readonly Regex TableRowRegex = new(@"<tr[^>]*>(.*?)</tr>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static readonly Regex TableCellRegex = new(@"<t[dh][^>]*>(.*?)</t[dh]>", RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.Singleline);
+    private static readonly Regex HtmlTagRegex = new(@"<[^>]+>", RegexOptions.Compiled);
+
+    // A cell is "just a date" if the whole trimmed cell matches — no need for anything to follow,
+    // unlike LeadingDateRegex's use on a full text line where trailing content is expected.
+    private static readonly Regex FullCellDateRegex = new(
+        @"^(?<date>\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\d{1,2}[-\s][A-Za-z]{3,9}|[A-Za-z]{3,9}\s+\d{1,2})$",
+        RegexOptions.Compiled);
+
+    public IReadOnlyList<ParsedTransaction> ExtractFromTable(string tableHtml, int referenceYear)
+    {
+        var transactions = new List<ParsedTransaction>();
+
+        foreach (Match rowMatch in TableRowRegex.Matches(tableHtml))
+        {
+            var cells = TableCellRegex.Matches(rowMatch.Groups[1].Value)
+                .Select(m => WebUtility.HtmlDecode(HtmlTagRegex.Replace(m.Groups[1].Value, "")).Trim())
+                .ToList();
+
+            if (cells.Count == 0)
+            {
+                continue;
+            }
+
+            var dateIndex = cells.FindIndex(c => FullCellDateRegex.IsMatch(c));
+            if (dateIndex < 0)
+            {
+                continue; // Header row, or a row with nothing recognizable as a date — skip rather than guess.
+            }
+
+            var amountIndex = -1;
+            for (var i = cells.Count - 1; i >= 0; i--)
+            {
+                if (i != dateIndex && TrailingAmountRegex.IsMatch(cells[i]))
+                {
+                    amountIndex = i;
+                    break;
+                }
+            }
+
+            if (amountIndex < 0)
+            {
+                continue; // No confidently-recognizable amount cell — don't fabricate a transaction.
+            }
+
+            var date = ParseDateToken(FullCellDateRegex.Match(cells[dateIndex]).Groups["date"].Value, referenceYear);
+            if (date is null)
+            {
+                continue;
+            }
+
+            if (!TryParseAmountToken(cells[amountIndex], out var absoluteAmount, out var hasNegativeIndicator, out var currency))
+            {
+                continue;
+            }
+
+            var rawLine = string.Join(" | ", cells);
+            var description = string.Join(" ", cells.Where((_, i) => i != dateIndex && i != amountIndex)).Trim();
+            var transactionType = ClassifyDirection(hasNegativeIndicator, rawLine);
+            var signedAmount = transactionType is TransactionType.Debit or TransactionType.Payment or TransactionType.Purchase or TransactionType.Transfer
+                ? -absoluteAmount
+                : absoluteAmount;
+
+            transactions.Add(new ParsedTransaction
+            {
+                RawLine = rawLine,
+                TransactionDate = date.Value,
+                Description = description,
+                Merchant = description,
+                Amount = signedAmount,
+                DebitAmount = signedAmount < 0 ? absoluteAmount : null,
+                CreditAmount = signedAmount >= 0 ? absoluteAmount : null,
+                Currency = currency,
+                TransactionType = transactionType
+            });
+        }
+
+        return transactions;
+    }
 
     public IReadOnlyList<ParsedTransaction> Extract(string rawText, int referenceYear)
     {

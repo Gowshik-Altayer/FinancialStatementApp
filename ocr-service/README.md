@@ -40,21 +40,47 @@ docker run -p 8000:8000 financialstatementai-ocr-service
 
 Or via the repo root's `docker-compose.yml`, which wires this up alongside the rest of the stack.
 
-## ⚠️ Environment note: unverified in the sandbox this was built in
+## Verified against a real run (paddleocr==3.7.0, paddlepaddle==3.3.1, Windows CPU)
 
-This service was written against PaddleOCR's documented 3.x `.predict()` pipeline API, but the
-development environment used to build it had **no Python installed at all** — it could not be
-installed, run, or tested here. `ocr_engine.py` and `structure_engine.py` defensively check
-several known result-key names (PaddleOCR's exact result object shape has shifted across
-releases), but you should:
+This service was originally written without any Python environment available to test it in. It
+has since been run for real against a sample scanned statement, which surfaced three real bugs —
+all fixed, all reflected in the code below:
 
-1. Install the requirements and run a real request against `/ocr` and `/structure` with a sample
-   statement before relying on this in any real workflow.
-2. If the response comes back with no text blocks / no tables despite a document that clearly has
-   both, add a `print(raw_result)` / log statement in `_extract_page_result` /
-   `_extract_tables` to see the actual result shape your installed `paddleocr` version returns,
-   and adjust the key names there to match.
+1. **`enable_mkldnn=False` is required.** With oneDNN acceleration on (the default), inference
+   fails outright with `(Unimplemented) ConvertPirAttribute2RuntimeAttribute not support
+   [...DoubleAttribute]` — a PaddlePaddle PIR-executor/oneDNN incompatibility on this build, not a
+   bug in this code. Both `_get_ocr_pipeline` and `_get_structure_pipeline` now pass it explicitly.
+2. **`.json`'s payload is nested one level deeper than assumed.** `PaddleOCR.predict()`/
+   `PPStructureV3.predict()` results expose `.json` as `{"res": {...actual fields...}}`, not the
+   fields directly — `_extract_page_result`/`_extract_tables` now unwrap `"res"` before reading
+   `rec_texts`/`rec_scores`/`rec_polys`/`parsing_res_list`.
+3. **`PP-StructureV3` needs `paddlex[ocr]`, not just `paddleocr`.** Without it, constructing the
+   pipeline raises `DependencyError: PP-StructureV3 requires additional dependencies` — now in
+   `requirements.txt`.
 
-This is the same class of limitation as this repository's Docker/Redis setup — written carefully,
-but needs a first real run in an environment where the tooling actually exists before being
-trusted.
+With those fixed, a real request against a synthetic scanned bank statement
+(`sample-data/scanned-bank-statement.png` at the repo root) correctly returned all 61 detected
+text regions and reconstructed the transaction table into accurate HTML (confidence ~0.99),
+end-to-end through the .NET pipeline (`transactionCount` on the resulting statement matched the
+source exactly).
+
+### ⚠️ PP-StructureV3 is memory-hungry — expect occasional crashes on modest hardware
+
+`PPStructureV3()` loads roughly a dozen separate models at once (layout detection, block layout,
+text-line/doc orientation, doc unwarping, two table classifiers, two table-structure recognizers,
+two table-cell detectors, and a formula-recognition network). On a CPU-only machine without much
+free RAM, this pipeline's first call after a (re)start silently kills the whole process with **no
+Python traceback at all** — consistent with either an OS-level OOM kill or a native-level crash in
+PaddlePaddle's C++ backend, neither of which Python can catch. Observed repeatedly in testing,
+always at the same point (loading `PP-FormulaNet_plus-L`), non-deterministically depending on what
+else was running on the machine at the time.
+
+This is a genuine resource-intensity characteristic of PP-StructureV3 on CPU, not a defect in this
+code — and the .NET side already treats it as such: `StatementProcessingService.
+TryDocumentStructureAnalysisAsync` catches any failure (including the connection reset a crashed
+service produces) and simply proceeds without table data, never failing the reprocess. PP-OCRv6
+alone (the `/ocr` endpoint, `Ocr:Provider`) was never observed to crash in the same testing and is
+far lighter — if PP-StructureV3 proves unreliable on your machine, set `DocumentIntelligence:
+Provider` to `Mock` (see `appsettings.json`) to keep OCR working without it; `docker-compose.yml`'s
+containers, or a machine with more free RAM / a GPU build of PaddlePaddle, are more realistic ways
+to run it reliably than a memory-constrained CPU-only dev laptop.

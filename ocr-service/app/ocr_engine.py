@@ -1,12 +1,16 @@
 """Thin wrapper around PaddleOCR's PP-OCRv6 pipeline.
 
-NOTE ON VERIFICATION: this module was written against PaddleOCR's documented 3.x `.predict()`
-pipeline API, but could not actually be run in the environment this project was built in (no
-Python/PaddlePaddle available there — see README.md's "Environment note"). The exact attribute
-names on the result object have shifted across PaddleOCR releases, so `_extract_page_result`
-below defensively checks several known key names rather than assuming one. Verify against your
-installed `paddleocr` version's actual output shape before relying on this in production, and
-adjust the key names in `_extract_page_result` if they've moved again.
+Verified against paddleocr==3.7.0 / paddlepaddle==3.3.1 on Windows CPU: `.predict()` returns an
+`OCRResult` per page whose `.json` is `{"res": {...actual fields...}}` — the fields
+(`rec_texts`/`rec_scores`/`rec_polys`) are nested one level under "res", not at the top level.
+`_extract_page_result` unwraps that. Two other things needed for a real run to work at all on
+this setup, both applied in `_get_ocr_pipeline`:
+  - `enable_mkldnn=False` — with oneDNN acceleration on, PP-OCRv6 inference fails outright with
+    "(Unimplemented) ConvertPirAttribute2RuntimeAttribute not support [...DoubleAttribute]", a
+    PaddlePaddle PIR-executor/oneDNN incompatibility on this CPU build, not anything in this code.
+  - `use_textline_orientation` — the 3.x parameter name; the older `use_angle_cls` name is
+    silently accepted into **kwargs and does nothing, so passing only the old name looks like it
+    worked (no error) while quietly not enabling the orientation classifier at all.
 """
 
 import logging
@@ -34,7 +38,7 @@ def _get_ocr_pipeline():
     from paddleocr import PaddleOCR
 
     logger.info("Loading PP-OCRv6 pipeline (first call only; downloads model weights on first run)...")
-    return PaddleOCR(ocr_version="PP-OCRv6", lang="en", use_angle_cls=True)
+    return PaddleOCR(ocr_version="PP-OCRv6", lang="en", use_textline_orientation=True, enable_mkldnn=False)
 
 
 def _to_native(value):
@@ -63,6 +67,11 @@ def _extract_page_result(raw_result) -> list[RecognizedTextBlock]:
     `rec_polys` (or `dt_polys`) keys; older releases return a plain list of
     [polygon, (text, score)] tuples via `.ocr()`. Both are handled here."""
     data = getattr(raw_result, "json", None) or getattr(raw_result, "res", None) or raw_result
+
+    # `.json` on paddleocr 3.7.0's OCRResult is {"res": {...actual fields...}} — the fields we
+    # want are nested one level deeper, not at the top level.
+    if isinstance(data, dict) and isinstance(data.get("res"), dict):
+        data = data["res"]
 
     if isinstance(data, dict):
         texts = data.get("rec_texts") or data.get("texts") or []

@@ -143,10 +143,30 @@ originally introduced — nothing downstream requires them to be present, since 
 `IOcrService`/`IDocumentIntelligenceService` implementation populates them (`AzureOcrService`
 doesn't, for instance).
 
-**Not yet run against a live instance**: the `ocr-service/` Python code (and the exact
-PaddleOCR 3.x result-object shape `ocr_engine.py`/`structure_engine.py` assume) has not been
-executed in this environment — see `ocr-service/README.md` for how to run and validate it against
-a real sample statement before relying on it in production.
+**Verified against a real run**: `ocr-service/` has since been run for real (paddleocr==3.7.0,
+paddlepaddle==3.3.1) against `sample-data/scanned-bank-statement.png` — see `ocr-service/README.md`
+for the three real bugs that surfaced and were fixed (a oneDNN/PaddlePaddle incompatibility
+requiring `enable_mkldnn=False`, a result-shape mismatch, and a missing `paddlex[ocr]` dependency
+for PP-StructureV3), plus an important caveat: PP-StructureV3 loads roughly a dozen models at once
+and was observed to crash the whole process (no Python traceback — an OS-level OOM kill or native
+crash) on repeated use on a memory-constrained CPU-only machine. `StatementProcessingService`
+already treats a failed/unreachable structure call as non-fatal (see "Where OCR sits in the
+pipeline" above), so this degrades gracefully to OCR-without-tables rather than failing the
+reprocess — but it's worth knowing about before relying on PP-StructureV3 in a resource-constrained
+environment.
+
+**Why table structure feeds into transaction parsing, not just storage**: OCR'd plain text
+routinely puts every table cell on its own line — PP-OCRv6 detects and reads text region by
+region, not row by row, so a scanned statement's raw text looks like `"03/02\nPAYROLL DIRECT
+DEPOSIT\nDD10029\n2,300.00\n..."` rather than one line per transaction. Phase 9's line-based
+`TransactionExtractionService.Extract` (built for the OCR case being a coherent read like Azure
+Vision's) requires a date and an amount on the same line, so it silently finds zero transactions
+against this shape — confirmed against a real end-to-end run. `ExtractFromTable` parses
+PP-StructureV3's reconstructed `<table>` HTML instead: each `<tr>` is one candidate transaction,
+with the first date-shaped cell as the date, the last amount-shaped cell as the amount, and
+everything else as the description. `StatementProcessingService.ExtractTransactions` prefers this
+whenever a table region was found, falling back to the line-based parser otherwise (which is what
+direct PDF text extraction — never OCR'd, never cell-per-line — always uses).
 
 ## Transaction extraction and normalization (Phase 9)
 

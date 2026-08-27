@@ -506,3 +506,12 @@ yarn-error.log*
 ##
 /.claude/
 
+##
+## Python (ocr-service/)
+##
+ocr-service/.venv/
+ocr-service/venv/
+ocr-service/__pycache__/
+ocr-service/**/__pycache__/
+*.pyc
+

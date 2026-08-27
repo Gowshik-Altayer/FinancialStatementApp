@@ -732,9 +732,28 @@ WebApplicationFactory swaps `ICategoryRepository` — a minimal, always-succeeds
 `StatementReprocessTests`/`StatementSearchIntegrationTests`'s OCR-dependent assertions passing
 without a live PaddleOCR instance.
 
-### An honest limitation: the Python side hasn't been run yet
+### Verified end-to-end, and a table-structure gap that was real
 
-`ocr-service/`'s code was written and reviewed but not executed in this environment (no Python
-runtime available here) — the exact PaddleOCR 3.x result-object key names its `ocr_engine.py`/
-`structure_engine.py` assume should be validated against a real run before depending on this in
-production. See `ocr-service/README.md` for how to run it standalone and verify it end-to-end.
+`ocr-service/` has since been run for real (Python installed, `paddleocr==3.7.0`), which surfaced
+and fixed three genuine bugs — a PaddlePaddle/oneDNN incompatibility, a result-shape mismatch, and
+a missing dependency for PP-StructureV3 — detailed in `ocr-service/README.md`. It also surfaced a
+real gap in this integration, not just an environment quirk: PP-OCRv6's plain-text output puts
+every table cell on its own line (region-by-region, not row-by-row), which
+`TransactionExtractionService.Extract`'s line-based parser can never turn into transactions since
+it requires a date and an amount on the same line — confirmed with `transactionCount: 0` against a
+real scanned statement despite `hasUsableText: true`. Fixed by adding
+`ITransactionExtractionService.ExtractFromTable`, which parses PP-StructureV3's reconstructed
+`<table>` HTML row-by-row instead, and making `StatementProcessingService.ExtractTransactions`
+prefer it whenever a table region was found (falling back to the line-based parser otherwise).
+Confirmed against the same real scanned statement: `transactionCount` went from 0 to matching the
+source exactly. This is also why `DocumentIntelligence:Provider` now defaults to `PaddleOcr`
+instead of `Mock` (see `DependencyInjection.cs`) — table structure stopped being a nice-to-have
+once it became load-bearing for OCR-path transaction extraction.
+
+One more honest limitation surfaced by real use: `PPStructureV3()` loads roughly a dozen models at
+once and was observed to silently crash the whole Python process (no traceback — consistent with
+an OS-level OOM kill) on repeated use on a memory-constrained CPU-only machine. This isn't a code
+defect — `TryDocumentStructureAnalysisAsync` already treats any structure-analysis failure as
+non-fatal, degrading to OCR-without-tables rather than failing the reprocess — but it does mean
+PP-StructureV3's reliability is genuinely tied to available memory on whatever machine runs
+`ocr-service/`. See `ocr-service/README.md`'s own note for detail.

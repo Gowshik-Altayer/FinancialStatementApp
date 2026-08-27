@@ -83,7 +83,7 @@ public class StatementProcessingService(
             await statementRepository.UpdateExtractedFieldsAsync(statementId, fields, cancellationToken);
 
             var referenceYear = fields.StatementPeriodStart?.Year ?? fields.StatementDate?.Year ?? DateTime.UtcNow.Year;
-            var parsedTransactions = transactionExtractionService.Extract(rawText, referenceYear);
+            var parsedTransactions = ExtractTransactions(rawText, structureResult, referenceYear);
             var transactions = parsedTransactions.Select(p => ToTransactionEntity(statementId, p, method));
             await transactionRepository.ReplaceForStatementAsync(statementId, userId, transactions, cancellationToken);
 
@@ -126,6 +126,28 @@ public class StatementProcessingService(
         var characterCount = ocrResult.RawText.Count(c => !char.IsWhiteSpace(c));
         var isUsable = characterCount >= TextExtractionThresholds.MinUsableCharactersPerPage;
         return (isUsable ? ocrResult.RawText : null, ocrResult);
+    }
+
+    /// <summary>Prefers PP-StructureV3's reconstructed table HTML over the raw-text line parser
+    /// when one is available: OCR'd plain text routinely puts every table cell on its own line
+    /// (one date, then one description, then one amount, ...), which the line-based parser can
+    /// never reassemble into rows since it requires a date and an amount together on one line —
+    /// the table's actual row/column structure is exactly what's needed there instead. Direct PDF
+    /// text extraction never has a structureResult (see ProcessAsync), so it always uses the
+    /// line-based parser, which is what its already-clean line-per-transaction text expects.</summary>
+    private IReadOnlyList<ParsedTransaction> ExtractTransactions(string rawText, DocumentIntelligenceResult? structureResult, int referenceYear)
+    {
+        var tableHtml = structureResult?.Tables?.FirstOrDefault()?.Html;
+        if (!string.IsNullOrWhiteSpace(tableHtml))
+        {
+            var fromTable = transactionExtractionService.ExtractFromTable(tableHtml, referenceYear);
+            if (fromTable.Count > 0)
+            {
+                return fromTable;
+            }
+        }
+
+        return transactionExtractionService.Extract(rawText, referenceYear);
     }
 
     private async Task<DocumentIntelligenceResult?> TryDocumentStructureAnalysisAsync(Statement statement, CancellationToken cancellationToken)

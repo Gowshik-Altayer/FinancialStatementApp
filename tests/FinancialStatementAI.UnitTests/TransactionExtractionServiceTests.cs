@@ -109,4 +109,58 @@ public class TransactionExtractionServiceTests
 
         Assert.Empty(result);
     }
+
+    // ExtractFromTable: for PP-StructureV3's reconstructed table HTML — needed because OCR'd
+    // plain text puts every cell on its own line (confirmed against a real PaddleOCR run), which
+    // Extract's line-based parser can never reassemble into rows.
+    [Fact]
+    public void ExtractFromTable_Parses_Each_Row_Regardless_Of_Column_Order()
+    {
+        const string html = "<html><body><table><tbody>" +
+            "<tr><td>Date</td><td>Description</td><td>Reference</td><td>Amount</td></tr>" +
+            "<tr><td>03/02</td><td>PAYROLL DIRECT DEPOSIT - ACME CORP</td><td>DD10029</td><td>2,300.00</td></tr>" +
+            "<tr><td>03/03</td><td>WHOLE FOODS MARKET #4471</td><td>PS88213</td><td>-86.42</td></tr>" +
+            "</tbody></table></body></html>";
+
+        var result = _service.ExtractFromTable(html, Year);
+
+        Assert.Equal(2, result.Count);
+        Assert.Equal(new DateOnly(Year, 3, 2), result[0].TransactionDate);
+        Assert.Equal("PAYROLL DIRECT DEPOSIT - ACME CORP DD10029", result[0].Description);
+        Assert.Equal(2300.00m, result[0].Amount);
+        Assert.Equal(TransactionType.Credit, result[0].TransactionType);
+        Assert.Equal(new DateOnly(Year, 3, 3), result[1].TransactionDate);
+        Assert.Equal(-86.42m, result[1].Amount);
+        Assert.Equal(TransactionType.Debit, result[1].TransactionType);
+    }
+
+    [Fact]
+    public void ExtractFromTable_Skips_The_Header_Row()
+    {
+        const string html = "<table><tr><td>Date</td><td>Amount</td></tr><tr><td>03/02</td><td>10.00</td></tr></table>";
+
+        var result = _service.ExtractFromTable(html, Year);
+
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public void ExtractFromTable_Skips_A_Row_With_No_Recognizable_Amount()
+    {
+        const string html = "<table><tr><td>03/02</td><td>Some note with no amount</td></tr></table>";
+
+        var result = _service.ExtractFromTable(html, Year);
+
+        Assert.Empty(result);
+    }
+
+    [Fact]
+    public void ExtractFromTable_Decodes_Html_Entities_In_Cell_Text()
+    {
+        const string html = "<table><tr><td>03/02</td><td>Smith &amp; Sons</td><td>-10.00</td></tr></table>";
+
+        var result = _service.ExtractFromTable(html, Year);
+
+        Assert.Equal("Smith & Sons", Assert.Single(result).Description);
+    }
 }

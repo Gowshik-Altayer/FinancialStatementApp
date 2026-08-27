@@ -7,8 +7,9 @@ public class DocumentIntelligenceResult
 
     /// <summary>Structured key/value fields the service was able to identify (e.g.
     /// "AccountNumber", "StatementDate") — a lighter-weight structure than modeling full table
-    /// geometry, since this abstraction isn't on the pipeline's critical path yet (see
-    /// docs/ai-processing.md); Phase 9's own parsing does the transaction-row extraction.</summary>
+    /// geometry. Not populated by the PaddleOCR-backed implementation (see <see cref="Tables"/>
+    /// instead, which is what it uses for real transaction extraction — see
+    /// docs/ai-processing.md).</summary>
     public IReadOnlyDictionary<string, string> Fields { get; private init; } = new Dictionary<string, string>();
 
     /// <summary>Reconstructed table regions, when the provider does document-layout/table

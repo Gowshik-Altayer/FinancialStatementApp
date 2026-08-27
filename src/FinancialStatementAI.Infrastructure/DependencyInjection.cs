@@ -92,25 +92,29 @@ public static class DependencyInjection
             });
         }
 
-        // DocumentIntelligence defaults to Mock — it isn't on the pipeline's critical path (see
-        // IDocumentIntelligenceService's own doc comment). Set "DocumentIntelligence:Provider" to
-        // "Azure", or to "PaddleOcr" for PP-StructureV3's document layout/table-structure
-        // analysis (the same ocr-service/ microservice PaddleOcrService talks to).
+        // PaddleOcr (PP-StructureV3, same ocr-service/ microservice PaddleOcrService talks to) is
+        // the default here too, matching Ocr:Provider's default above — StatementProcessingService
+        // now actually depends on this for the OCR path (see its ExtractTransactions): OCR'd plain
+        // text puts every table cell on its own line, and only the table's reconstructed row/column
+        // structure lets transactions be parsed out of a scanned statement at all. Set
+        // "DocumentIntelligence:Provider" to "Azure", or to "Mock" to opt back out (e.g. for local
+        // dev without ocr-service running — the OCR path still works, just via the line-based
+        // parser instead, which finds nothing for OCR'd tabular text as explained above).
         if (string.Equals(configuration["DocumentIntelligence:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSingleton<IDocumentIntelligenceService, AzureDocumentIntelligenceService>();
         }
-        else if (string.Equals(configuration["DocumentIntelligence:Provider"], "PaddleOcr", StringComparison.OrdinalIgnoreCase))
+        else if (string.Equals(configuration["DocumentIntelligence:Provider"], "Mock", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddSingleton<IDocumentIntelligenceService, MockDocumentIntelligenceService>();
+        }
+        else
         {
             services.AddHttpClient<IDocumentIntelligenceService, PaddleDocumentStructureService>(client =>
             {
                 client.BaseAddress = new Uri(paddleOcrOptions.BaseUrl.TrimEnd('/') + "/");
                 client.Timeout = TimeSpan.FromSeconds(paddleOcrOptions.TimeoutSeconds);
             });
-        }
-        else
-        {
-            services.AddSingleton<IDocumentIntelligenceService, MockDocumentIntelligenceService>();
         }
 
         services.Configure<OpenAiOptions>(configuration.GetSection(OpenAiOptions.SectionName));

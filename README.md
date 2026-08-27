@@ -153,8 +153,15 @@ OCR defaults to a real, open-source engine — [PaddleOCR](https://github.com/Pa
 why it was chosen over Tesseract/Surya. It needs to be running (default `http://localhost:8000`,
 configurable via `Ocr:PaddleOcr:BaseUrl`) for the OCR-fallback path to actually extract text; the
 easiest way to run it locally is Docker (see "Running with Docker Compose" below). Document
-Intelligence (table/layout structure) defaults to Mock; set `DocumentIntelligence:Provider` to
-`PaddleOcr` to use the same service's PP-StructureV3 pipeline instead. To use real Azure services
+Intelligence (table/layout structure) also defaults to the same service's PP-StructureV3 pipeline
+— the OCR path actually depends on it to parse transactions out of a scanned statement's table
+(PP-OCRv6's plain text puts each cell on its own line; only the reconstructed table gives rows to
+parse). Set `DocumentIntelligence:Provider` to `Mock` to opt back out (OCR still works, just
+without table-based transaction parsing — see [docs/ai-processing.md](docs/ai-processing.md)).
+**Note:** PP-StructureV3 loads roughly a dozen models at once and was observed to crash the OCR
+service outright on repeated use on a memory-constrained machine (see
+`ocr-service/README.md`'s own note) — this degrades gracefully (no table data, not a failed
+reprocess) but is worth knowing about before relying on it locally. To use real Azure services
 instead of PaddleOCR for either, set `Ocr:Provider` / `DocumentIntelligence:Provider` to `Azure`
 and add the corresponding endpoint/key via User Secrets:
 ```bash
