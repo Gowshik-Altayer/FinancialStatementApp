@@ -54,5 +54,21 @@ public class GlobalExceptionHandlerWebApplicationFactory : WebApplicationFactory
 
         public Task<Domain.Entities.Category?> GetByNameAsync(string name, CancellationToken cancellationToken = default) =>
             throw new InvalidOperationException("Simulated failure for GlobalExceptionHandler testing.");
+
+        public Task<IReadOnlyList<Domain.Entities.Category>> GetAllAsync(CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Simulated failure for GlobalExceptionHandler testing.");
+
+        public Task<Domain.Entities.Category?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Simulated failure for GlobalExceptionHandler testing.");
+
+        public Task AddAsync(Domain.Entities.Category category, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Simulated failure for GlobalExceptionHandler testing.");
+
+        public Task UpdateAsync(Domain.Entities.Category category, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Simulated failure for GlobalExceptionHandler testing.");
+
+        public Task<IReadOnlyList<(Guid CategoryId, string CategoryName, int TransactionCount, decimal TotalAmount, int CorrectedCount)>> GetStatsForUserAsync(
+            Guid userId, CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Simulated failure for GlobalExceptionHandler testing.");
     }
 }
