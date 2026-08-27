@@ -1,24 +1,30 @@
-.subtitle {
-  color: var(--mat-sys-on-surface-variant);
-  margin-top: -0.5rem;
-  margin-bottom: 1rem;
+@use 'styles/breakpoints' as bp;
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--fsai-space-4);
+  margin-bottom: var(--fsai-space-5);
 }
 
-.filters {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  margin-bottom: 0.5rem;
-
-  mat-form-field {
-    width: 14rem;
-  }
-
-  .search-field {
-    width: 20rem;
-  }
+.transaction-table-card {
+  background: var(--mat-sys-surface-container-low);
+  border-radius: var(--fsai-radius);
+  box-shadow: var(--fsai-card-shadow);
+  padding: var(--fsai-space-2);
+  overflow-x: auto;
 }
 
-.empty-state {
-  color: var(--mat-sys-on-surface-variant);
+::ng-deep app-filter-panel mat-form-field {
+  width: 14rem;
+}
+
+@include bp.respond(mobile) {
+  .kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  ::ng-deep app-filter-panel mat-form-field {
+    width: 100%;
+  }
 }

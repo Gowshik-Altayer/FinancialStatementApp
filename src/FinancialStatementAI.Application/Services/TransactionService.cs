@@ -30,23 +30,19 @@ public class TransactionService(
         return transactions.Select(TransactionMapper.ToResponse).ToList();
     }
 
-    public async Task<PagedResult<TransactionResponse>> SearchAsync(
-        Guid userId,
-        string? search,
-        Guid? categoryId,
-        Guid? statementId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default)
+    public async Task<PagedResult<TransactionResponse>> SearchAsync(Guid userId, TransactionSearchFilter filter, CancellationToken cancellationToken = default)
     {
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, PaginationDefaults.MaxPageSize);
+        filter.Page = Math.Max(1, filter.Page);
+        filter.PageSize = Math.Clamp(filter.PageSize == 0 ? PaginationDefaults.DefaultPageSize : filter.PageSize, 1, PaginationDefaults.MaxPageSize);
 
-        var result = await transactionRepository.SearchAsync(userId, search, categoryId, statementId, page, pageSize, cancellationToken);
+        var result = await transactionRepository.SearchAsync(userId, filter, cancellationToken);
         var items = result.Items.Select(TransactionMapper.ToResponse).ToList();
 
         return PagedResult<TransactionResponse>.Create(items, result.TotalCount, result.Page, result.PageSize);
     }
+
+    public Task<TransactionSummaryResponse> GetSummaryAsync(Guid userId, CancellationToken cancellationToken = default) =>
+        transactionRepository.GetSummaryAsync(userId, cancellationToken);
 
     public async Task<CorrectTransactionResult> CorrectCategoryAsync(
         Guid transactionId, Guid userId, CorrectTransactionRequest request, CancellationToken cancellationToken = default)

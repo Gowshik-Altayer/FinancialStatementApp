@@ -1,7 +1,6 @@
 using System.Security.Claims;
 using FinancialStatementAI.Application.DTOs.Transactions;
 using FinancialStatementAI.Application.Interfaces;
-using FinancialStatementAI.Domain.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -33,18 +32,23 @@ public class TransactionsController(ITransactionService transactionService) : Co
     }
 
     /// <summary>Search/filter/paginate across all of the current user's transactions, regardless
-    /// of their statement's processing status (Phase 13) — the "All Transactions" page.</summary>
+    /// of their statement's processing status (Phase 13) — the "All Transactions" page. Date
+    /// range, confidence, and review-status filters (requirement 7) all bind directly from the
+    /// query string onto TransactionSearchFilter's matching property names.</summary>
     [HttpGet("transactions")]
-    public async Task<IActionResult> Search(
-        [FromQuery] string? search,
-        [FromQuery] Guid? categoryId,
-        [FromQuery] Guid? statementId,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = PaginationDefaults.DefaultPageSize,
-        CancellationToken cancellationToken = default)
+    public async Task<IActionResult> Search([FromQuery] TransactionSearchFilter filter, CancellationToken cancellationToken = default)
     {
-        var transactions = await transactionService.SearchAsync(CurrentUserId, search, categoryId, statementId, page, pageSize, cancellationToken);
+        var transactions = await transactionService.SearchAsync(CurrentUserId, filter, cancellationToken);
         return Ok(transactions);
+    }
+
+    /// <summary>Unfiltered KPI counts for the Transactions page's summary row (requirement 7) —
+    /// always the user's full totals, never scoped to whatever search/filter is currently applied.</summary>
+    [HttpGet("transactions/summary")]
+    public async Task<IActionResult> GetSummary(CancellationToken cancellationToken)
+    {
+        var summary = await transactionService.GetSummaryAsync(CurrentUserId, cancellationToken);
+        return Ok(summary);
     }
 
     /// <summary>Applies a human's category correction (requirement #9) — the original AI-assigned

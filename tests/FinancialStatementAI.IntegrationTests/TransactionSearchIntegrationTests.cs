@@ -139,6 +139,68 @@ public class TransactionSearchIntegrationTests : IClassFixture<CustomWebApplicat
     }
 
     [Fact]
+    public async Task Filtering_By_Date_Range_Only_Returns_Transactions_In_That_Range()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        await UploadAndReprocessAsync(client, "01/05 WHOLE FOODS MARKET 64.02\n01/25 UBER TRIP RIDESHARE 18.20");
+
+        var response = await client.GetAsync("/api/transactions?dateFrom=2026-01-01&dateTo=2026-01-10");
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var items = result.GetProperty("items").EnumerateArray().ToList();
+        Assert.Single(items);
+        Assert.Contains("WHOLE FOODS", items[0].GetProperty("description").GetString());
+    }
+
+    [Fact]
+    public async Task Filtering_By_ReviewPriority_ReviewRequired_Returns_Only_Low_Confidence_Transactions()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        // "WHOLE FOODS MARKET" matches a seeded merchant mapping (high confidence); "MISC DEBIT
+        // XFER 4471" matches no rule/mapping and falls through to the Mock LLM's honest
+        // low-confidence ("unable to confidently classify") result.
+        await UploadAndReprocessAsync(client, "01/08 WHOLE FOODS MARKET 64.02\n01/09 MISC DEBIT XFER 4471 25.00");
+
+        var response = await client.GetAsync("/api/transactions?reviewPriority=ReviewRequired");
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var items = result.GetProperty("items").EnumerateArray().ToList();
+        Assert.Single(items);
+        Assert.Equal("ReviewRequired", items[0].GetProperty("reviewPriority").GetString());
+    }
+
+    [Fact]
+    public async Task Filtering_By_HasBeenCorrected_Separates_Corrected_From_Untouched_Transactions()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        await UploadAndReprocessAsync(client, "01/08 WHOLE FOODS MARKET 64.02\n01/09 UBER TRIP RIDESHARE 18.20");
+
+        var all = await (await client.GetAsync("/api/transactions")).Content.ReadFromJsonAsync<JsonElement>();
+        var groceryId = all.GetProperty("items").EnumerateArray().Single(t => t.GetProperty("description").GetString()!.Contains("WHOLE FOODS")).GetProperty("id").GetGuid();
+        await client.PostAsJsonAsync($"/api/transactions/{groceryId}/corrections", new { categoryName = "Other" });
+
+        var corrected = await (await client.GetAsync("/api/transactions?hasBeenCorrected=true")).Content.ReadFromJsonAsync<JsonElement>();
+        var uncorrected = await (await client.GetAsync("/api/transactions?hasBeenCorrected=false")).Content.ReadFromJsonAsync<JsonElement>();
+
+        Assert.Equal(1, corrected.GetProperty("totalCount").GetInt32());
+        Assert.Equal(1, uncorrected.GetProperty("totalCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task Summary_Reports_Unfiltered_Totals_Regardless_Of_Any_Applied_Search()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        await UploadAndReprocessAsync(client, "01/08 WHOLE FOODS MARKET 64.02\n01/09 MISC DEBIT XFER 4471 25.00");
+
+        var response = await client.GetAsync("/api/transactions/summary");
+
+        var summary = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, summary.GetProperty("totalCount").GetInt32());
+        Assert.Equal(1, summary.GetProperty("highConfidenceCount").GetInt32());
+        Assert.Equal(1, summary.GetProperty("needingReviewCount").GetInt32());
+    }
+
+    [Fact]
     public async Task Search_Never_Returns_Another_Users_Transactions()
     {
         var owner = await CreateAuthenticatedClientAsync();

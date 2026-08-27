@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { Transaction } from '../../shared/models/transaction.model';
-import { TransactionQuery } from '../../shared/models/transaction-query.model';
+import { TransactionQuery, TransactionSummary } from '../../shared/models/transaction-query.model';
 import { PagedResult } from '../../shared/models/paged-result.model';
 
 @Injectable({ providedIn: 'root' })
@@ -22,8 +22,17 @@ export class TransactionService {
     if (query.search) params = params.set('search', query.search);
     if (query.categoryId) params = params.set('categoryId', query.categoryId);
     if (query.statementId) params = params.set('statementId', query.statementId);
+    if (query.dateFrom) params = params.set('dateFrom', query.dateFrom);
+    if (query.dateTo) params = params.set('dateTo', query.dateTo);
+    if (query.minConfidence !== undefined) params = params.set('minConfidence', String(query.minConfidence));
+    if (query.reviewPriority) params = params.set('reviewPriority', query.reviewPriority);
+    if (query.hasBeenCorrected !== undefined) params = params.set('hasBeenCorrected', String(query.hasBeenCorrected));
 
     return this.http.get<PagedResult<Transaction>>('/api/transactions', { params });
+  }
+
+  getSummary(): Observable<TransactionSummary> {
+    return this.http.get<TransactionSummary>('/api/transactions/summary');
   }
 
   correctCategory(transactionId: string, categoryName: string, reason?: string): Observable<Transaction> {

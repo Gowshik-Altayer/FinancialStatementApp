@@ -1,5 +1,7 @@
 using FinancialStatementAI.Application.DTOs.Common;
+using FinancialStatementAI.Application.DTOs.Transactions;
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Domain.Constants;
 using FinancialStatementAI.Domain.Entities;
 using FinancialStatementAI.Domain.Enums;
 using FinancialStatementAI.Infrastructure.Persistence;
@@ -192,34 +194,9 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<PagedResult<Transaction>> SearchAsync(
-        Guid userId,
-        string? search,
-        Guid? categoryId,
-        Guid? statementId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default)
+    public async Task<PagedResult<Transaction>> SearchAsync(Guid userId, TransactionSearchFilter filter, CancellationToken cancellationToken = default)
     {
-        var query = dbContext.Transactions.Where(t => t.Statement!.UserId == userId);
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var term = search.ToLower();
-            query = query.Where(t =>
-                t.Description.ToLower().Contains(term) ||
-                (t.Merchant != null && t.Merchant.ToLower().Contains(term)));
-        }
-
-        if (categoryId.HasValue)
-        {
-            query = query.Where(t => t.CategoryId == categoryId.Value);
-        }
-
-        if (statementId.HasValue)
-        {
-            query = query.Where(t => t.StatementId == statementId.Value);
-        }
+        var query = ApplyFilter(dbContext.Transactions.Where(t => t.Statement!.UserId == userId), filter);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
@@ -229,8 +206,8 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
         var ids = await query
             .OrderByDescending(t => t.TransactionDate)
             .ThenByDescending(t => t.CreatedAt)
-            .Skip((page - 1) * pageSize)
-            .Take(pageSize)
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
             .Select(t => t.Id)
             .ToListAsync(cancellationToken);
 
@@ -247,6 +224,81 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
         // Re-apply the id query's order — the hydration query above has none of its own.
         var items = ids.Select(id => hydrated[id]).ToList();
 
-        return PagedResult<Transaction>.Create(items, totalCount, page, pageSize);
+        return PagedResult<Transaction>.Create(items, totalCount, filter.Page, filter.PageSize);
+    }
+
+    public async Task<TransactionSummaryResponse> GetSummaryAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        var query = dbContext.Transactions.Where(t => t.Statement!.UserId == userId);
+
+        return new TransactionSummaryResponse
+        {
+            TotalCount = await query.CountAsync(cancellationToken),
+            HighConfidenceCount = await query.CountAsync(
+                t => t.Classifications.Any(c => c.IsCurrent && c.ConfidenceScore >= ClassificationConfidenceThresholds.HighConfidenceMinimum), cancellationToken),
+            NeedingReviewCount = await query.CountAsync(
+                t => t.Classifications.Any(c => c.IsCurrent && c.ConfidenceScore < ClassificationConfidenceThresholds.HighConfidenceMinimum), cancellationToken),
+            CorrectedCount = await query.CountAsync(t => t.Corrections.Any(), cancellationToken)
+        };
+    }
+
+    private static IQueryable<Transaction> ApplyFilter(IQueryable<Transaction> query, TransactionSearchFilter filter)
+    {
+        if (!string.IsNullOrWhiteSpace(filter.Search))
+        {
+            var term = filter.Search.ToLower();
+            query = query.Where(t =>
+                t.Description.ToLower().Contains(term) ||
+                (t.Merchant != null && t.Merchant.ToLower().Contains(term)));
+        }
+
+        if (filter.CategoryId.HasValue)
+        {
+            query = query.Where(t => t.CategoryId == filter.CategoryId.Value);
+        }
+
+        if (filter.StatementId.HasValue)
+        {
+            query = query.Where(t => t.StatementId == filter.StatementId.Value);
+        }
+
+        if (filter.DateFrom.HasValue)
+        {
+            query = query.Where(t => t.TransactionDate != null && t.TransactionDate >= filter.DateFrom.Value);
+        }
+
+        if (filter.DateTo.HasValue)
+        {
+            query = query.Where(t => t.TransactionDate != null && t.TransactionDate <= filter.DateTo.Value);
+        }
+
+        if (filter.MinConfidence.HasValue)
+        {
+            query = query.Where(t => t.Classifications.Any(c => c.IsCurrent && c.ConfidenceScore >= filter.MinConfidence.Value));
+        }
+
+        // Translated into a confidence range rather than calling TransactionMapper.ReviewPriority
+        // directly — that method isn't SQL-translatable, and this needs to run in the database,
+        // not after pulling every row into memory.
+        if (!string.IsNullOrWhiteSpace(filter.ReviewPriority))
+        {
+            query = filter.ReviewPriority switch
+            {
+                "HighConfidence" => query.Where(t => t.Classifications.Any(c => c.IsCurrent && c.ConfidenceScore >= ClassificationConfidenceThresholds.HighConfidenceMinimum)),
+                "ReviewRecommended" => query.Where(t => t.Classifications.Any(c =>
+                    c.IsCurrent && c.ConfidenceScore >= ClassificationConfidenceThresholds.ReviewRecommendedMinimum && c.ConfidenceScore < ClassificationConfidenceThresholds.HighConfidenceMinimum)),
+                "ReviewRequired" => query.Where(t => t.Classifications.Any(c => c.IsCurrent && c.ConfidenceScore < ClassificationConfidenceThresholds.ReviewRecommendedMinimum)),
+                _ => query
+            };
+        }
+
+        if (filter.HasBeenCorrected.HasValue)
+        {
+            query = filter.HasBeenCorrected.Value
+                ? query.Where(t => t.Corrections.Any())
+                : query.Where(t => !t.Corrections.Any());
+        }
+
+        return query;
     }
 }

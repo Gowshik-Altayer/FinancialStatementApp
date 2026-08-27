@@ -1,4 +1,5 @@
 using FinancialStatementAI.Application.DTOs.Common;
+using FinancialStatementAI.Application.DTOs.Transactions;
 using FinancialStatementAI.Domain.Entities;
 using FinancialStatementAI.Domain.Enums;
 
@@ -45,12 +46,9 @@ public interface ITransactionRepository
     /// list or the PendingReview-only review queue. Runs the filter/count/page entirely in the
     /// database (selecting just matching Ids) before hydrating the bounded page of full entities
     /// with their Category/Classifications/Corrections.</summary>
-    Task<PagedResult<Transaction>> SearchAsync(
-        Guid userId,
-        string? search,
-        Guid? categoryId,
-        Guid? statementId,
-        int page,
-        int pageSize,
-        CancellationToken cancellationToken = default);
+    Task<PagedResult<Transaction>> SearchAsync(Guid userId, TransactionSearchFilter filter, CancellationToken cancellationToken = default);
+
+    /// <summary>Unfiltered counts for the Transactions page's KPI row — see
+    /// ITransactionService.GetSummaryAsync for why this never takes a filter.</summary>
+    Task<TransactionSummaryResponse> GetSummaryAsync(Guid userId, CancellationToken cancellationToken = default);
 }
