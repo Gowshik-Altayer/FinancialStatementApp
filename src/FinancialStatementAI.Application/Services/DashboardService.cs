@@ -28,8 +28,13 @@ public class DashboardService(IDashboardRepository dashboardRepository) : IDashb
         var transactions = statements.SelectMany(s => s.Transactions).ToList();
         var recentCorrections = await dashboardRepository.GetRecentCorrectionsAsync(scopeUserId, RecentActivityCount, cancellationToken);
 
+        // System-oversight data — only ever computed for an Admin request, never exposed to (or
+        // even queried for) a regular user's own dashboard.
+        var usersOverview = isAdmin ? await BuildUsersOverviewAsync(cancellationToken) : null;
+
         return new DashboardSummaryResponse
         {
+            UsersOverview = usersOverview,
             Kpis = BuildKpis(statements, transactions),
             PipelineStages = BuildPipelineStages(statements),
             ProcessingStatusBreakdown = BuildProcessingStatusBreakdown(statements),
@@ -72,6 +77,17 @@ public class DashboardService(IDashboardRepository dashboardRepository) : IDashb
             PendingReconciliationCount = statements.Count(s => s.ReconciliationResults.Count == 0),
             AverageClassificationConfidence = currentConfidences.Count > 0 ? currentConfidences.Average() : null,
             AverageProcessingTimeSeconds = completedDurations.Count > 0 ? completedDurations.Average() : null
+        };
+    }
+
+    private async Task<UsersOverviewResponse> BuildUsersOverviewAsync(CancellationToken cancellationToken)
+    {
+        var users = await dashboardRepository.GetAllUsersAsync(cancellationToken);
+        return new UsersOverviewResponse
+        {
+            TotalUsers = users.Count,
+            ActiveUsers = users.Count(u => u.IsActive),
+            RoleBreakdown = users.GroupBy(u => u.Role).Select(g => new NamedCountResponse { Name = g.Key.ToString(), Count = g.Count() }).ToList()
         };
     }
 

@@ -42,4 +42,7 @@ public class DashboardRepository(AppDbContext dbContext) : IDashboardRepository
             .Take(take)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<User>> GetAllUsersAsync(CancellationToken cancellationToken = default) =>
+        await dbContext.Users.AsNoTracking().ToListAsync(cancellationToken);
 }

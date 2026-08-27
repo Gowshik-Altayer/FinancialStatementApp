@@ -1,10 +1,83 @@
-.summary-grid {
+@use 'styles/breakpoints' as bp;
+
+.kpi-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-  margin-top: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--fsai-space-4);
+  margin-bottom: var(--fsai-space-6);
 }
 
-.placeholder {
-  color: var(--mat-sys-on-surface-variant);
+.section {
+  margin-bottom: var(--fsai-space-7);
+}
+
+.section-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0 0 var(--fsai-space-4) 0;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+  gap: var(--fsai-space-4);
+}
+
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-2);
+  background: var(--mat-sys-surface-container-low);
+  border-radius: var(--fsai-radius);
+  box-shadow: var(--fsai-card-shadow);
+  padding: var(--fsai-space-3) var(--fsai-space-4);
+}
+
+.activity-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-3);
+  padding: var(--fsai-space-2) 0;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  font-size: 0.85rem;
+
+  &:last-child {
+    border-bottom: none;
+  }
+}
+
+.activity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--fsai-info);
+}
+
+.activity-failed .activity-dot {
+  background: var(--fsai-danger);
+}
+
+.activity-completed .activity-dot {
+  background: var(--fsai-success);
+}
+
+.activity-correction .activity-dot {
+  background: var(--fsai-warning);
+}
+
+.activity-description {
+  flex: 1 1 auto;
+}
+
+.activity-time {
+  opacity: 0.6;
+  white-space: nowrap;
+  font-size: 0.75rem;
+}
+
+@include bp.respond(mobile) {
+  .kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
 }

@@ -13,4 +13,8 @@ public interface IDashboardRepository
     Task<IReadOnlyList<Statement>> GetStatementsForDashboardAsync(Guid? userId, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<TransactionCorrection>> GetRecentCorrectionsAsync(Guid? userId, int take, CancellationToken cancellationToken = default);
+
+    /// <summary>Every user's Id/Role/IsActive — backs the Admin-only "users overview" widget.
+    /// Never called for a non-Admin summary request (see DashboardService).</summary>
+    Task<IReadOnlyList<User>> GetAllUsersAsync(CancellationToken cancellationToken = default);
 }

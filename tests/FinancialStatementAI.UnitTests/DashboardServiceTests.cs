@@ -13,11 +13,12 @@ public class DashboardServiceTests
 
     private DashboardService CreateService() => new(_repository.Object);
 
-    private void SetUp(IReadOnlyList<Statement> statements, IReadOnlyList<TransactionCorrection>? corrections = null)
+    private void SetUp(IReadOnlyList<Statement> statements, IReadOnlyList<TransactionCorrection>? corrections = null, IReadOnlyList<User>? users = null)
     {
         _repository.Setup(r => r.GetStatementsForDashboardAsync(It.IsAny<Guid?>(), It.IsAny<CancellationToken>())).ReturnsAsync(statements);
         _repository.Setup(r => r.GetRecentCorrectionsAsync(It.IsAny<Guid?>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(corrections ?? []);
+        _repository.Setup(r => r.GetAllUsersAsync(It.IsAny<CancellationToken>())).ReturnsAsync(users ?? []);
     }
 
     private static Statement MakeStatement(
@@ -185,6 +186,34 @@ public class DashboardServiceTests
         Assert.Equal(1, result.ReviewStatistics.PendingCount);
         Assert.Equal(1, result.ReviewStatistics.AiAcceptedCount);
         Assert.Equal(1, result.ReviewStatistics.CorrectedCount);
+    }
+
+    [Fact]
+    public async Task UsersOverview_Is_Null_For_A_Non_Admin_Request()
+    {
+        SetUp([]);
+
+        var result = await CreateService().GetSummaryAsync(UserId, isAdmin: false, rangeDays: 30);
+
+        Assert.Null(result.UsersOverview);
+        _repository.Verify(r => r.GetAllUsersAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task UsersOverview_Reports_Role_Breakdown_For_An_Admin_Request()
+    {
+        SetUp([], users: [
+            new User { Role = UserRole.Admin, IsActive = true },
+            new User { Role = UserRole.User, IsActive = true },
+            new User { Role = UserRole.User, IsActive = false }
+        ]);
+
+        var result = await CreateService().GetSummaryAsync(UserId, isAdmin: true, rangeDays: 30);
+
+        Assert.NotNull(result.UsersOverview);
+        Assert.Equal(3, result.UsersOverview!.TotalUsers);
+        Assert.Equal(2, result.UsersOverview.ActiveUsers);
+        Assert.Equal(2, result.UsersOverview.RoleBreakdown.Single(r => r.Name == "User").Count);
     }
 
     [Fact]

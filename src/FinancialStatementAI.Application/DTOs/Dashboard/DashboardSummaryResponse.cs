@@ -11,6 +11,17 @@ public class DashboardSummaryResponse
     public IReadOnlyList<NamedCountResponse> ReconciliationStatusBreakdown { get; set; } = [];
     public ReviewStatisticsResponse ReviewStatistics { get; set; } = new();
     public IReadOnlyList<ActivityItemResponse> RecentActivity { get; set; } = [];
+
+    /// <summary>Null for a non-Admin request — this is system-oversight data, not something a
+    /// regular user's own dashboard should ever compute or expose.</summary>
+    public UsersOverviewResponse? UsersOverview { get; set; }
+}
+
+public class UsersOverviewResponse
+{
+    public int TotalUsers { get; set; }
+    public int ActiveUsers { get; set; }
+    public IReadOnlyList<NamedCountResponse> RoleBreakdown { get; set; } = [];
 }
 
 public class DashboardKpis
