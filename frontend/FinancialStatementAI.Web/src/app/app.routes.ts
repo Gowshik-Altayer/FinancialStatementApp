@@ -2,7 +2,6 @@ import { Routes } from '@angular/router';
 import { provideCharts, withDefaultRegisterables } from 'ng2-charts';
 import { authGuard } from './core/guards/auth.guard';
 import { Shell } from './core/layout/shell/shell';
-import { PlaceholderPage } from './shared/components/placeholder-page/placeholder-page';
 
 export const routes: Routes = [
   {
@@ -23,8 +22,8 @@ export const routes: Routes = [
         path: 'dashboard',
         loadComponent: () => import('./features/dashboard/dashboard').then((m) => m.Dashboard),
         // Chart.js registered here (not globally, see app.config.ts) so its ~120kB only loads
-        // when a chart-bearing route is actually visited. Reconciliation/Categories routes get
-        // the same providers once they're built.
+        // when a chart-bearing route is actually visited — Reconciliation and Categories below
+        // do the same.
         providers: [provideCharts(withDefaultRegisterables())]
       },
       {
@@ -61,8 +60,8 @@ export const routes: Routes = [
       },
       {
         path: 'categories',
-        component: PlaceholderPage,
-        data: { title: 'Categories', note: 'Category management (create/edit/deactivate) arrives alongside classification in later phases.' }
+        loadComponent: () => import('./features/categories/categories').then((m) => m.Categories),
+        providers: [provideCharts(withDefaultRegisterables())]
       }
     ]
   },

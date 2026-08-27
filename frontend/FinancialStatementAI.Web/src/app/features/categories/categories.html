@@ -1,0 +1,100 @@
+<app-page-header title="Categories" subtitle="Transaction categories used by AI classification, with per-category usage and how often a human has corrected the AI's pick.">
+  @if (isAdmin()) {
+    <button mat-flat-button color="primary" (click)="openAddDialog()">
+      <mat-icon>add</mat-icon>
+      Add Category
+    </button>
+  }
+</app-page-header>
+
+@if (!isLoading() && !loadError()) {
+  <div class="kpi-row">
+    <app-kpi-card label="Total Categories" [value]="totalCategories()" icon="category" tone="info" />
+    <app-kpi-card label="Active Categories" [value]="activeCategories()" icon="check_circle" tone="success" />
+    <app-kpi-card label="Transactions Classified" [value]="totalTransactionsClassified()" icon="receipt_long" tone="neutral" />
+    <app-kpi-card label="Total Amount" [value]="(totalAmount() | number: '1.2-2') ?? '0.00'" icon="payments" tone="neutral" />
+  </div>
+
+  <div class="chart-row">
+    <app-chart-card title="Transaction Distribution" type="doughnut" [data]="distributionChartData" [options]="chartOptions" [height]="220" />
+  </div>
+}
+
+<app-filter-panel
+  searchPlaceholder="Search categories…"
+  [searchValue]="search"
+  [hasActiveFilters]="hasActiveFilters"
+  (searchValueChange)="onSearchValueChange($event)"
+  (clearFilters)="clearFilters()"
+>
+  <mat-slide-toggle [checked]="showInactive()" (change)="toggleShowInactive()">Show inactive</mat-slide-toggle>
+</app-filter-panel>
+
+@if (isLoading()) {
+  <app-loading-state message="Loading categories…" />
+} @else if (loadError()) {
+  <app-error-state message="We couldn't load categories." (retry)="retry()" />
+} @else if (cards().length === 0) {
+  <app-empty-state icon="category" message="No categories match these filters yet." />
+} @else {
+  <div class="category-grid">
+    @for (card of cards(); track card.detail.id) {
+      <div class="category-card" [class.inactive]="!card.detail.isActive">
+        <div class="card-top">
+          <h3>{{ card.detail.name }}</h3>
+          @if (!card.detail.isActive) {
+            <app-status-badge label="Inactive" tone="neutral" />
+          }
+        </div>
+
+        @if (card.detail.description) {
+          <p class="card-description">{{ card.detail.description }}</p>
+        }
+
+        <div class="card-metrics">
+          <div class="metric">
+            <span class="metric-value">{{ card.stats?.transactionCount ?? 0 }}</span>
+            <span class="metric-label">Transactions</span>
+          </div>
+          <div class="metric">
+            <span class="metric-value">{{ (card.stats?.totalAmount ?? 0) | number: '1.2-2' }}</span>
+            <span class="metric-label">Total Amount</span>
+          </div>
+        </div>
+
+        @if (card.stats && card.stats.transactionCount > 0) {
+          <div class="classification-split">
+            <div class="split-bar">
+              <span class="split-ai" [style.width.%]="card.stats.aiClassifiedPercent"></span>
+              <span class="split-human" [style.width.%]="card.stats.humanCorrectedPercent"></span>
+            </div>
+            <div class="split-legend">
+              <span><i class="dot ai"></i>AI classified {{ card.stats.aiClassifiedPercent | number: '1.0-0' }}%</span>
+              <span><i class="dot human"></i>Human corrected {{ card.stats.humanCorrectedPercent | number: '1.0-0' }}%</span>
+            </div>
+          </div>
+        }
+
+        @if (isAdmin()) {
+          <div class="card-actions">
+            <button mat-button (click)="openEditDialog(card.detail)">
+              <mat-icon>edit</mat-icon>
+              Edit
+            </button>
+            @if (card.detail.isActive) {
+              <button mat-button color="warn" (click)="deactivate(card.detail)">
+                <mat-icon>visibility_off</mat-icon>
+                Deactivate
+              </button>
+            } @else {
+              <button mat-button color="primary" (click)="reactivate(card.detail)">
+                <mat-icon>visibility</mat-icon>
+                Reactivate
+              </button>
+            }
+          </div>
+        }
+      </div>
+    }
+  </div>
+}

@@ -1,0 +1,143 @@
+@use 'styles/breakpoints' as bp;
+
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--fsai-space-4);
+  margin-bottom: var(--fsai-space-4);
+}
+
+.chart-row {
+  margin-bottom: var(--fsai-space-5);
+  max-width: 420px;
+}
+
+.category-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--fsai-space-4);
+}
+
+.category-card {
+  background: var(--mat-sys-surface-container-low);
+  border-radius: var(--fsai-radius);
+  box-shadow: var(--fsai-card-shadow);
+  padding: var(--fsai-space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-2);
+
+  &.inactive {
+    opacity: 0.65;
+  }
+}
+
+.card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--fsai-space-2);
+
+  h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+  }
+}
+
+.card-description {
+  margin: 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+
+.card-metrics {
+  display: flex;
+  gap: var(--fsai-space-5);
+  margin-top: var(--fsai-space-1);
+}
+
+.metric {
+  display: flex;
+  flex-direction: column;
+}
+
+.metric-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
+.classification-split {
+  margin-top: var(--fsai-space-1);
+}
+
+.split-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--mat-sys-surface-variant);
+}
+
+.split-ai {
+  background: var(--fsai-success);
+}
+
+.split-human {
+  background: var(--fsai-warning);
+}
+
+.split-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--fsai-space-3);
+  margin-top: var(--fsai-space-1);
+  font-size: 0.72rem;
+  opacity: 0.75;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+
+  &.ai {
+    background: var(--fsai-success);
+  }
+
+  &.human {
+    background: var(--fsai-warning);
+  }
+}
+
+.card-actions {
+  display: flex;
+  gap: var(--fsai-space-2);
+  margin-top: var(--fsai-space-2);
+  padding-top: var(--fsai-space-2);
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+@include bp.respond(mobile) {
+  .kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .chart-row {
+    max-width: none;
+  }
+
+  .category-grid {
+    grid-template-columns: 1fr;
+  }
+}
