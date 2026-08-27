@@ -10,6 +10,9 @@ schema is defined — entity configurations live one-per-entity under
 
 ```
 User 1───* Statement 1───1 StatementExtraction  (Phase 7 — raw extracted text + verdict)
+                  │                │
+                  │                ├──* OcrTextBlock    (PP-OCRv6 per-region text/confidence/box)
+                  │                └──* OcrTableRegion  (PP-StructureV3 reconstructed tables)
                   │
                   ├──* Transaction 1───1 TransactionExtraction
                   │        │
@@ -99,6 +102,11 @@ isn't reachable yet, the API logs a warning and still starts rather than crashin
   app-wide `GlobalExceptionHandler` (see `docs/architecture.md`'s "Global exception handling"
   section). Distinct from `ProcessingError`, which only ever records recoverable failures inside
   the document-processing pipeline.
+- **`AddOcrTextBlocksAndTableRegions`** — adds a nullable `ConfidenceScore` (`decimal(5,4)`) column
+  to `StatementExtractions`, plus two new child tables cascading from it: `OcrTextBlocks` (one row
+  per PP-OCRv6-detected text region — page, text, confidence, bounding box) and `OcrTableRegions`
+  (one row per PP-StructureV3-reconstructed table — page, HTML, confidence, bounding box). See
+  [docs/ai-processing.md](ai-processing.md)'s PaddleOCR section for how these get populated.
 
 No EF Core migration was needed for Phase 14 (`ProcessingJob.HangfireJobId` already existed since
 `InitialCreate`). When `Hangfire:Storage` = `SqlServer` is active, Hangfire creates and manages its
@@ -110,13 +118,12 @@ and unmanaged by, this project's own EF Core migrations.
 See the root [README.md](../README.md#database-migrations-from-phase-3-onward) for both the
 `dotnet ef` CLI and Visual Studio Package Manager Console workflows. `InitialCreate`
 (`src/FinancialStatementAI.Infrastructure/Persistence/Migrations/`) creates the original 12
-entities' tables; `AddStatementExtraction`, `AddMerchantMapping`, and `AddExceptionLog` (above)
-bring the total to 15.
+entities' tables; `AddStatementExtraction`, `AddMerchantMapping`, `AddExceptionLog`, and
+`AddOcrTextBlocksAndTableRegions` (above) bring the total to 17.
 
-> **Note on verification in this environment:** the sandbox this was built in has no running SQL
-> Server engine (LocalDB is registered but its process fails to start here), so the migration was
-> verified by successful `dotnet ef migrations add` scaffolding (which runs full EF Core model
-> validation, including the cascade-path check described above) and a build of the generated
-> migration — not by an actual `dotnet ef database update` against a live database. Run
-> `Update-Database` / `dotnet ef database update` against a real SQL Server instance as the first
-> verification step when picking this up in Visual Studio.
+> **Note on verification:** `AddOcrTextBlocksAndTableRegions` was scaffolded with `dotnet ef
+> migrations add` (full EF Core model validation, including the cascade-path check described
+> above) and then actually applied with `dotnet ef database update` against a real local SQL
+> Server instance — not just design-time-validated. Earlier migrations in this list were
+> originally verified by scaffolding alone, before a working local SQL Server instance was
+> available in this environment.

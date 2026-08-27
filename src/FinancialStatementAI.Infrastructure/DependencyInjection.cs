@@ -6,6 +6,7 @@ using FinancialStatementAI.Infrastructure.BackgroundJobs;
 using FinancialStatementAI.Infrastructure.Caching;
 using FinancialStatementAI.Infrastructure.Documents;
 using FinancialStatementAI.Infrastructure.OCR;
+using FinancialStatementAI.Infrastructure.OCR.PaddleOcr;
 using FinancialStatementAI.Infrastructure.Persistence;
 using FinancialStatementAI.Infrastructure.Repositories;
 using FinancialStatementAI.Infrastructure.Security;
@@ -69,22 +70,43 @@ public static class DependencyInjection
 
         services.Configure<AzureVisionOptions>(configuration.GetSection(AzureVisionOptions.SectionName));
         services.Configure<AzureDocumentIntelligenceOptions>(configuration.GetSection(AzureDocumentIntelligenceOptions.SectionName));
+        services.Configure<PaddleOcrOptions>(configuration.GetSection(PaddleOcrOptions.SectionName));
+        var paddleOcrOptions = configuration.GetSection(PaddleOcrOptions.SectionName).Get<PaddleOcrOptions>() ?? new PaddleOcrOptions();
 
-        // Both default to Mock (works with zero configuration for local dev/demo); set
-        // "Ocr:Provider" / "DocumentIntelligence:Provider" to "Azure" plus the matching
-        // Azure:Vision / Azure:DocumentIntelligence Endpoint+ApiKey to use the real services.
+        // PaddleOCR (PP-OCRv6, via the separate ocr-service/ Python microservice — see
+        // docs/ai-processing.md for why OCR can't run in-process) is the default OCR provider:
+        // real, open-source, and never a paid/cloud dependency by default. Set "Ocr:Provider" to
+        // "Azure" (plus Azure:Vision:Endpoint/ApiKey) to use Azure Vision's Read feature instead.
+        // There is deliberately no "Mock" option anymore — see PaddleOcrService's own doc comment
+        // and the test suite's FakeOcrService test double for how tests stay hermetic without one.
         if (string.Equals(configuration["Ocr:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSingleton<IOcrService, AzureOcrService>();
         }
         else
         {
-            services.AddSingleton<IOcrService, MockOcrService>();
+            services.AddHttpClient<IOcrService, PaddleOcrService>(client =>
+            {
+                client.BaseAddress = new Uri(paddleOcrOptions.BaseUrl.TrimEnd('/') + "/");
+                client.Timeout = TimeSpan.FromSeconds(paddleOcrOptions.TimeoutSeconds);
+            });
         }
 
+        // DocumentIntelligence defaults to Mock — it isn't on the pipeline's critical path (see
+        // IDocumentIntelligenceService's own doc comment). Set "DocumentIntelligence:Provider" to
+        // "Azure", or to "PaddleOcr" for PP-StructureV3's document layout/table-structure
+        // analysis (the same ocr-service/ microservice PaddleOcrService talks to).
         if (string.Equals(configuration["DocumentIntelligence:Provider"], "Azure", StringComparison.OrdinalIgnoreCase))
         {
             services.AddSingleton<IDocumentIntelligenceService, AzureDocumentIntelligenceService>();
+        }
+        else if (string.Equals(configuration["DocumentIntelligence:Provider"], "PaddleOcr", StringComparison.OrdinalIgnoreCase))
+        {
+            services.AddHttpClient<IDocumentIntelligenceService, PaddleDocumentStructureService>(client =>
+            {
+                client.BaseAddress = new Uri(paddleOcrOptions.BaseUrl.TrimEnd('/') + "/");
+                client.Timeout = TimeSpan.FromSeconds(paddleOcrOptions.TimeoutSeconds);
+            });
         }
         else
         {

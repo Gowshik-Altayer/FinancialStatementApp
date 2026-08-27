@@ -66,39 +66,87 @@ we get off the page" record that both feeds Phase 9 and, on its own, already ans
 statement need OCR" for the UI (the Statement Detail screen's "Text extraction" card) without
 needing anything downstream to exist yet.
 
-## OCR and Document Intelligence (Phase 8)
+## OCR and Document Intelligence (Phase 8, real engine added later)
 
-Two abstractions, per requirements #13/#14 — the business layer never depends on an Azure SDK
-class directly, only on `IOcrService` / `IDocumentIntelligenceService`:
+Two abstractions, per requirements #13/#14 — the business layer never depends on a concrete OCR
+SDK directly, only on `IOcrService` / `IDocumentIntelligenceService`:
 
-| Interface | Real implementation | Purpose |
+| Interface | Default implementation | Purpose |
 |---|---|---|
-| `IOcrService` | `AzureOcrService` (Azure AI Vision, Read feature) | Convert an image or scanned PDF page into plain text |
-| `IDocumentIntelligenceService` | `AzureDocumentIntelligenceService` (`prebuilt-document` model) | Pull structured fields/layout out of a document |
+| `IOcrService` | `PaddleOcrService` (PaddleOCR PP-OCRv6, via `ocr-service/`) | Convert an image or scanned PDF page into text, with per-block confidence and bounding boxes |
+| `IDocumentIntelligenceService` | `MockDocumentIntelligenceService` (opt into `PaddleDocumentStructureService`/PP-StructureV3 via config) | Pull structured layout/tables out of a document |
 
-Both default to a **Mock** implementation (`MockOcrService`, `MockDocumentIntelligenceService`) —
-selected via `Ocr:Provider` / `DocumentIntelligence:Provider` config, same pattern as Phase 6's
-`FileStorage:Provider` switch. This isn't a shortcut: it's the only way to make the OCR branch of
-the pipeline demoable and testable without an Azure subscription, and the challenge explicitly
-allows Mock implementations as a valid deliverable. Mock output is unambiguously labeled
-(`"[MOCK OCR OUTPUT - simulated for local development, not a real OCR result]"`) so it's never
-mistaken for genuine extracted data — this matters given requirement #16's hallucination-
-prevention principle: even *simulated* data has to be honest about not being real.
+`AzureOcrService`/`AzureDocumentIntelligenceService` remain as opt-in alternatives (`Ocr:Provider`
+/ `DocumentIntelligence:Provider` = `"Azure"`), but neither is the default — requirement #16 rules
+out relying on a paid/cloud engine as this project's primary OCR path.
+
+### Why PaddleOCR over Tesseract or Surya
+
+All three are genuinely open-source and runnable with no per-call cost, which is why each was
+considered. PaddleOCR (PP-OCRv6 for detection/recognition, PP-StructureV3 for layout/table
+reconstruction) was chosen because:
+
+- **Tesseract** has no table-structure model at all — it returns a flat text stream (or, with
+  `--psm` tuning, word-level boxes) but never reconstructs *which cells belong to which row/column*.
+  A financial statement's transaction table is exactly the structure that matters most here, and
+  Tesseract simply has nothing in this category — it would need a separate, hand-rolled
+  table-reconstruction heuristic on top, which is precisely the "reinventing a worse version of an
+  existing model" this project is trying to avoid.
+- **Surya** is newer and improving fast, but as of this writing it's a younger project without
+  PaddleOCR's multi-year production track record, and its table-recognition model lineage isn't as
+  mature or as widely deployed as PP-StructureV3's. For a "production-ready" deliverable, betting
+  the primary OCR engine on the less battle-tested option is the wrong trade.
+- **PaddleOCR** ships PP-OCRv6 (fast, accurate general text detection/recognition, including
+  rotated and dense text — common in scanned statements) *and* PP-StructureV3 (document layout
+  analysis plus table-structure reconstruction to HTML) as one coherent, actively maintained
+  toolkit. That combination — not just "an OCR model" but "an OCR model with a matching
+  table-structure model from the same lineage" — is the specific fit this project's requirements
+  (tables, transactions, columns) call for.
+
+### Why OCR runs as a separate microservice, not in-process
+
+PaddleOCR is built on PaddlePaddle, a Python-only ML framework — there is no native .NET port. The
+Application layer still only ever talks to `IOcrService`/`IDocumentIntelligenceService`; those
+interfaces are implemented in `FinancialStatementAI.Infrastructure/OCR/PaddleOcr/` as thin HTTP
+clients calling a standalone FastAPI service in `ocr-service/` (see its own `README.md`). This
+keeps .NET business logic (Application/Domain) with zero Python dependency, matches this project's
+existing provider-switch pattern (`FileStorage:Provider`, `Classification:Provider`, etc.), and
+means another OCR engine — including a future native option — can be added later purely by adding
+another `IOcrService` implementation, with no change to `StatementProcessingService`.
+
+`ocr-service/` exposes two endpoints:
+
+| Endpoint | Model | Returns |
+|---|---|---|
+| `POST /ocr` | PP-OCRv6 | Per-page recognized text, overall confidence, and per-block text/confidence/bounding box |
+| `POST /structure` | PP-StructureV3 | Reconstructed table regions (as HTML), per-table confidence, and bounding box |
+
+Both accept a PDF or image upload; PDFs are rasterized to page images with `pypdfium2` before
+being handed to PaddleOCR (PaddleOCR itself operates on images).
 
 **Where OCR sits in the pipeline** (`StatementProcessingService`): PDFs try direct extraction
 (Phase 7) first; only when that finds no usable text does OCR run. Images skip straight to OCR
 since they have no text layer to try extracting directly at all. If OCR *also* fails to produce
 usable text, the statement is marked `ExtractionFailed` — both extraction paths have now been
-exhausted.
+exhausted. When OCR *does* run and produce usable text, the pipeline additionally calls
+`IDocumentIntelligenceService.AnalyzeAsync` (PP-StructureV3, when configured) to reconstruct table
+regions — a scanned page is exactly the case where table structure is otherwise lost, since direct
+PDF text extraction already preserves reading order without needing it. A failure here never fails
+the reprocess: table regions are enrichment, not a gate.
 
-**Why Document Intelligence isn't on the critical path yet**: it extracts structured
-fields/tables, which is genuinely valuable for well-known statement layouts, but building that
-against Mock output wouldn't demonstrate anything beyond "the interface compiles" — a bank
-statement's *transaction table* is exactly what Phase 9's own parsing logic is responsible for
-extracting from the raw text OCR/direct-extraction already produced. The abstraction exists,
-wired into DI and ready to use (e.g. for pulling `AccountNumber`/`StatementDate` fields more
-reliably from a known layout), but isn't yet called from the processing pipeline — a defensible,
-documented scope boundary rather than a silent gap.
+**What gets persisted**: `StatementExtraction` now also carries a nullable `ConfidenceScore`
+(PP-OCRv6's overall confidence for the extraction) alongside two new child collections —
+`OcrTextBlock` (one row per detected text region: page, text, confidence, bounding box) and
+`OcrTableRegion` (one row per reconstructed table: page, HTML, confidence, bounding box). Both are
+optional/best-effort detail on top of the same `RawText`/`HasUsableText` fields Phase 7/8
+originally introduced — nothing downstream requires them to be present, since not every
+`IOcrService`/`IDocumentIntelligenceService` implementation populates them (`AzureOcrService`
+doesn't, for instance).
+
+**Not yet run against a live instance**: the `ocr-service/` Python code (and the exact
+PaddleOCR 3.x result-object shape `ocr_engine.py`/`structure_engine.py` assume) has not been
+executed in this environment — see `ocr-service/README.md` for how to run and validate it against
+a real sample statement before relying on it in production.
 
 ## Transaction extraction and normalization (Phase 9)
 

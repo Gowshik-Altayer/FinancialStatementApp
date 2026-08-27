@@ -13,6 +13,7 @@ public class StatementProcessingService(
     IFileStorageService fileStorage,
     IPdfTextExtractionService pdfTextExtractionService,
     IOcrService ocrService,
+    IDocumentIntelligenceService documentIntelligenceService,
     IStatementFieldExtractionService statementFieldExtractionService,
     ITransactionExtractionService transactionExtractionService,
     ITransactionClassificationService transactionClassificationService,
@@ -44,6 +45,8 @@ public class StatementProcessingService(
 
         string? rawText = null;
         var method = ExtractionMethod.DirectPdfText;
+        OcrResult? ocrResult = null;
+        DocumentIntelligenceResult? structureResult = null;
 
         if (statement.ContentType == "application/pdf")
         {
@@ -53,7 +56,18 @@ public class StatementProcessingService(
         if (rawText is null)
         {
             method = ExtractionMethod.Ocr;
-            rawText = await TryOcrExtractionAsync(statement, cancellationToken);
+            (rawText, ocrResult) = await TryOcrExtractionAsync(statement, cancellationToken);
+
+            // Table/layout reconstruction (PP-StructureV3, when PaddleOcr is the configured
+            // provider) only runs for the OCR path — a scanned document is exactly the case
+            // where reconstructing a transaction table's structure earns its cost; direct PDF
+            // text extraction already has clean, ordered text with no layout ambiguity to
+            // resolve. A failure here is never fatal to the pipeline (see requirement #16): it
+            // just means no table regions get stored alongside this extraction.
+            if (rawText is not null)
+            {
+                structureResult = await TryDocumentStructureAnalysisAsync(statement, cancellationToken);
+            }
         }
 
         if (rawText is null)
@@ -63,7 +77,7 @@ public class StatementProcessingService(
         }
         else
         {
-            await PersistExtractionAsync(statement, method, rawText, cancellationToken);
+            await PersistExtractionAsync(statement, method, rawText, ocrResult, structureResult, cancellationToken);
 
             var fields = statementFieldExtractionService.Extract(rawText);
             await statementRepository.UpdateExtractedFieldsAsync(statementId, fields, cancellationToken);
@@ -96,23 +110,76 @@ public class StatementProcessingService(
         return extraction.HasUsableText ? extraction.RawText : null;
     }
 
-    private async Task<string?> TryOcrExtractionAsync(Statement statement, CancellationToken cancellationToken)
+    /// <returns>The usable raw text (or null) alongside the full OcrResult, so the caller can
+    /// persist confidence/bounding-box detail even though only the text feeds the rest of the
+    /// pipeline.</returns>
+    private async Task<(string? RawText, OcrResult Result)> TryOcrExtractionAsync(Statement statement, CancellationToken cancellationToken)
     {
         await using var fileStream = await fileStorage.OpenReadAsync(statement.StoredFilePath, cancellationToken);
         var ocrResult = await ocrService.ExtractTextAsync(fileStream, statement.ContentType, cancellationToken);
 
         if (!ocrResult.IsSuccess)
         {
-            return null;
+            return (null, ocrResult);
         }
 
         var characterCount = ocrResult.RawText.Count(c => !char.IsWhiteSpace(c));
-        return characterCount >= TextExtractionThresholds.MinUsableCharactersPerPage ? ocrResult.RawText : null;
+        var isUsable = characterCount >= TextExtractionThresholds.MinUsableCharactersPerPage;
+        return (isUsable ? ocrResult.RawText : null, ocrResult);
     }
 
-    private async Task PersistExtractionAsync(Statement statement, ExtractionMethod method, string rawText, CancellationToken cancellationToken)
+    private async Task<DocumentIntelligenceResult?> TryDocumentStructureAnalysisAsync(Statement statement, CancellationToken cancellationToken)
+    {
+        try
+        {
+            await using var fileStream = await fileStorage.OpenReadAsync(statement.StoredFilePath, cancellationToken);
+            var result = await documentIntelligenceService.AnalyzeAsync(fileStream, statement.ContentType, cancellationToken);
+            return result.IsSuccess ? result : null;
+        }
+        catch
+        {
+            // Document-layout analysis is a nice-to-have enrichment of this extraction, never a
+            // gate on the pipeline continuing — an unhandled exception here (e.g. the
+            // PaddleOCR structure service being unreachable) must not fail the whole reprocess.
+            return null;
+        }
+    }
+
+    private async Task PersistExtractionAsync(
+        Statement statement,
+        ExtractionMethod method,
+        string rawText,
+        OcrResult? ocrResult,
+        DocumentIntelligenceResult? structureResult,
+        CancellationToken cancellationToken)
     {
         var characterCount = rawText.Count(c => !char.IsWhiteSpace(c));
+
+        var textBlocks = ocrResult?.TextBlocks?
+            .Select(b => new OcrTextBlock
+            {
+                PageNumber = b.PageNumber,
+                Text = b.Text,
+                Confidence = b.Confidence,
+                X1 = b.X1,
+                Y1 = b.Y1,
+                X2 = b.X2,
+                Y2 = b.Y2
+            })
+            .ToList() ?? [];
+
+        var tableRegions = structureResult?.Tables?
+            .Select(t => new OcrTableRegion
+            {
+                PageNumber = t.PageNumber,
+                Html = t.Html,
+                Confidence = t.Confidence,
+                X1 = t.X1,
+                Y1 = t.Y1,
+                X2 = t.X2,
+                Y2 = t.Y2
+            })
+            .ToList() ?? [];
 
         await statementExtractionRepository.UpsertAsync(new StatementExtraction
         {
@@ -121,7 +188,10 @@ public class StatementProcessingService(
             RawText = rawText,
             PageCount = method == ExtractionMethod.Ocr ? 1 : rawText.Count(c => c == '\f') + 1,
             CharacterCount = characterCount,
-            HasUsableText = true
+            HasUsableText = true,
+            ConfidenceScore = ocrResult?.ConfidenceScore,
+            TextBlocks = textBlocks,
+            TableRegions = tableRegions
         }, cancellationToken);
     }
 

@@ -20,5 +20,18 @@ public class StatementExtraction : BaseEntity
     /// whether OCR/Vision (Phase 8) is needed instead — see requirement #2's core decision.</summary>
     public bool HasUsableText { get; set; }
 
+    /// <summary>Overall OCR confidence when this extraction came from an OCR pass (PaddleOCR's
+    /// PP-OCRv6, or Azure Vision) — null for direct PDF text extraction, which has no comparable
+    /// confidence concept (PdfPig reads embedded text exactly, it doesn't recognize it).</summary>
+    public decimal? ConfidenceScore { get; set; }
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>Per-region OCR detail (text, confidence, bounding box) — only populated when the
+    /// active IOcrService implementation exposes it (see OcrResult.TextBlocks).</summary>
+    public ICollection<OcrTextBlock> TextBlocks { get; set; } = [];
+
+    /// <summary>Reconstructed table regions from document-layout analysis (PP-StructureV3) —
+    /// only populated when a scanned statement's tables were actually detected.</summary>
+    public ICollection<OcrTableRegion> TableRegions { get; set; } = [];
 }

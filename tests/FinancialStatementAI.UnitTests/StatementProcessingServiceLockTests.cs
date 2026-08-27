@@ -18,6 +18,7 @@ public class StatementProcessingServiceLockTests
     private readonly Mock<IFileStorageService> _fileStorage = new();
     private readonly Mock<IPdfTextExtractionService> _pdfTextExtractionService = new();
     private readonly Mock<IOcrService> _ocrService = new();
+    private readonly Mock<IDocumentIntelligenceService> _documentIntelligenceService = new();
     private readonly Mock<IStatementFieldExtractionService> _statementFieldExtractionService = new();
     private readonly Mock<ITransactionExtractionService> _transactionExtractionService = new();
     private readonly Mock<ITransactionClassificationService> _transactionClassificationService = new();
@@ -31,6 +32,7 @@ public class StatementProcessingServiceLockTests
         _fileStorage.Object,
         _pdfTextExtractionService.Object,
         _ocrService.Object,
+        _documentIntelligenceService.Object,
         _statementFieldExtractionService.Object,
         _transactionExtractionService.Object,
         _transactionClassificationService.Object,
