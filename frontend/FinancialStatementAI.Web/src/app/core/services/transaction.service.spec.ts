@@ -79,4 +79,15 @@ describe('TransactionService', () => {
     expect(req.request.body).toEqual({ categoryName: 'Groceries', reason: 'Wrong merchant match' });
     req.flush(updated);
   });
+
+  it('bulkCorrectCategory() posts to the bulk corrections endpoint and returns the updated count', () => {
+    const response = { updatedCount: 4, transaction: { id: 't1', categoryName: 'Groceries' } as Partial<Transaction> };
+
+    service.bulkCorrectCategory('t1', 'Groceries', 'Same merchant').subscribe((result) => expect(result).toEqual(response));
+
+    const req = httpMock.expectOne('/api/transactions/t1/corrections/bulk');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ categoryName: 'Groceries', reason: 'Same merchant' });
+    req.flush(response);
+  });
 });

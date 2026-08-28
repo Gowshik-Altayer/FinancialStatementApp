@@ -66,6 +66,12 @@
         </mat-select>
       </mat-form-field>
 
+      @if (current()!.merchant) {
+        <mat-checkbox [(ngModel)]="applyToAllWithSameMerchant" class="apply-to-all-checkbox">
+          Apply to all transactions from "{{ current()!.merchant }}"
+        </mat-checkbox>
+      }
+
       <div class="review-buttons">
         <button mat-stroked-button type="button" (click)="skip()">
           <mat-icon>skip_next</mat-icon>

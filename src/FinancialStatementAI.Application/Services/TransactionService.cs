@@ -79,4 +79,41 @@ public class TransactionService(
         var updated = await transactionRepository.GetByIdAsync(transactionId, cancellationToken);
         return CorrectTransactionResult.Success(TransactionMapper.ToResponse(updated!));
     }
+
+    public async Task<BulkCorrectTransactionResult> BulkCorrectCategoryAsync(
+        Guid anchorTransactionId, Guid userId, CorrectTransactionRequest request, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.CategoryName))
+        {
+            return BulkCorrectTransactionResult.Failure("categoryName is required.");
+        }
+
+        var anchor = await transactionRepository.GetByIdAsync(anchorTransactionId, cancellationToken);
+        if (anchor is null || anchor.Statement!.UserId != userId)
+        {
+            return BulkCorrectTransactionResult.AsNotFound();
+        }
+
+        if (string.IsNullOrWhiteSpace(anchor.Merchant))
+        {
+            // Every extraction path populates Merchant (falling back to Description when no
+            // separate merchant name exists — see ParsedTransaction's doc comment), so this is a
+            // genuine edge case rather than the common path. Refusing here rather than silently
+            // falling back to Description keeps "bulk update by merchant" meaning exactly what it
+            // says instead of quietly grouping by a different field.
+            return BulkCorrectTransactionResult.Failure("This transaction has no merchant name to group by.");
+        }
+
+        var category = await categoryRepository.GetByNameAsync(request.CategoryName, cancellationToken);
+        if (category is null)
+        {
+            return BulkCorrectTransactionResult.Failure($"Unknown category \"{request.CategoryName}\".");
+        }
+
+        var updatedCount = await transactionRepository.ApplyBulkCorrectionByMerchantAsync(
+            userId, anchor.Merchant, category.Id, category.Name, request.Reason, userId, cancellationToken);
+
+        var updatedAnchor = await transactionRepository.GetByIdAsync(anchorTransactionId, cancellationToken);
+        return BulkCorrectTransactionResult.Success(updatedCount, TransactionMapper.ToResponse(updatedAnchor!));
+    }
 }

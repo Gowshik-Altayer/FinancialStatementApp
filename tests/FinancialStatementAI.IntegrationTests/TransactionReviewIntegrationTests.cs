@@ -196,6 +196,51 @@ public class TransactionReviewIntegrationTests : IClassFixture<CustomWebApplicat
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
 
+    // --- Bulk corrections: "apply to all transactions from this merchant" -----------------------
+
+    [Fact]
+    public async Task Bulk_Correcting_A_Category_Updates_Every_Transaction_With_The_Same_Merchant()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var (_, firstTransactionId) = await UploadReprocessAndGetSoleTransactionAsync(client, "01/08 ZZYYXX SAME MERCHANT CO 40.00");
+        var (_, secondTransactionId) = await UploadReprocessAndGetSoleTransactionAsync(client, "01/09 ZZYYXX SAME MERCHANT CO 55.00");
+
+        var response = await client.PostAsJsonAsync($"/api/transactions/{firstTransactionId}/corrections/bulk", new { categoryName = "Groceries" });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var body = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(2, body.GetProperty("updatedCount").GetInt32());
+        Assert.Equal("Groceries", body.GetProperty("transaction").GetProperty("categoryName").GetString());
+
+        var secondTransactionResponse = await client.GetAsync($"/api/transactions?search={Uri.EscapeDataString("SAME MERCHANT")}");
+        var secondTransaction = (await secondTransactionResponse.Content.ReadFromJsonAsync<JsonElement>())
+            .GetProperty("items").EnumerateArray().Single(t => t.GetProperty("id").GetGuid() == secondTransactionId);
+        Assert.Equal("Groceries", secondTransaction.GetProperty("categoryName").GetString());
+    }
+
+    [Fact]
+    public async Task Bulk_Correcting_To_An_Unknown_Category_Returns_BadRequest()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var (_, transactionId) = await UploadReprocessAndGetSoleTransactionAsync(client, "01/08 SOME MERCHANT 40.00");
+
+        var response = await client.PostAsJsonAsync($"/api/transactions/{transactionId}/corrections/bulk", new { categoryName = "Not A Real Category" });
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Bulk_Correcting_Another_Users_Transaction_Returns_NotFound()
+    {
+        var owner = await CreateAuthenticatedClientAsync();
+        var (_, transactionId) = await UploadReprocessAndGetSoleTransactionAsync(owner, "01/08 SOME MERCHANT 40.00");
+
+        var intruder = await CreateAuthenticatedClientAsync();
+        var response = await intruder.PostAsJsonAsync($"/api/transactions/{transactionId}/corrections/bulk", new { categoryName = "Groceries" });
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
     [Fact]
     public async Task Verifying_Twice_The_Second_Time_Returns_BadRequest()
     {
