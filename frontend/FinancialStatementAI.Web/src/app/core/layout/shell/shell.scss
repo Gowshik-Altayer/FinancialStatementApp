@@ -28,7 +28,7 @@
   gap: var(--fsai-space-3);
   padding: var(--fsai-space-4) var(--fsai-space-2) var(--fsai-space-3);
   font-weight: 700;
-  font-size: 1rem;
+  font-size: var(--fsai-text-md);
 
   // A colored badge behind the brand icon rather than a plain default-colored glyph — this is
   // the first thing a user sees in the sidenav. Solid primary (not a two-hue gradient) reads as
@@ -66,7 +66,7 @@
   flex-shrink: 0;
   background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 60%, black));
   color: var(--mat-sys-on-primary);
-  font-size: 0.8rem;
+  font-size: var(--fsai-text-sm);
   font-weight: 700;
 }
 
@@ -77,7 +77,7 @@
 }
 
 .profile-name {
-  font-size: 0.85rem;
+  font-size: var(--fsai-text-sm);
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -85,7 +85,7 @@
 }
 
 .profile-role {
-  font-size: 0.72rem;
+  font-size: var(--fsai-text-xs);
   opacity: 0.65;
   text-transform: capitalize;
 }
@@ -122,7 +122,7 @@
   gap: var(--fsai-space-3);
   padding: var(--fsai-space-3) var(--fsai-space-4);
   margin-top: var(--fsai-space-1);
-  font-size: 0.85rem;
+  font-size: var(--fsai-text-sm);
 
   mat-icon {
     opacity: 0.7;

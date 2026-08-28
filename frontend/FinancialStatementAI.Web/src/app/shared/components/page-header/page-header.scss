@@ -9,16 +9,20 @@
   flex-wrap: wrap;
 }
 
+// Size/weight/tracking come from the global h1 rule in styles/_typography.scss. This used to
+// hardcode `font-size: 1.5rem`, which quietly overrode the shared scale — so the app's single
+// most prominent piece of text was the one place not following its own type system.
 .page-header-text h1 {
   margin: 0 0 var(--fsai-space-1) 0;
-  font-size: 1.5rem;
-  font-weight: 700;
 }
 
+// A real color token rather than `opacity: 0.7`, so the subtitle keeps its intended contrast on
+// tinted surfaces instead of compounding with whatever the parent's opacity happens to be.
 .page-header-subtitle {
   margin: 0;
-  opacity: 0.7;
-  font-size: 0.9rem;
+  font-size: var(--fsai-text-sm);
+  color: var(--mat-sys-on-surface-variant);
+  max-width: 68ch;
 }
 
 .page-header-actions {

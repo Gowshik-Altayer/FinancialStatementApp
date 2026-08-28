@@ -27,7 +27,7 @@
 }
 
 .review-progress {
-  font-size: 0.8rem;
+  font-size: var(--fsai-text-sm);
   font-weight: 600;
   color: var(--fsai-warning);
   background: var(--fsai-warning-bg);
@@ -39,7 +39,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--fsai-space-1);
-  font-size: 0.85rem;
+  font-size: var(--fsai-text-sm);
   text-decoration: none;
   color: var(--fsai-info);
 
@@ -70,14 +70,14 @@
 }
 
 .review-field-label {
-  font-size: 0.7rem;
+  font-size: var(--fsai-text-xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   opacity: 0.6;
 }
 
 .review-field-value {
-  font-size: 1rem;
+  font-size: var(--fsai-text-md);
   font-weight: 500;
 }
 
@@ -103,7 +103,7 @@
   align-items: center;
   gap: var(--fsai-space-2);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: var(--fsai-text-sm);
   color: var(--fsai-info);
 }
 
@@ -123,7 +123,7 @@
 
 .ai-reason {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--fsai-text-sm);
   opacity: 0.75;
   font-style: italic;
 }
@@ -152,7 +152,7 @@
 
   h3 {
     margin: 0 0 var(--fsai-space-2) 0;
-    font-size: 0.85rem;
+    font-size: var(--fsai-text-sm);
   }
 }
 
@@ -160,7 +160,7 @@
   display: flex;
   justify-content: space-between;
   gap: var(--fsai-space-3);
-  font-size: 0.8rem;
+  font-size: var(--fsai-text-sm);
   padding: var(--fsai-space-1) 0;
   flex-wrap: wrap;
 }
@@ -174,7 +174,7 @@
 }
 
 .section-title {
-  font-size: 1.05rem;
+  font-size: var(--fsai-text-lg);
   font-weight: 700;
   margin: 0 0 var(--fsai-space-4) 0;
 }

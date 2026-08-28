@@ -58,12 +58,12 @@
 }
 
 .stage-count {
-  font-size: 1.1rem;
+  font-size: var(--fsai-text-lg);
   font-weight: 700;
 }
 
 .stage-label {
-  font-size: 0.7rem;
+  font-size: var(--fsai-text-xs);
   text-align: center;
   opacity: 0.75;
   white-space: nowrap;

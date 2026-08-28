@@ -28,7 +28,7 @@
 
 .chart-title {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: var(--fsai-text-base);
   font-weight: 600;
   color: var(--mat-sys-on-surface);
 }

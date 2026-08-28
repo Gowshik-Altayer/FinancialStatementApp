@@ -109,24 +109,30 @@
 }
 
 .kpi-label {
-  font-size: 0.8rem;
-  opacity: 0.7;
+  font-size: var(--fsai-text-sm);
+  font-weight: var(--fsai-weight-medium);
+  color: var(--mat-sys-on-surface-variant);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
+// The single most-read number on any page, so it takes the KPI step of the scale and the tabular
+// + slashed-zero figures — without those, a row of KPI cards has visibly ragged digit widths.
 .kpi-value {
-  font-size: 1.75rem;
-  font-weight: 700;
-  line-height: 1.2;
+  font-size: var(--fsai-text-2xl);
+  font-weight: var(--fsai-weight-bold);
+  line-height: var(--fsai-leading-tight);
+  letter-spacing: var(--fsai-tracking-tight);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
 }
 
 .kpi-trend {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  font-size: 0.75rem;
+  font-size: var(--fsai-text-xs);
   font-weight: 600;
 }
 

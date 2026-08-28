@@ -94,6 +94,6 @@
 .history-list {
   margin: 0;
   padding-left: 1.25rem;
-  font-size: 0.875rem;
+  font-size: var(--fsai-text-sm);
   color: var(--mat-sys-on-surface-variant);
 }
