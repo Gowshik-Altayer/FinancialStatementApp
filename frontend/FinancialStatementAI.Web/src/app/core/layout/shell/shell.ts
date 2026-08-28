@@ -6,12 +6,14 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 
 const THEME_STORAGE_KEY = 'fsai.theme';
+const SIDENAV_STORAGE_KEY = 'fsai.sidenav-collapsed';
 
 interface NavLink {
   path: string;
@@ -31,6 +33,7 @@ interface NavLink {
     MatListModule,
     MatIconModule,
     MatButtonModule,
+    MatTooltipModule,
     MatSlideToggleModule
   ],
   templateUrl: './shell.html',
@@ -64,6 +67,11 @@ export class Shell {
   // and correct, just unreachable.
   readonly isDarkMode = signal(localStorage.getItem(THEME_STORAGE_KEY) === 'dark');
 
+  /** Collapsed = icon-only rail; expanded = full labels. Persisted, since this is a workspace
+   * preference a user sets once and expects to stick across sessions. */
+  readonly isCollapsed = signal(localStorage.getItem(SIDENAV_STORAGE_KEY) === 'true');
+
+
   constructor(
     protected readonly authService: AuthService,
     private readonly router: Router
@@ -76,6 +84,15 @@ export class Shell {
     this.isDarkMode.set(next);
     this.applyTheme(next);
     localStorage.setItem(THEME_STORAGE_KEY, next ? 'dark' : 'light');
+  }
+
+  toggleCollapsed(): void {
+    const next = !this.isCollapsed();
+    this.isCollapsed.set(next);
+    localStorage.setItem(SIDENAV_STORAGE_KEY, String(next));
+    // No re-measure needed: the content offset is driven declaratively from the collapsed state
+    // in shell.scss rather than from a width MatSidenavContainer has to measure. See the
+    // `.nav-collapsed` / `.nav-expanded` rules there for why.
   }
 
   logout(): void {

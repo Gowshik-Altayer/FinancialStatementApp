@@ -1,17 +1,38 @@
-<mat-sidenav-container class="shell">
+<mat-sidenav-container
+  class="shell"
+  [class.nav-collapsed]="isCollapsed() && !isHandset()"
+  [class.nav-expanded]="!isCollapsed() && !isHandset()"
+>
   <mat-sidenav
     #sidenav
     [mode]="isHandset() ? 'over' : 'side'"
     [opened]="!isHandset()"
     class="sidenav"
+    [class.collapsed]="isCollapsed() && !isHandset()"
   >
     <div class="brand">
-      <mat-icon>account_balance</mat-icon>
-      <span>FinancialStatementAI</span>
+      <mat-icon class="brand-mark">account_balance</mat-icon>
+      <span class="brand-name">FinancialStatementAI</span>
+
+      <!-- Desktop only: on handset the drawer is an overlay that is opened/closed outright, so a
+           collapse-to-rail control there would be a second, conflicting way to hide the same nav. -->
+      @if (!isHandset()) {
+        <button
+          mat-icon-button
+          class="collapse-btn"
+          (click)="toggleCollapsed()"
+          [matTooltip]="isCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+          matTooltipPosition="right"
+          [attr.aria-label]="isCollapsed() ? 'Expand sidebar' : 'Collapse sidebar'"
+          [attr.aria-expanded]="!isCollapsed()"
+        >
+          <mat-icon>{{ isCollapsed() ? 'chevron_right' : 'chevron_left' }}</mat-icon>
+        </button>
+      }
     </div>
 
     @if (authService.currentUser(); as user) {
-      <div class="profile-card">
+      <div class="profile-card" [matTooltip]="isCollapsed() ? user.firstName + ' ' + user.lastName : ''" matTooltipPosition="right">
         <div class="avatar">{{ user.firstName.charAt(0) }}{{ user.lastName.charAt(0) }}</div>
         <div class="profile-text">
           <span class="profile-name">{{ user.firstName }} {{ user.lastName }}</span>
@@ -27,6 +48,8 @@
           [routerLink]="link.path"
           routerLinkActive="active-link"
           (click)="isHandset() && sidenav.close()"
+          [matTooltip]="isCollapsed() ? link.label : ''"
+          matTooltipPosition="right"
         >
           <mat-icon matListItemIcon>{{ link.icon }}</mat-icon>
           <span matListItemTitle>{{ link.label }}</span>
@@ -35,14 +58,20 @@
     </mat-nav-list>
 
     <div class="sidenav-footer">
-      <a mat-list-item class="logout-link" (click)="logout()">
+      <a
+        mat-list-item
+        class="logout-link"
+        (click)="logout()"
+        [matTooltip]="isCollapsed() ? 'Sign out' : ''"
+        matTooltipPosition="right"
+      >
         <mat-icon matListItemIcon>logout</mat-icon>
         <span matListItemTitle>Sign out</span>
       </a>
 
-      <div class="theme-toggle">
+      <div class="theme-toggle" [matTooltip]="isCollapsed() ? 'Toggle dark mode' : ''" matTooltipPosition="right">
         <mat-icon>dark_mode</mat-icon>
-        <span>Dark Mode</span>
+        <span class="theme-toggle-label">Dark Mode</span>
         <span class="spacer"></span>
         <mat-slide-toggle [checked]="isDarkMode()" (change)="toggleDarkMode()" aria-label="Toggle dark mode" />
       </div>
