@@ -9,7 +9,18 @@
       <mat-icon>account_balance</mat-icon>
       <span>FinancialStatementAI</span>
     </div>
-    <mat-nav-list>
+
+    @if (authService.currentUser(); as user) {
+      <div class="profile-card">
+        <div class="avatar">{{ user.firstName.charAt(0) }}{{ user.lastName.charAt(0) }}</div>
+        <div class="profile-text">
+          <span class="profile-name">{{ user.firstName }} {{ user.lastName }}</span>
+          <span class="profile-role">{{ user.role }}</span>
+        </div>
+      </div>
+    }
+
+    <mat-nav-list class="nav-list">
       @for (link of navLinks; track link.path) {
         <a
           mat-list-item
@@ -22,32 +33,31 @@
         </a>
       }
     </mat-nav-list>
+
+    <div class="sidenav-footer">
+      <a mat-list-item class="logout-link" (click)="logout()">
+        <mat-icon matListItemIcon>logout</mat-icon>
+        <span matListItemTitle>Sign out</span>
+      </a>
+
+      <div class="theme-toggle">
+        <mat-icon>dark_mode</mat-icon>
+        <span>Dark Mode</span>
+        <span class="spacer"></span>
+        <mat-slide-toggle [checked]="isDarkMode()" (change)="toggleDarkMode()" aria-label="Toggle dark mode" />
+      </div>
+    </div>
   </mat-sidenav>
 
   <mat-sidenav-content>
-    <mat-toolbar class="toolbar">
-      @if (isHandset()) {
+    @if (isHandset()) {
+      <mat-toolbar class="toolbar">
         <button mat-icon-button (click)="sidenav.toggle()" aria-label="Toggle navigation">
           <mat-icon>menu</mat-icon>
         </button>
-      }
-      <span>FinancialStatementAI</span>
-      <span class="spacer"></span>
-
-      @if (authService.currentUser(); as user) {
-        <button mat-button [matMenuTriggerFor]="userMenu">
-          <mat-icon>account_circle</mat-icon>
-          <span class="user-name">{{ user.firstName }} {{ user.lastName }}</span>
-        </button>
-        <mat-menu #userMenu="matMenu">
-          <div class="menu-role">{{ user.role }}</div>
-          <button mat-menu-item (click)="logout()">
-            <mat-icon>logout</mat-icon>
-            <span>Sign out</span>
-          </button>
-        </mat-menu>
-      }
-    </mat-toolbar>
+        <span>FinancialStatementAI</span>
+      </mat-toolbar>
+    }
 
     <main class="content">
       <router-outlet />

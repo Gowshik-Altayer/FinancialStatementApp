@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatToolbarModule } from '@angular/material/toolbar';
@@ -6,10 +6,12 @@ import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
-import { MatMenuModule } from '@angular/material/menu';
+import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { BreakpointObserver } from '@angular/cdk/layout';
 import { map } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
+
+const THEME_STORAGE_KEY = 'fsai.theme';
 
 interface NavLink {
   path: string;
@@ -29,7 +31,7 @@ interface NavLink {
     MatListModule,
     MatIconModule,
     MatButtonModule,
-    MatMenuModule
+    MatSlideToggleModule
   ],
   templateUrl: './shell.html',
   styleUrl: './shell.scss'
@@ -57,13 +59,31 @@ export class Shell {
     { initialValue: false }
   );
 
+  // Activates the `:root[data-theme='dark']` token overrides in _tokens.scss, which existed but
+  // had no UI trigger anywhere in the app until now — every dark-mode color was already defined
+  // and correct, just unreachable.
+  readonly isDarkMode = signal(localStorage.getItem(THEME_STORAGE_KEY) === 'dark');
+
   constructor(
     protected readonly authService: AuthService,
     private readonly router: Router
-  ) {}
+  ) {
+    this.applyTheme(this.isDarkMode());
+  }
+
+  toggleDarkMode(): void {
+    const next = !this.isDarkMode();
+    this.isDarkMode.set(next);
+    this.applyTheme(next);
+    localStorage.setItem(THEME_STORAGE_KEY, next ? 'dark' : 'light');
+  }
 
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/login']);
+  }
+
+  private applyTheme(dark: boolean): void {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
   }
 }

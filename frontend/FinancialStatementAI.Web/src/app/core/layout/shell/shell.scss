@@ -2,18 +2,31 @@
 
 .shell {
   height: 100vh;
+  background: var(--mat-sys-surface-container-lowest);
 }
 
+// A floating, rounded card rather than a flush full-height panel with a hard border — this is
+// the biggest single lever in making the nav read as a considered dashboard product instead of
+// default Material chrome. The gap around it shows the page's own background (set on .shell
+// above), which is what makes it look "floating."
 .sidenav {
-  width: 240px;
-  border-right: 1px solid var(--mat-sys-outline-variant);
+  width: 264px;
+  margin: var(--fsai-space-3);
+  border-radius: var(--fsai-radius);
+  border: none;
+  background: var(--mat-sys-surface);
+  box-shadow: var(--fsai-card-shadow-hover);
+  display: flex;
+  flex-direction: column;
+  padding: var(--fsai-space-2) var(--fsai-space-3) var(--fsai-space-3);
+  box-sizing: border-box;
 }
 
 .brand {
   display: flex;
   align-items: center;
   gap: var(--fsai-space-3);
-  padding: var(--fsai-space-5) var(--fsai-space-4);
+  padding: var(--fsai-space-4) var(--fsai-space-2) var(--fsai-space-3);
   font-weight: 700;
   font-size: 1rem;
 
@@ -33,64 +46,156 @@
   }
 }
 
-.toolbar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  // A restrained same-hue depth gradient (primary fading to a touch darker) rather than a full
-  // primary->tertiary blend — a confident solid brand color reads as premium chrome; stretching
-  // two contrasting hues across the entire header reads as loud/decorative instead.
-  background: linear-gradient(180deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 82%, black));
+.profile-card {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-3);
+  margin: 0 var(--fsai-space-2) var(--fsai-space-3);
+  padding: var(--fsai-space-3);
+  border-radius: var(--fsai-radius-sm);
+  background: var(--mat-sys-surface-container-low);
+}
+
+.avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 60%, black));
   color: var(--mat-sys-on-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.profile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.profile-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.profile-role {
+  font-size: 0.72rem;
+  opacity: 0.65;
+  text-transform: capitalize;
+}
+
+.nav-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding-top: 0;
+
+  // Overriding Material's own list-item box model so every row becomes a fully-rounded pill
+  // with breathing room between items, rather than the default flush, square, tightly-packed
+  // list-item rows.
+  a[mat-list-item] {
+    border-radius: var(--fsai-radius-sm);
+    margin: 0 var(--fsai-space-2) var(--fsai-space-1);
+    height: 44px;
+  }
+}
+
+.sidenav-footer {
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  padding-top: var(--fsai-space-2);
+
+  a[mat-list-item] {
+    border-radius: var(--fsai-radius-sm);
+    margin: 0 var(--fsai-space-2);
+    height: 44px;
+  }
+}
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-3);
+  padding: var(--fsai-space-3) var(--fsai-space-4);
+  margin-top: var(--fsai-space-1);
+  font-size: 0.85rem;
+
+  mat-icon {
+    opacity: 0.7;
+    font-size: 1.2rem;
+    width: 1.2rem;
+    height: 1.2rem;
+  }
 }
 
 .spacer {
   flex: 1 1 auto;
 }
 
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: linear-gradient(180deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 82%, black));
+  color: var(--mat-sys-on-primary);
+}
+
 .content {
   padding: var(--fsai-space-6);
-  background: var(--mat-sys-surface-container-lowest);
-  min-height: calc(100vh - 64px);
+  min-height: 100%;
   box-sizing: border-box;
 }
 
-.menu-role {
-  padding: var(--fsai-space-2) var(--fsai-space-4);
-  font-size: 0.75rem;
-  opacity: 0.6;
-  text-transform: uppercase;
-}
-
-// Nav items: a real hover tint (not Material's near-invisible default state layer) plus a
-// left accent rail and tinted icon on the active route, so it's obvious at a glance which page
-// you're on and that the list is interactive at all.
+// Nav items: a real hover tint (not Material's near-invisible default state layer) — pill-shaped
+// to match the rounded, generously-spaced row geometry set above — plus a solid, fully-filled
+// active state (not just a thin accent rail) so it's unmistakable which page you're on.
 mat-nav-list a[mat-list-item] {
-  border-left: 3px solid transparent;
-  transition: background-color var(--fsai-transition-fast), border-color var(--fsai-transition-fast);
+  transition: background-color var(--fsai-transition-fast), color var(--fsai-transition-fast);
 
   &:hover {
-    background-color: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+    background-color: var(--mat-sys-surface-container-low);
   }
 }
 
-// Specificity note: must out-rank `mat-nav-list a[mat-list-item]` above (which sets the base
-// transparent border-left) or the active rail color never wins.
 mat-nav-list a[mat-list-item].active-link {
-  background-color: var(--mat-sys-secondary-container) !important;
-  border-left-color: var(--mat-sys-primary);
+  background-color: var(--mat-sys-primary) !important;
 
+  ::ng-deep [matListItemTitle],
   .mat-icon {
-    color: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary) !important;
+  }
+
+  &:hover {
+    background-color: var(--mat-sys-primary) !important;
+  }
+}
+
+.logout-link {
+  cursor: pointer;
+  transition: background-color var(--fsai-transition-fast);
+
+  &:hover {
+    background-color: var(--fsai-danger-bg);
+
+    ::ng-deep [matListItemTitle],
+    .mat-icon {
+      color: var(--fsai-danger);
+    }
   }
 }
 
 @include bp.respond(mobile) {
-  .content {
-    padding: var(--fsai-space-4);
+  .sidenav {
+    width: 240px;
+    margin: 0;
+    border-radius: 0;
   }
 
-  .user-name {
-    display: none;
+  .content {
+    padding: var(--fsai-space-4);
   }
 }
