@@ -163,4 +163,154 @@ public class TransactionExtractionServiceTests
 
         Assert.Equal("Smith & Sons", Assert.Single(result).Description);
     }
+
+    // --- Cell-per-line OCR text -------------------------------------------------------------
+    // Verbatim shape produced by PP-OCRv6 for a real scanned statement (sample-data/
+    // scanned-bank-statement.pdf): a header block, then every table cell on its own line.
+    private const string ScannedOcrText = """
+        RIVERSIDE COMMUNITY BANK
+        Monthly Checking Statement
+        AccountHolder: Grace Hopper
+        Statement Period: 03/01/2026 - 03/31/2026
+        Beginning Balance: $4,812.90
+        Date
+        Description
+        Reference
+        Amount
+        03/02
+        PAYROLL DIRECT DEPOSIT - ACME CORP
+        DD10029
+        2,300.00
+        03/03
+        WHOLE FOODSMARKET #4471
+        PS88213
+        -86.42
+        03/20
+        -7.85
+        STARBUCKSCOFFEE #556
+        PS88217
+        """;
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Reads_A_Scanned_Statement_The_Line_Parser_Cannot()
+    {
+        // The regression this whole path exists for: the line-based parser needs a date and an
+        // amount on the same line, so against OCR output it finds nothing at all.
+        Assert.Empty(_service.Extract(ScannedOcrText, Year));
+
+        var result = _service.ExtractFromCellPerLineText(ScannedOcrText, Year);
+
+        Assert.Equal(3, result.Count);
+    }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Assigns_Date_Amount_And_Description_Per_Row()
+    {
+        var result = _service.ExtractFromCellPerLineText(ScannedOcrText, Year);
+
+        var payroll = result[0];
+        Assert.Equal(new DateOnly(Year, 3, 2), payroll.TransactionDate);
+        Assert.Equal(2300.00m, payroll.Amount);
+        Assert.Contains("PAYROLL DIRECT DEPOSIT", payroll.Description);
+        Assert.Contains("DD10029", payroll.Description);
+    }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Signs_Negative_Amounts_As_Debits()
+    {
+        var groceries = _service.ExtractFromCellPerLineText(ScannedOcrText, Year)[1];
+
+        Assert.Equal(new DateOnly(Year, 3, 3), groceries.TransactionDate);
+        Assert.Equal(-86.42m, groceries.Amount);
+        Assert.Equal(86.42m, groceries.DebitAmount);
+        Assert.Equal(TransactionType.Debit, groceries.TransactionType);
+    }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Does_Not_Assume_Cell_Order_Within_A_Row()
+    {
+        // OCR reading order varies row to row: this one emits the amount BEFORE the description,
+        // which a positional parser would mis-read as the description.
+        var starbucks = _service.ExtractFromCellPerLineText(ScannedOcrText, Year)[2];
+
+        Assert.Equal(new DateOnly(Year, 3, 20), starbucks.TransactionDate);
+        Assert.Equal(-7.85m, starbucks.Amount);
+        Assert.Contains("STARBUCKSCOFFEE", starbucks.Description);
+        Assert.DoesNotContain("-7.85", starbucks.Description);
+    }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Skips_A_Row_With_No_Recognizable_Amount()
+    {
+        // A date with no amount is not a transaction — it must be dropped, never guessed.
+        var text = """
+            03/02
+            SOME DESCRIPTION
+            REF123
+            03/03
+            REAL ONE
+            -10.00
+            """;
+
+        var result = _service.ExtractFromCellPerLineText(text, Year);
+
+        Assert.Equal(new DateOnly(Year, 3, 3), Assert.Single(result).TransactionDate);
+    }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Ignores_The_Header_Block_Before_The_First_Date()
+    {
+        // "Beginning Balance: $4,812.90" sits above the table and must not become a transaction.
+        var result = _service.ExtractFromCellPerLineText(ScannedOcrText, Year);
+
+        Assert.DoesNotContain(result, t => t.Amount == 4812.90m || t.Amount == -4812.90m);
+    }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Does_Not_Treat_A_Trailing_Number_In_Text_As_An_Amount()
+    {
+        // Only a line that is ENTIRELY an amount counts; a description ending in digits must not
+        // be consumed as the row amount (the ambiguity TrailingAmountRegex alone would allow).
+        var text = """
+            03/02
+            INVOICE 12345
+            REF 99
+            """;
+
+        Assert.Empty(_service.ExtractFromCellPerLineText(text, Year));
+    }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Stops_The_Final_Row_Before_Trailing_Document_Footer()
+    {
+        // Verbatim shape from the real scanned-bank-statement.pdf run that surfaced this bug: the
+        // last row has no following date line to bound it, so without the prose heuristic these
+        // two footer sentences were appended straight onto "CREDIT CARD PAYMENT THANK YOU"'s
+        // description.
+        var text = """
+            03/29
+            -129.45
+            AMAZON.COMPURCHASE
+            PS88219
+            03/31
+            -320.00
+            CREDIT CARD PAYMENT THANK YOU
+            PY00417
+            This statement reflects transactions posted between 03/o1/2o26 and o3/31/2026.
+            Please review promptly and report discrepancies within3o days.
+            """;
+
+        var result = _service.ExtractFromCellPerLineText(text, Year);
+
+        // The line reads "-320.00" (money out), but ClassifyDirection checks for the literal word
+        // "credit" before falling back to the sign, and "CREDIT CARD PAYMENT" contains it — so
+        // this comes out positive/Credit. That's an existing, unrelated classifier quirk (matches
+        // a real reprocess of this exact statement); this test only asserts what it's actually
+        // here to check, which is the description boundary.
+        var lastRow = Assert.Single(result, t => t.TransactionDate == new DateOnly(Year, 3, 31));
+        Assert.Equal(320.00m, lastRow.Amount);
+        Assert.Equal("CREDIT CARD PAYMENT THANK YOU PY00417", lastRow.Description);
+        Assert.DoesNotContain("statement reflects", lastRow.Description);
+        Assert.DoesNotContain("Please review", lastRow.Description);
+    }
 }

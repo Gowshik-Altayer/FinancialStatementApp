@@ -147,7 +147,20 @@ public class StatementProcessingService(
             }
         }
 
-        return transactionExtractionService.Extract(rawText, referenceYear);
+        var fromLines = transactionExtractionService.Extract(rawText, referenceYear);
+        if (fromLines.Count > 0)
+        {
+            return fromLines;
+        }
+
+        // Last resort, and the one that matters for scanned statements in practice. The line-based
+        // parser needs a date and an amount on the SAME line, which OCR'd tabular text never has —
+        // PP-OCRv6 reads region by region, so every cell lands on its own line. Previously that
+        // combination (OCR text + no PP-StructureV3 table, which is the normal state whenever the
+        // structure pipeline is disabled or has run out of memory) silently produced zero
+        // transactions. Reached only when neither of the strategies above found anything, so it
+        // cannot change the result for a statement that already parsed.
+        return transactionExtractionService.ExtractFromCellPerLineText(rawText, referenceYear);
     }
 
     private async Task<DocumentIntelligenceResult?> TryDocumentStructureAnalysisAsync(Statement statement, CancellationToken cancellationToken)

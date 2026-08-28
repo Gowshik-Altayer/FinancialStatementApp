@@ -51,6 +51,27 @@ public class TransactionExtractionService : ITransactionExtractionService
         @"^(?<date>\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?|\d{1,2}[-\s][A-Za-z]{3,9}|[A-Za-z]{3,9}\s+\d{1,2})$",
         RegexOptions.Compiled);
 
+    // The amount equivalent of FullCellDateRegex: the whole cell/line is an amount and nothing
+    // else. Anchored at both ends deliberately — TrailingAmountRegex only anchors at the end, so
+    // it would also match a description line that happens to finish with a number, which is
+    // exactly the ambiguity this parser has to avoid when cells arrive without column context.
+    private static readonly Regex FullCellAmountRegex = new(
+        @"^[-+]?\(?\s*[$€£]?\s*\d+(?:,\d{3})*\.\d{2}\)?\s*(?:CR|DR)?$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    // Every transaction row except the last is bounded by the next date-only line; the last row
+    // has nothing to bound it, so a scanned statement's trailing footer/disclaimer ("This
+    // statement reflects transactions posted between ... Please review promptly and report
+    // discrepancies within 30 days.") would otherwise be appended straight onto its description.
+    // A word-count threshold is the signal used to detect that boundary instead: every real date,
+    // description, reference and amount cell observed in sample data tops out around 5-6 words
+    // ("PAYROLL DIRECT DEPOSIT - ACME CORP"), while footer sentences run 9-11. Deliberately a
+    // heuristic, not a hard rule — see ExtractFromCellPerLineText.
+    private const int ProseWordCountThreshold = 8;
+
+    private static bool LooksLikeProse(string line) =>
+        line.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length >= ProseWordCountThreshold;
+
     public IReadOnlyList<ParsedTransaction> ExtractFromTable(string tableHtml, int referenceYear)
     {
         var transactions = new List<ParsedTransaction>();
@@ -87,39 +108,141 @@ public class TransactionExtractionService : ITransactionExtractionService
                 continue; // No confidently-recognizable amount cell — don't fabricate a transaction.
             }
 
-            var date = ParseDateToken(FullCellDateRegex.Match(cells[dateIndex]).Groups["date"].Value, referenceYear);
-            if (date is null)
+            var built = BuildTransaction(cells, dateIndex, amountIndex, referenceYear);
+            if (built is not null)
             {
-                continue;
+                transactions.Add(built);
             }
-
-            if (!TryParseAmountToken(cells[amountIndex], out var absoluteAmount, out var hasNegativeIndicator, out var currency))
-            {
-                continue;
-            }
-
-            var rawLine = string.Join(" | ", cells);
-            var description = string.Join(" ", cells.Where((_, i) => i != dateIndex && i != amountIndex)).Trim();
-            var transactionType = ClassifyDirection(hasNegativeIndicator, rawLine);
-            var signedAmount = transactionType is TransactionType.Debit or TransactionType.Payment or TransactionType.Purchase or TransactionType.Transfer
-                ? -absoluteAmount
-                : absoluteAmount;
-
-            transactions.Add(new ParsedTransaction
-            {
-                RawLine = rawLine,
-                TransactionDate = date.Value,
-                Description = description,
-                Merchant = description,
-                Amount = signedAmount,
-                DebitAmount = signedAmount < 0 ? absoluteAmount : null,
-                CreditAmount = signedAmount >= 0 ? absoluteAmount : null,
-                Currency = currency,
-                TransactionType = transactionType
-            });
         }
 
         return transactions;
+    }
+
+    public IReadOnlyList<ParsedTransaction> ExtractFromCellPerLineText(string rawText, int referenceYear)
+    {
+        var transactions = new List<ParsedTransaction>();
+
+        var lines = rawText
+            .Replace("\f", "\n")
+            .Split('\n')
+            .Select(l => l.Trim())
+            .Where(l => l.Length > 0)
+            .ToList();
+
+        // Collect the cells of one row at a time. A date-only line closes the previous row and
+        // opens a new one; everything up to the first date-only line is the statement header
+        // (bank name, account number, column captions) and is discarded.
+        List<string>? currentCells = null;
+
+        foreach (var line in lines)
+        {
+            if (FullCellDateRegex.IsMatch(line))
+            {
+                AddIfComplete(transactions, currentCells, referenceYear);
+                currentCells = [line];
+                continue;
+            }
+
+            if (currentCells is null)
+            {
+                continue; // still in the header block before the first date-only line
+            }
+
+            if (LooksLikeProse(line))
+            {
+                // No further date line is coming to bound this (necessarily last) row, so this is
+                // the only available signal that the table has ended. Finalize whatever has been
+                // collected and stop accumulating — everything after this is document footer, not
+                // transaction data.
+                AddIfComplete(transactions, currentCells, referenceYear);
+                currentCells = null;
+                continue;
+            }
+
+            currentCells.Add(line);
+        }
+
+        AddIfComplete(transactions, currentCells, referenceYear);
+
+        return transactions;
+    }
+
+    /// <summary>Turns one accumulated row of cells into a transaction, or drops it if it lacks a
+    /// usable date or amount.</summary>
+    private static void AddIfComplete(List<ParsedTransaction> transactions, List<string>? cells, int referenceYear)
+    {
+        if (cells is null || cells.Count == 0)
+        {
+            return;
+        }
+
+        var dateIndex = cells.FindIndex(c => FullCellDateRegex.IsMatch(c));
+        if (dateIndex < 0)
+        {
+            return;
+        }
+
+        // Last amount-shaped cell, matching ExtractFromTable's rule. Scanning from the end matters
+        // for layouts that also carry a running balance column: the transaction amount precedes it,
+        // but a balance is far more often the trailing value, so the last match is the safer pick
+        // only because a row here is bounded by the next date line rather than the page.
+        var amountIndex = -1;
+        for (var i = cells.Count - 1; i >= 0; i--)
+        {
+            if (i != dateIndex && FullCellAmountRegex.IsMatch(cells[i]))
+            {
+                amountIndex = i;
+                break;
+            }
+        }
+
+        if (amountIndex < 0)
+        {
+            return;
+        }
+
+        var built = BuildTransaction(cells, dateIndex, amountIndex, referenceYear);
+        if (built is not null)
+        {
+            transactions.Add(built);
+        }
+    }
+
+    /// <summary>Shared by the table and cell-per-line parsers: both reduce a row to "these cells,
+    /// this one is the date, this one is the amount" and then need identical date/amount parsing,
+    /// direction classification and signing.</summary>
+    private static ParsedTransaction? BuildTransaction(List<string> cells, int dateIndex, int amountIndex, int referenceYear)
+    {
+        var date = ParseDateToken(FullCellDateRegex.Match(cells[dateIndex]).Groups["date"].Value, referenceYear);
+        if (date is null)
+        {
+            return null;
+        }
+
+        if (!TryParseAmountToken(cells[amountIndex], out var absoluteAmount, out var hasNegativeIndicator, out var currency))
+        {
+            return null;
+        }
+
+        var rawLine = string.Join(" | ", cells);
+        var description = string.Join(" ", cells.Where((_, i) => i != dateIndex && i != amountIndex)).Trim();
+        var transactionType = ClassifyDirection(hasNegativeIndicator, rawLine);
+        var signedAmount = transactionType is TransactionType.Debit or TransactionType.Payment or TransactionType.Purchase or TransactionType.Transfer
+            ? -absoluteAmount
+            : absoluteAmount;
+
+        return new ParsedTransaction
+        {
+            RawLine = rawLine,
+            TransactionDate = date.Value,
+            Description = description,
+            Merchant = description,
+            Amount = signedAmount,
+            DebitAmount = signedAmount < 0 ? absoluteAmount : null,
+            CreditAmount = signedAmount >= 0 ? absoluteAmount : null,
+            Currency = currency,
+            TransactionType = transactionType
+        };
     }
 
     public IReadOnlyList<ParsedTransaction> Extract(string rawText, int referenceYear)
