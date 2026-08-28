@@ -1,0 +1,198 @@
+@use 'styles/breakpoints' as bp;
+
+// One shimmer definition shared by every shape. The gradient sweeps across a wide background so
+// the highlight travels, rather than the whole block pulsing — pulsing reads as "broken/flashing",
+// a directional sweep reads as "working".
+.sk-shape {
+  background: linear-gradient(
+    90deg,
+    var(--mat-sys-surface-container) 25%,
+    var(--mat-sys-surface-container-high) 37%,
+    var(--mat-sys-surface-container) 63%
+  );
+  background-size: 400% 100%;
+  animation: sk-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--fsai-radius-sm);
+}
+
+@keyframes sk-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.sk-line {
+  height: 12px;
+  width: 100%;
+}
+
+.sk-line-sm {
+  height: 10px;
+  width: 55%;
+}
+
+.sk-line-lg {
+  height: 24px;
+  width: 70%;
+}
+
+.sk-line-title {
+  height: 16px;
+  width: 60%;
+}
+
+.sk-line-metric {
+  height: 18px;
+  width: 64px;
+}
+
+.sk-line-head {
+  height: 10px;
+  width: 70%;
+}
+
+.sk-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--fsai-radius-sm);
+  flex-shrink: 0;
+}
+
+.sk-text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-3);
+}
+
+// --- KPI row -------------------------------------------------------------------------------
+// Grid template intentionally mirrors the real .kpi-row rules on the feature pages so the
+// placeholder occupies the same footprint the loaded content will.
+.sk-kpi-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--fsai-space-4);
+}
+
+.sk-kpi-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--fsai-space-4);
+  padding: var(--fsai-card-padding);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface-container-low);
+  box-shadow: var(--fsai-card-shadow);
+}
+
+.sk-kpi-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-2);
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+// --- Card grid -----------------------------------------------------------------------------
+.sk-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--fsai-space-4);
+}
+
+.sk-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-3);
+  padding: var(--fsai-space-4);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface-container-low);
+  box-shadow: var(--fsai-card-shadow);
+}
+
+.sk-card-metrics {
+  display: flex;
+  gap: var(--fsai-space-5);
+}
+
+.sk-bar {
+  height: 8px;
+  border-radius: 4px;
+}
+
+// --- Table ---------------------------------------------------------------------------------
+.sk-table {
+  border-radius: var(--fsai-radius);
+  overflow: hidden;
+  background: var(--mat-sys-surface-container-low);
+  box-shadow: var(--fsai-card-shadow);
+}
+
+.sk-table-head,
+.sk-table-row {
+  display: grid;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
+  gap: var(--fsai-space-4);
+  padding: var(--fsai-space-4);
+  align-items: center;
+}
+
+.sk-table-head {
+  background: var(--mat-sys-surface-container);
+}
+
+.sk-table-row + .sk-table-row {
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+// --- Chart ---------------------------------------------------------------------------------
+.sk-chart {
+  display: flex;
+  align-items: flex-end;
+  padding: var(--fsai-space-4) 0;
+}
+
+.sk-chart-bars {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--fsai-space-3);
+  width: 100%;
+  height: 100%;
+}
+
+// Varied bar heights so the placeholder reads as a chart rather than a progress bar.
+.sk-chart-bar {
+  flex: 1 1 0;
+  border-radius: var(--fsai-radius-sm) var(--fsai-radius-sm) 0 0;
+
+  &:nth-child(1) { height: 45%; }
+  &:nth-child(2) { height: 70%; }
+  &:nth-child(3) { height: 55%; }
+  &:nth-child(4) { height: 85%; }
+  &:nth-child(5) { height: 40%; }
+  &:nth-child(6) { height: 65%; }
+  &:nth-child(7) { height: 50%; }
+}
+
+@include bp.respond(mobile) {
+  .sk-kpi-row {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .sk-card-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sk-table-head,
+  .sk-table-row {
+    grid-template-columns: 2fr 1fr 1fr;
+  }
+
+  // The 4th/5th placeholder columns would imply content the responsive table doesn't show.
+  .sk-table-head .sk-line-head:nth-child(n + 4),
+  .sk-table-row .sk-line:nth-child(n + 4) {
+    display: none;
+  }
+}

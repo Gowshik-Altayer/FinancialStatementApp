@@ -31,7 +31,7 @@
 </app-filter-panel>
 
 @if (isLoading()) {
-  <app-loading-state message="Loading categories…" />
+  <app-skeleton variant="card-grid" [count]="6" />
 } @else if (loadError()) {
   <app-error-state message="We couldn't load categories." (retry)="retry()" />
 } @else if (cards().length === 0) {

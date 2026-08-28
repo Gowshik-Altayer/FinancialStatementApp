@@ -10,9 +10,9 @@ import { DashboardSummary, DashboardWidgetPreference } from '../../shared/models
 import { KpiCard, KpiTrend } from '../../shared/components/kpi-card/kpi-card';
 import { ChartCard } from '../../shared/components/chart-card/chart-card';
 import { PageHeader } from '../../shared/components/page-header/page-header';
-import { LoadingState } from '../../shared/components/loading-state/loading-state';
 import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
+import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { PipelineStepper, PipelineStageViewModel } from '../../shared/components/pipeline-stepper/pipeline-stepper';
 import { StatusTone, processingStatusLabel } from '../../shared/utils/status-tone.util';
 import { resolveChartPalette } from '../../shared/utils/chart-theme.util';
@@ -53,7 +53,7 @@ const CHART_OPTIONS_COMPACT: ChartConfiguration['options'] = {
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [DatePipe, KpiCard, ChartCard, PageHeader, LoadingState, ErrorState, EmptyState, PipelineStepper],
+  imports: [DatePipe, KpiCard, ChartCard, PageHeader, ErrorState, EmptyState, PipelineStepper, Skeleton],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss'
 })

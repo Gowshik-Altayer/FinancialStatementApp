@@ -15,7 +15,7 @@ import { KpiCard } from '../../shared/components/kpi-card/kpi-card';
 import { ChartCard } from '../../shared/components/chart-card/chart-card';
 import { FilterPanel } from '../../shared/components/filter-panel/filter-panel';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
-import { LoadingState } from '../../shared/components/loading-state/loading-state';
+import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { reconciliationStatusTone, processingStatusLabel } from '../../shared/utils/status-tone.util';
@@ -48,7 +48,7 @@ const [RECONCILED_COLOR, MISMATCH_COLOR, INSUFFICIENT_COLOR, PENDING_COLOR] = re
     ChartCard,
     FilterPanel,
     StatusBadge,
-    LoadingState,
+    Skeleton,
     ErrorState,
     EmptyState
   ],

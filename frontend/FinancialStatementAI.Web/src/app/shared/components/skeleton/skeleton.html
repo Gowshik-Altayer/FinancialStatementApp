@@ -1,0 +1,62 @@
+@switch (variant) {
+  @case ('kpi-row') {
+    <div class="sk-kpi-row" aria-busy="true" aria-label="Loading metrics">
+      @for (i of items; track i) {
+        <div class="sk-kpi-card">
+          <div class="sk-shape sk-icon"></div>
+          <div class="sk-kpi-body">
+            <div class="sk-shape sk-line sk-line-sm"></div>
+            <div class="sk-shape sk-line sk-line-lg"></div>
+          </div>
+        </div>
+      }
+    </div>
+  }
+  @case ('card-grid') {
+    <div class="sk-card-grid" aria-busy="true" aria-label="Loading cards">
+      @for (i of items; track i) {
+        <div class="sk-card">
+          <div class="sk-shape sk-line sk-line-title"></div>
+          <div class="sk-shape sk-line sk-line-sm"></div>
+          <div class="sk-card-metrics">
+            <div class="sk-shape sk-line sk-line-metric"></div>
+            <div class="sk-shape sk-line sk-line-metric"></div>
+          </div>
+          <div class="sk-shape sk-bar"></div>
+        </div>
+      }
+    </div>
+  }
+  @case ('table') {
+    <div class="sk-table" aria-busy="true" aria-label="Loading table">
+      <div class="sk-table-head">
+        @for (i of [0, 1, 2, 3, 4]; track i) {
+          <div class="sk-shape sk-line sk-line-head"></div>
+        }
+      </div>
+      @for (i of items; track i) {
+        <div class="sk-table-row">
+          @for (c of [0, 1, 2, 3, 4]; track c) {
+            <div class="sk-shape sk-line"></div>
+          }
+        </div>
+      }
+    </div>
+  }
+  @case ('chart') {
+    <div class="sk-chart" [style.height.px]="height" aria-busy="true" aria-label="Loading chart">
+      <div class="sk-chart-bars">
+        @for (i of [0, 1, 2, 3, 4, 5, 6]; track i) {
+          <div class="sk-shape sk-chart-bar"></div>
+        }
+      </div>
+    </div>
+  }
+  @default {
+    <div class="sk-text" aria-busy="true" aria-label="Loading">
+      @for (i of items; track i) {
+        <div class="sk-shape sk-line" [style.width]="widthFor(i)"></div>
+      }
+    </div>
+  }
+}

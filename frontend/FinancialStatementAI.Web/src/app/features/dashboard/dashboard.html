@@ -2,7 +2,19 @@
 </app-page-header>
 
 @if (loading()) {
-  <app-loading-state message="Loading your dashboard…" />
+  <!-- Shape-matched placeholders rather than a single centered spinner: the dashboard's KPI row,
+       pipeline strip and chart grid all have known geometry, so the page can hold its final
+       layout while loading instead of collapsing and then jumping. -->
+  <div class="kpi-row-skeleton">
+    <app-skeleton variant="kpi-row" [count]="5" />
+  </div>
+  <section class="section">
+    <div class="chart-grid">
+      <app-skeleton variant="chart" [height]="220" />
+      <app-skeleton variant="chart" [height]="220" />
+      <app-skeleton variant="chart" [height]="220" />
+    </div>
+  </section>
 } @else if (loadError()) {
   <app-error-state message="We couldn't load your dashboard data." (retry)="load()" />
 } @else if (summary()) {
@@ -23,14 +35,14 @@
 
   @if (showPipeline()) {
     <section class="section">
-      <h2 class="section-title">Statement Processing Pipeline</h2>
+      <h2 class="section-title fsai-section-title">Statement Processing Pipeline</h2>
       <app-pipeline-stepper [stages]="pipelineStages()" (stageClick)="onStageClick($event)" />
     </section>
   }
 
   @if (chartWidgets().length > 0) {
     <section class="section">
-      <h2 class="section-title">Insights</h2>
+      <h2 class="section-title fsai-section-title">Insights</h2>
       <div class="chart-grid">
         @for (chart of chartWidgets(); track chart.key) {
           <app-chart-card [title]="chart.title" [type]="chart.type" [data]="chart.data" [options]="chart.options" />
@@ -41,7 +53,7 @@
 
   @if (showRecentActivity()) {
     <section class="section">
-      <h2 class="section-title">Recent Activity</h2>
+      <h2 class="section-title fsai-section-title">Recent Activity</h2>
       @if (summary()!.recentActivity.length === 0) {
         <app-empty-state icon="history" message="No recent activity yet — upload a statement to get started." />
       } @else {

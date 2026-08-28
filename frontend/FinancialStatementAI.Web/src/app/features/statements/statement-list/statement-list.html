@@ -34,7 +34,7 @@
 </app-filter-panel>
 
 @if (isLoading()) {
-  <app-loading-state message="Loading statements…" />
+  <app-skeleton variant="table" [count]="8" />
 } @else if (statements().length === 0) {
   <app-empty-state icon="description" message="No statements match these filters." />
 } @else {

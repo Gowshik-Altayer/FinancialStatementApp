@@ -16,7 +16,7 @@ import { KpiCard } from '../../shared/components/kpi-card/kpi-card';
 import { ChartCard } from '../../shared/components/chart-card/chart-card';
 import { FilterPanel } from '../../shared/components/filter-panel/filter-panel';
 import { StatusBadge } from '../../shared/components/status-badge/status-badge';
-import { LoadingState } from '../../shared/components/loading-state/loading-state';
+import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { CategoryFormDialog, CategoryFormDialogResult } from './category-form-dialog/category-form-dialog';
@@ -58,7 +58,7 @@ const CHART_COLORS = resolveChartPalette([
     ChartCard,
     FilterPanel,
     StatusBadge,
-    LoadingState,
+    Skeleton,
     ErrorState,
     EmptyState
   ],

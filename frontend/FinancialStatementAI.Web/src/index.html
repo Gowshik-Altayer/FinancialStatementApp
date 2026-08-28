@@ -2,14 +2,19 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>FinancialStatementAIWeb</title>
+    <title>FinancialStatementAI</title>
     <base href="/" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- Inter, 400-700. The previous Roboto link requested only 300/400/500, so every 600/700
+         heading and KPI figure was being *synthetically* emboldened by the browser (smeared
+         strokes, wrong sidebearings) rather than using a real bold cut. Inter is also designed
+         with high-quality tabular figures, which is what makes columns of financial numbers
+         align and scan cleanly (see .fsai-numeric in styles/_typography.scss). -->
     <link
-      href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />

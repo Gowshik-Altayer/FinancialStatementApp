@@ -58,7 +58,7 @@
 </app-filter-panel>
 
 @if (isLoading()) {
-  <app-loading-state message="Loading transactions…" />
+  <app-skeleton variant="table" [count]="10" />
 } @else if (loadError()) {
   <app-error-state message="We couldn't load your transactions." (retry)="retry()" />
 } @else if (transactions().length === 0) {

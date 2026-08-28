@@ -1,0 +1,133 @@
+// Typography scale. Angular Material's mat.theme() sets --mat-sys-* font tokens for its OWN
+// components, but says nothing about the app's own headings, labels, KPI figures, or table text —
+// which previously meant every page hand-picked its own font-size/weight (0.85rem here, 0.72rem
+// there, 700 in one card and 600 in the next). This file is the single source of truth for that,
+// so a "card title" or a "metric label" looks identical on Dashboard, Categories, and Statements.
+:root {
+  // Type scale (1.200 minor-third-ish, tuned to land on clean rem values)
+  --fsai-text-xs: 0.6875rem; // 11px — captions, table micro-labels
+  --fsai-text-sm: 0.8125rem; // 13px — secondary text, metric labels
+  --fsai-text-base: 0.875rem; // 14px — body/UI default (dense data apps read better at 14 than 16)
+  --fsai-text-md: 1rem; // 16px — card titles
+  --fsai-text-lg: 1.125rem; // 18px — section titles
+  --fsai-text-xl: 1.375rem; // 22px — page titles
+  --fsai-text-2xl: 1.75rem; // 28px — KPI values
+  --fsai-text-3xl: 2.25rem; // 36px — hero figures
+
+  --fsai-weight-regular: 400;
+  --fsai-weight-medium: 500;
+  --fsai-weight-semibold: 600;
+  --fsai-weight-bold: 700;
+
+  --fsai-leading-tight: 1.2;
+  --fsai-leading-snug: 1.4;
+  --fsai-leading-normal: 1.6;
+
+  // Slight negative tracking on large text is what separates "big text" from "designed heading" —
+  // display sizes set at default tracking read loose and amateurish.
+  --fsai-tracking-tight: -0.02em;
+  --fsai-tracking-normal: 0;
+  --fsai-tracking-wide: 0.04em;
+
+  --fsai-font-sans: 'Inter', 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: var(--fsai-font-sans);
+  font-size: var(--fsai-text-base);
+  line-height: var(--fsai-leading-normal);
+  // Better glyph rendering for the light-on-dark toolbar and dense tables alike.
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+// Element defaults, so a plain <h2> in any template is already correct without a utility class.
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--fsai-font-sans);
+  line-height: var(--fsai-leading-tight);
+  letter-spacing: var(--fsai-tracking-tight);
+  margin: 0;
+}
+
+h1 {
+  font-size: var(--fsai-text-xl);
+  font-weight: var(--fsai-weight-bold);
+}
+
+h2 {
+  font-size: var(--fsai-text-lg);
+  font-weight: var(--fsai-weight-semibold);
+}
+
+h3 {
+  font-size: var(--fsai-text-md);
+  font-weight: var(--fsai-weight-semibold);
+}
+
+h4 {
+  font-size: var(--fsai-text-base);
+  font-weight: var(--fsai-weight-semibold);
+}
+
+// --- Semantic utility classes -------------------------------------------------------------
+
+.fsai-page-title {
+  font-size: var(--fsai-text-xl);
+  font-weight: var(--fsai-weight-bold);
+  line-height: var(--fsai-leading-tight);
+  letter-spacing: var(--fsai-tracking-tight);
+}
+
+.fsai-section-title {
+  font-size: var(--fsai-text-lg);
+  font-weight: var(--fsai-weight-semibold);
+  line-height: var(--fsai-leading-tight);
+  letter-spacing: var(--fsai-tracking-tight);
+}
+
+.fsai-card-title {
+  font-size: var(--fsai-text-md);
+  font-weight: var(--fsai-weight-semibold);
+  line-height: var(--fsai-leading-snug);
+}
+
+.fsai-secondary {
+  font-size: var(--fsai-text-sm);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Uppercase micro-label above a value (the "TOTAL AMOUNT" over a figure pattern). Uses a real
+// color token rather than opacity so it stays legible on tinted card backgrounds, where a
+// stacked opacity would wash it out.
+.fsai-label {
+  font-size: var(--fsai-text-xs);
+  font-weight: var(--fsai-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--fsai-tracking-wide);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.fsai-caption {
+  font-size: var(--fsai-text-xs);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Every financial figure in the app should carry this. `tabular-nums` forces fixed-width digits
+// so amounts stack into aligned columns instead of jittering row to row, and `slashed-zero`
+// removes 0/O ambiguity — both are table-stakes for financial data and are the single biggest
+// "this was built by someone who reads spreadsheets" signal in the type system.
+.fsai-numeric {
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
+}
+
+.fsai-kpi-value {
+  font-size: var(--fsai-text-2xl);
+  font-weight: var(--fsai-weight-bold);
+  line-height: var(--fsai-leading-tight);
+  letter-spacing: var(--fsai-tracking-tight);
+  font-variant-numeric: tabular-nums slashed-zero;
+}

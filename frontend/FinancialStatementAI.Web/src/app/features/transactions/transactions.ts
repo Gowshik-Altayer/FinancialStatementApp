@@ -13,7 +13,7 @@ import { TransactionTable } from '../../shared/components/transaction-table/tran
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { KpiCard } from '../../shared/components/kpi-card/kpi-card';
 import { FilterPanel } from '../../shared/components/filter-panel/filter-panel';
-import { LoadingState } from '../../shared/components/loading-state/loading-state';
+import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 
@@ -36,7 +36,7 @@ type CorrectedFilter = '' | 'true' | 'false';
     PageHeader,
     KpiCard,
     FilterPanel,
-    LoadingState,
+    Skeleton,
     ErrorState,
     EmptyState
   ],

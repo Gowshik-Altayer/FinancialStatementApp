@@ -13,7 +13,7 @@ import { StatementSummary } from '../../../shared/models/statement.model';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 import { FilterPanel } from '../../../shared/components/filter-panel/filter-panel';
 import { StatusBadge } from '../../../shared/components/status-badge/status-badge';
-import { LoadingState } from '../../../shared/components/loading-state/loading-state';
+import { Skeleton } from '../../../shared/components/skeleton/skeleton';
 import { EmptyState } from '../../../shared/components/empty-state/empty-state';
 import { processingStatusLabel, processingStatusTone, reconciliationStatusTone } from '../../../shared/utils/status-tone.util';
 
@@ -36,7 +36,7 @@ const RECONCILIATION_OPTIONS = ['Reconciled', 'Mismatch', 'InsufficientInformati
     PageHeader,
     FilterPanel,
     StatusBadge,
-    LoadingState,
+    Skeleton,
     EmptyState
   ],
   templateUrl: './statement-list.html',

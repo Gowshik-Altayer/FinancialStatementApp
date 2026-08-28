@@ -1,0 +1,262 @@
+// Global control styling. Everything here targets Angular Material's own rendered classes (or
+// its M3 system tokens) rather than being duplicated into each feature's .scss — that duplication
+// is exactly what made buttons/tables/inputs drift page to page. Adding a page should require no
+// button or table CSS at all.
+
+// --- Shape ---------------------------------------------------------------------------------
+// M3 emits these corner tokens and its components consume them, so setting them here reshapes
+// buttons/menus/dialogs/chips consistently instead of per-component border-radius overrides.
+:root {
+  --mat-sys-corner-small: var(--fsai-radius-sm);
+  --mat-sys-corner-medium: var(--fsai-radius);
+  --mat-sys-corner-large: var(--fsai-radius);
+}
+
+// --- Focus ---------------------------------------------------------------------------------
+// One visible, consistent keyboard focus ring. :focus-visible (not :focus) so it appears for
+// keyboard users without ringing every mouse click.
+:where(button, a, [tabindex], input, select, textarea):focus-visible {
+  outline: 2px solid var(--mat-sys-primary);
+  outline-offset: 2px;
+  border-radius: var(--fsai-radius-sm);
+}
+
+// --- Buttons -------------------------------------------------------------------------------
+.mat-mdc-button-base {
+  font-family: var(--fsai-font-sans);
+  font-weight: var(--fsai-weight-semibold);
+  letter-spacing: 0;
+  transition: background-color var(--fsai-transition-fast), box-shadow var(--fsai-transition-fast),
+    transform var(--fsai-transition-fast), border-color var(--fsai-transition-fast);
+}
+
+// Filled buttons are the primary call to action, so they get the only real elevation change in
+// the button system — a small lift on hover. Everything else stays flat and quiet.
+.mat-mdc-raised-button:not(:disabled):hover,
+.mat-mdc-unelevated-button:not(:disabled):hover {
+  box-shadow: 0 4px 12px -4px color-mix(in srgb, var(--mat-sys-primary) 55%, transparent);
+  transform: translateY(-1px);
+}
+
+.mat-mdc-raised-button:not(:disabled):active,
+.mat-mdc-unelevated-button:not(:disabled):active {
+  transform: translateY(0);
+}
+
+.mat-mdc-outlined-button:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent);
+  border-color: var(--mat-sys-primary);
+}
+
+.mat-mdc-button:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--mat-sys-primary) 7%, transparent);
+}
+
+.mat-mdc-icon-button:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+}
+
+// Semantic button tones. Material 3 only ships primary/accent/warn palettes, but a financial app
+// needs to distinguish "approve" from "reject" from "caution" — these map onto the same status
+// vocabulary (_tokens.scss) that badges, charts, and KPI cards already use, so a green button and
+// a green badge always mean the same thing.
+.fsai-btn-success.mat-mdc-unelevated-button {
+  --mdc-filled-button-container-color: var(--fsai-success);
+  --mdc-filled-button-label-text-color: #fff;
+}
+
+.fsai-btn-danger.mat-mdc-unelevated-button {
+  --mdc-filled-button-container-color: var(--fsai-danger);
+  --mdc-filled-button-label-text-color: #fff;
+}
+
+.fsai-btn-success.mat-mdc-outlined-button {
+  --mdc-outlined-button-label-text-color: var(--fsai-success);
+  --mdc-outlined-button-outline-color: color-mix(in srgb, var(--fsai-success) 45%, transparent);
+}
+
+.fsai-btn-danger.mat-mdc-outlined-button {
+  --mdc-outlined-button-label-text-color: var(--fsai-danger);
+  --mdc-outlined-button-outline-color: color-mix(in srgb, var(--fsai-danger) 45%, transparent);
+}
+
+.mat-mdc-button-base:disabled {
+  opacity: 0.55;
+}
+
+// --- Form fields ---------------------------------------------------------------------------
+.mat-mdc-form-field {
+  font-family: var(--fsai-font-sans);
+  font-size: var(--fsai-text-base);
+}
+
+// Material's default outlined field is a touch tall for dense filter bars; trimming the vertical
+// padding keeps filter rows compact without making the control feel cramped to click.
+.mat-mdc-form-field-infix {
+  min-height: 44px;
+}
+
+.mat-mdc-form-field.mat-focused .mat-mdc-form-field-focus-overlay {
+  opacity: 0;
+}
+
+// --- Tables --------------------------------------------------------------------------------
+.mat-mdc-table {
+  font-family: var(--fsai-font-sans);
+  background: transparent;
+}
+
+.mat-mdc-header-row {
+  background: var(--mat-sys-surface-container);
+}
+
+.mat-mdc-header-cell {
+  font-size: var(--fsai-text-xs);
+  font-weight: var(--fsai-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--fsai-tracking-wide);
+  color: var(--mat-sys-on-surface-variant);
+  border-bottom-color: var(--mat-sys-outline-variant);
+  white-space: nowrap;
+}
+
+.mat-mdc-cell {
+  font-size: var(--fsai-text-base);
+  border-bottom-color: var(--mat-sys-outline-variant);
+}
+
+.mat-mdc-row {
+  transition: background-color var(--fsai-transition-fast);
+}
+
+.mat-mdc-row:hover {
+  background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
+}
+
+// Any cell holding money/counts should align right and use tabular figures. Applied via a class
+// on the column rather than globally, since not every numeric-looking column (e.g. an account
+// number) wants right alignment.
+.fsai-cell-numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+// --- Paginator -----------------------------------------------------------------------------
+.mat-mdc-paginator {
+  background: transparent;
+  font-family: var(--fsai-font-sans);
+  font-size: var(--fsai-text-sm);
+}
+
+// --- Dialogs -------------------------------------------------------------------------------
+.mat-mdc-dialog-container {
+  --mdc-dialog-container-shape: var(--fsai-radius);
+}
+
+.mat-mdc-dialog-container .mat-mdc-dialog-title {
+  font-family: var(--fsai-font-sans);
+  font-size: var(--fsai-text-lg);
+  font-weight: var(--fsai-weight-semibold);
+  letter-spacing: var(--fsai-tracking-tight);
+}
+
+.mat-mdc-dialog-actions {
+  padding: var(--fsai-space-3) var(--fsai-space-5) var(--fsai-space-4);
+  gap: var(--fsai-space-2);
+}
+
+// --- Tooltips ------------------------------------------------------------------------------
+// Material's default tooltip is very small and low-contrast; bumping size/weight makes the
+// icon-only-button tooltips added across the app actually readable.
+.mat-mdc-tooltip .mdc-tooltip__surface {
+  font-family: var(--fsai-font-sans);
+  font-size: var(--fsai-text-xs);
+  font-weight: var(--fsai-weight-medium);
+  padding: var(--fsai-space-2) var(--fsai-space-3);
+  border-radius: var(--fsai-radius-sm);
+}
+
+// --- Snackbars / toasts --------------------------------------------------------------------
+.mat-mdc-snack-bar-container {
+  --mdc-snackbar-container-shape: var(--fsai-radius-sm);
+
+  .mdc-snackbar__surface {
+    font-family: var(--fsai-font-sans);
+  }
+}
+
+// Tone variants, opted into via the snackbar's panelClass. Uses a left rail rather than a fully
+// colored surface so a success toast stays quiet — a full green slab reads as an alert, which is
+// the wrong weight for "saved".
+.fsai-snack-success .mdc-snackbar__surface {
+  border-left: 4px solid var(--fsai-success);
+}
+
+.fsai-snack-warning .mdc-snackbar__surface {
+  border-left: 4px solid var(--fsai-warning);
+}
+
+.fsai-snack-danger .mdc-snackbar__surface {
+  border-left: 4px solid var(--fsai-danger);
+}
+
+// --- Menus / selects -----------------------------------------------------------------------
+.mat-mdc-menu-panel,
+.mat-mdc-select-panel {
+  border-radius: var(--fsai-radius-sm) !important;
+}
+
+.mat-mdc-menu-item {
+  font-family: var(--fsai-font-sans);
+  font-size: var(--fsai-text-base);
+}
+
+// --- Slide toggle / checkbox ---------------------------------------------------------------
+.mat-mdc-slide-toggle,
+.mat-mdc-checkbox {
+  font-family: var(--fsai-font-sans);
+  font-size: var(--fsai-text-base);
+}
+
+// --- Scrollbars ----------------------------------------------------------------------------
+// Thin, low-contrast scrollbars. A default-width OS scrollbar inside a card or a scrolling table
+// is one of the loudest "unstyled web app" tells on Windows in particular.
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--mat-sys-outline-variant) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--mat-sys-outline-variant);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--fsai-neutral);
+  background-clip: content-box;
+}
+
+// --- Reduced motion ------------------------------------------------------------------------
+// Every transition in this design system is decorative, so honouring the OS setting costs
+// nothing and is a genuine accessibility requirement, not a nicety.
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

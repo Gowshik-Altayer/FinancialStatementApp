@@ -7,13 +7,17 @@
   margin-bottom: var(--fsai-space-6);
 }
 
+.kpi-row-skeleton {
+  margin-bottom: var(--fsai-space-6);
+}
+
 .section {
   margin-bottom: var(--fsai-space-7);
 }
 
+// Sizing/weight now come from the shared type scale (styles/_typography.scss); only the spacing
+// below the heading is page-specific.
 .section-title {
-  font-size: 1.05rem;
-  font-weight: 700;
   margin: 0 0 var(--fsai-space-4) 0;
 }
 

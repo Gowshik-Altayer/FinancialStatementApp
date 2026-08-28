@@ -33,7 +33,7 @@
 </app-filter-panel>
 
 @if (isLoading()) {
-  <app-loading-state message="Loading reconciliation results…" />
+  <app-skeleton variant="table" [count]="6" />
 } @else if (loadError()) {
   <app-error-state message="We couldn't load reconciliation data." (retry)="retry()" />
 } @else if (items().length === 0) {

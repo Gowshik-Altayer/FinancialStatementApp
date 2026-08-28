@@ -1,0 +1,145 @@
+// Shared auth-screen styling. Login and Register previously carried byte-identical copies of this
+// block in their own .scss files — the exact per-page duplication the design system is meant to
+// remove. Both templates now use these classes and their component .scss files are empty.
+.auth-page {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: var(--fsai-space-5);
+  box-sizing: border-box;
+  // A very low-contrast brand wash behind the card. Enough to stop the sign-in screen reading as
+  // a bare white page, far too subtle to compete with the form itself.
+  background:
+    radial-gradient(1200px 600px at 50% -10%, color-mix(in srgb, var(--mat-sys-primary) 10%, transparent), transparent 70%),
+    var(--mat-sys-surface-container-lowest);
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-3);
+  margin-bottom: var(--fsai-space-5);
+  font-size: var(--fsai-text-md);
+  font-weight: var(--fsai-weight-bold);
+  letter-spacing: var(--fsai-tracking-tight);
+
+  mat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--fsai-radius-sm);
+    background: var(--mat-sys-primary);
+    color: var(--mat-sys-on-primary);
+    flex-shrink: 0;
+  }
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: var(--fsai-space-6);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface);
+  border: 1px solid var(--mat-sys-outline-variant);
+  box-shadow: var(--fsai-card-shadow-hover);
+  box-sizing: border-box;
+}
+
+.auth-title {
+  margin: 0 0 var(--fsai-space-1);
+}
+
+.auth-subtitle {
+  margin: 0 0 var(--fsai-space-5);
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-2);
+}
+
+// Two-up name fields on Register; collapses to stacked on narrow screens.
+.auth-row {
+  display: flex;
+  gap: var(--fsai-space-3);
+
+  > * {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+}
+
+.auth-field {
+  width: 100%;
+}
+
+.auth-submit {
+  width: 100%;
+  height: 44px;
+  margin-top: var(--fsai-space-2);
+}
+
+// Inline form-level error (a failed sign-in), distinct from per-field mat-error validation.
+.auth-error {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-2);
+  margin: 0 0 var(--fsai-space-2);
+  padding: var(--fsai-space-3);
+  border-radius: var(--fsai-radius-sm);
+  background: var(--fsai-danger-bg);
+  color: var(--fsai-danger);
+  font-size: var(--fsai-text-sm);
+  font-weight: var(--fsai-weight-medium);
+
+  mat-icon {
+    font-size: 1.1rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    flex-shrink: 0;
+  }
+}
+
+.auth-footer {
+  margin-top: var(--fsai-space-5);
+  padding-top: var(--fsai-space-4);
+  border-top: 1px solid var(--mat-sys-outline-variant);
+  text-align: center;
+  font-size: var(--fsai-text-sm);
+
+  a {
+    color: var(--mat-sys-primary);
+    font-weight: var(--fsai-weight-semibold);
+    text-decoration: none;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.auth-progress {
+  margin-bottom: var(--fsai-space-4);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+@media (max-width: 599.98px) {
+  .auth-page {
+    padding: var(--fsai-space-4);
+  }
+
+  .auth-card {
+    padding: var(--fsai-space-5);
+  }
+
+  .auth-row {
+    flex-direction: column;
+    gap: var(--fsai-space-2);
+  }
+}
