@@ -39,10 +39,6 @@
             <dd>{{ selectedFile()!.lastModified | date: 'medium' }}</dd>
           </dl>
 
-          @if (isUploading()) {
-            <mat-progress-bar mode="indeterminate" />
-          }
-
           @if (errorMessage()) {
             <p class="error-message">{{ errorMessage() }}</p>
           }

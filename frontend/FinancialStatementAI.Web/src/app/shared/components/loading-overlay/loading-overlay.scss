@@ -1,0 +1,36 @@
+// Covers the full viewport, not just <main> — the sidenav and toolbar must be just as inert as
+// the page content while a mutating request is in flight, otherwise a user could still navigate
+// away mid-action. pointer-events: all (the default for a block element, stated explicitly here)
+// means clicks physically cannot reach anything underneath; there is no click-through and no
+// backdrop-dismiss by design.
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--mat-sys-surface) 55%, transparent);
+  // A light blur reads as "the page is paused" rather than "something is broken/missing" —
+  // the difference between an intentional busy state and a rendering glitch.
+  backdrop-filter: blur(1px);
+  pointer-events: all;
+  cursor: wait;
+}
+
+.loading-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--fsai-space-3);
+  padding: var(--fsai-space-6) var(--fsai-space-7);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface);
+  box-shadow: var(--fsai-card-shadow-hover);
+
+  span {
+    font-size: var(--fsai-text-sm);
+    font-weight: var(--fsai-weight-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}

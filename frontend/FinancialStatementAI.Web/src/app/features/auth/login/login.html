@@ -8,10 +8,6 @@
     <h1 class="auth-title fsai-page-title">Sign in</h1>
     <p class="auth-subtitle fsai-secondary">Access your statement processing workspace.</p>
 
-    @if (isSubmitting()) {
-      <mat-progress-bar mode="indeterminate" class="auth-progress" />
-    }
-
     <form [formGroup]="form" (ngSubmit)="submit()" class="auth-form">
       <mat-form-field appearance="outline" class="auth-field">
         <mat-label>Email</mat-label>
@@ -38,9 +34,7 @@
         </p>
       }
 
-      <button mat-flat-button color="primary" type="submit" class="auth-submit" [disabled]="isSubmitting()">
-        {{ isSubmitting() ? 'Signing in…' : 'Sign in' }}
-      </button>
+      <button mat-flat-button color="primary" type="submit" class="auth-submit" [disabled]="isSubmitting()">Sign in</button>
     </form>
 
     <div class="auth-footer">

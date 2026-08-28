@@ -6,12 +6,13 @@ import { provideAnimationsAsync } from '@angular/platform-browser/animations/asy
 import { routes } from './app.routes';
 import { jwtInterceptor } from './core/interceptors/jwt.interceptor';
 import { errorInterceptor } from './core/interceptors/error.interceptor';
+import { loadingOverlayInterceptor } from './core/interceptors/loading-overlay.interceptor';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding()),
-    provideHttpClient(withInterceptors([jwtInterceptor, errorInterceptor])),
+    provideHttpClient(withInterceptors([jwtInterceptor, errorInterceptor, loadingOverlayInterceptor])),
     // Material's own components (menu, sidenav, snackbar) still rely on the animations
     // engine internally. Only the imperative trigger()/state()/animate() authoring API is
     // deprecated in favor of animate.enter/leave — provideAnimationsAsync() itself is not.

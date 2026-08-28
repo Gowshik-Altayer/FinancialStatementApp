@@ -54,16 +54,12 @@
           </td>
           <td class="actions">
             @if (editingId() === t.id) {
-              @if (savingId() === t.id) {
-                <mat-spinner diameter="18" />
-              } @else {
-                <button mat-icon-button (click)="save(t)" matTooltip="Save correction">
-                  <mat-icon>check</mat-icon>
-                </button>
-                <button mat-icon-button (click)="cancelEdit()" matTooltip="Cancel">
-                  <mat-icon>close</mat-icon>
-                </button>
-              }
+              <button mat-icon-button [disabled]="savingId() === t.id" (click)="save(t)" matTooltip="Save correction">
+                <mat-icon>check</mat-icon>
+              </button>
+              <button mat-icon-button [disabled]="savingId() === t.id" (click)="cancelEdit()" matTooltip="Cancel">
+                <mat-icon>close</mat-icon>
+              </button>
             } @else {
               <button mat-icon-button (click)="startEdit(t)" matTooltip="Correct category">
                 <mat-icon>edit</mat-icon>

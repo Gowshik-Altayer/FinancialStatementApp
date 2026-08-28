@@ -2,7 +2,6 @@ import { Component, OnInit, computed, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { NotificationService } from '../../../core/services/notification.service';
@@ -24,7 +23,6 @@ import { processingStatusLabel, processingStatusTone, reconciliationStatusTone }
     CommonModule,
     RouterLink,
     MatCardModule,
-    MatProgressSpinnerModule,
     MatButtonModule,
     MatIconModule,
     TransactionTable,

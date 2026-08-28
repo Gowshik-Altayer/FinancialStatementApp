@@ -1,4 +1,12 @@
+// Matches Transactions' .transaction-table-card treatment (rounded, shadowed container the table
+// sits inside) — this page's table previously relied on Material's own `mat-elevation-z1` utility
+// instead, which has no border-radius and a different shadow, so it read as a bare, uncontained
+// table rather than the same "card" every other data grid in the app uses.
 .table-wrapper {
+  background: var(--mat-sys-surface-container-low);
+  border-radius: var(--fsai-radius);
+  box-shadow: var(--fsai-card-shadow);
+  padding: var(--fsai-space-2);
   overflow-x: auto;
 }
 

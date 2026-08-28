@@ -5,7 +5,6 @@ import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { HttpErrorResponse } from '@angular/common/http';
 import { StatementService } from '../../../core/services/statement.service';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
@@ -16,7 +15,7 @@ const MAX_SIZE_BYTES = 20 * 1024 * 1024;
 @Component({
   selector: 'app-statement-upload',
   standalone: true,
-  imports: [CommonModule, MatCardModule, MatButtonModule, MatIconModule, MatProgressBarModule, PageHeader],
+  imports: [CommonModule, MatCardModule, MatButtonModule, MatIconModule, PageHeader],
   templateUrl: './statement-upload.html',
   styleUrl: './statement-upload.scss'
 })
