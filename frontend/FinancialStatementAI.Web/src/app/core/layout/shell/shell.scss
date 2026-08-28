@@ -279,9 +279,23 @@ mat-nav-list a[mat-list-item].active-link {
   .profile-text,
   .theme-toggle-label,
   .spacer,
-  mat-slide-toggle,
-  [matListItemTitle] {
+  mat-slide-toggle {
     display: none;
+  }
+
+  // The nav labels are hidden VISUALLY but kept in the accessibility tree — `display: none` would
+  // drop them from it entirely, leaving screen-reader users with six unlabelled links. The
+  // tooltips added in the template cover sighted users.
+  [matListItemTitle] {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
   }
 
   .profile-card {
@@ -296,22 +310,36 @@ mat-nav-list a[mat-list-item].active-link {
     padding: var(--fsai-space-3) 0;
   }
 
+  // Centring the icon needs all THREE of Material's leading-icon offsets zeroed, not just one.
+  // For a 44px pill holding a 24px icon, centred means a 10px gap either side; leaving any of
+  // these in place pushed the icon right (measured 16px left / 4px right before this).
+  //   - the anchor's own `padding: 0 16px`
+  //   - `.mdc-list-item__start`'s margin-left: 16px
+  //   - `.mdc-list-item__start`'s margin-right (already handled)
+  // With the label visually hidden above, the content span collapses to zero width, so simply
+  // centring the anchor's flex line puts the icon dead centre.
   a[mat-list-item] {
     margin-left: var(--fsai-space-1);
     margin-right: var(--fsai-space-1);
+    padding: 0;
+    justify-content: center;
 
-    // Material lays list items out as a horizontal flow sized for a leading icon plus text; with
-    // the text hidden the icon would sit left-aligned against the rail's edge, so the content box
-    // is re-centred and its text-reserved padding removed.
+    // `flex: 0 0 0` is the load-bearing part. Material gives this span `flex: 1 1 0%`, so it grew
+    // to fill whatever the icon didn't (measured 20px in a 44px pill) — the flex line then exactly
+    // filled the pill, leaving `justify-content: center` no free space to distribute and pinning
+    // the icon to the left edge. A plain `width: 0` can't fix that, because flex-grow overrides it.
+    // Not `display: none`: the visually-hidden label above lives in this span, and a display:none
+    // ancestor would pull it back out of the accessibility tree.
     ::ng-deep .mdc-list-item__content {
-      display: flex;
-      justify-content: center;
+      flex: 0 0 0;
+      width: 0;
       padding: 0;
     }
 
-    ::ng-deep .mat-mdc-list-item-icon {
-      margin-right: 0;
-      padding-right: 0;
+    ::ng-deep .mat-mdc-list-item-icon,
+    ::ng-deep .mdc-list-item__start {
+      margin: 0;
+      padding: 0;
     }
   }
 }

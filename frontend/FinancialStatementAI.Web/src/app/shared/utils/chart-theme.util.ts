@@ -1,3 +1,16 @@
+import { Chart } from 'chart.js';
+
+/** The app's font stack, matching styles/_typography.scss. Kept as a literal here because canvas
+ * needs a concrete family string — it can't read the --fsai-font-sans custom property. */
+const CHART_FONT_FAMILY = "'Inter', 'Segoe UI', Roboto, system-ui, sans-serif";
+
+// Chart.js ships its own default of "'Helvetica Neue', 'Helvetica', 'Arial', sans-serif", which it
+// uses for anything a chart doesn't explicitly configure. Setting the global default here means
+// every piece of chart text — including parts not covered by the per-chart options below, and any
+// chart added later — renders in the app's face instead of silently falling back to Helvetica.
+// This module is only imported by chart-bearing routes, so it costs nothing elsewhere.
+Chart.defaults.font.family = CHART_FONT_FAMILY;
+
 /** Resolves a CSS custom property (e.g. "--fsai-chart-1") to its actual computed color value
  * (e.g. "#0284c7"). Chart.js draws through the Canvas 2D API, and `ctx.fillStyle`/`strokeStyle`
  * cannot parse `var(--x)` syntax — that's a CSS-cascade feature, not something canvas's color
@@ -9,8 +22,24 @@ export function resolveCssVar(name: string, fallback = '#64748b'): string {
   if (typeof window === 'undefined' || typeof document === 'undefined') {
     return fallback;
   }
-  const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  return value || fallback;
+
+  // Resolved through a probe element rather than read straight off documentElement with
+  // getPropertyValue(). getPropertyValue returns a custom property's *declared* value, and Angular
+  // Material declares every M3 token using the CSS light-dark() function — so the raw read yields
+  // the literal string "light-dark(#1b1b1f, #e5e1e6)". Canvas's colour parser doesn't understand
+  // light-dark(), so assigning it silently leaves the previous fillStyle in place: the tooltip
+  // title, for instance, rendered in Chart.js's default colour instead of the theme's. Assigning
+  // the var to a real element and reading back the computed `color` makes the browser resolve
+  // light-dark(), color-mix(), nested vars and the current colour-scheme down to a plain rgb()
+  // that canvas accepts. The CSS-level fallback also covers a token that doesn't exist at all.
+  const probe = document.createElement('span');
+  probe.style.cssText = 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;pointer-events:none';
+  probe.style.color = `var(${name}, ${fallback})`;
+  document.body.appendChild(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+
+  return resolved || fallback;
 }
 
 /** Resolves a list of CSS variable names (e.g. the --fsai-chart-1..8 sequence) to real color
@@ -28,7 +57,7 @@ export function resolveChartPalette(names: readonly string[]): string[] {
  * Note this reads CSS variables at call time, so callers must invoke it (not hold a module-level
  * constant) if they need it to reflect a later light/dark theme switch. */
 export function baseChartOptions(): Record<string, unknown> {
-  const font = { family: "'Inter', 'Segoe UI', Roboto, system-ui, sans-serif", size: 11 };
+  const font = { family: CHART_FONT_FAMILY, size: 11 };
   const onSurface = resolveCssVar('--fsai-neutral', '#475569');
   const gridColor = resolveCssVar('--mat-sys-outline-variant', '#e1e4e9');
   const surface = resolveCssVar('--mat-sys-surface', '#ffffff');

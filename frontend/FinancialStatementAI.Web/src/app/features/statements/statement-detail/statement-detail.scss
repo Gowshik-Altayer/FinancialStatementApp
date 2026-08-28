@@ -1,6 +1,6 @@
 app-pipeline-stepper {
   display: block;
-  margin-bottom: var(--fsai-space-4);
+  margin-bottom: var(--fsai-space-5);
 }
 
 .placeholder {
@@ -10,26 +10,94 @@ app-pipeline-stepper {
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1rem;
+  gap: var(--fsai-space-4);
+  margin-bottom: var(--fsai-space-5);
 }
 
+// These are mat-cards, so they arrive with Material's own elevation/radius/padding rather than
+// the shared card treatment the rest of the app uses. Restating geometry and hover here makes
+// them read as the same component as the Categories and Reconciliation cards — matching radius,
+// border, shadow, lift and primary-tinted hover outline — instead of as default Material chrome.
+.cards mat-card {
+  border-radius: var(--fsai-radius);
+  border: 1px solid transparent;
+  background: var(--mat-sys-surface-container-low);
+  box-shadow: var(--fsai-card-shadow);
+  padding: var(--fsai-space-5);
+  transition: box-shadow var(--fsai-transition), transform var(--fsai-transition), border-color var(--fsai-transition);
+
+  &:hover {
+    box-shadow: var(--fsai-card-shadow-hover), 0 10px 24px -12px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+    border-color: color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+    transform: translateY(-3px);
+  }
+
+  // Material's card header/content carry their own padding, which would compound with the
+  // padding set on the card above and leave the content visibly inset from its own title.
+  ::ng-deep .mat-mdc-card-header,
+  ::ng-deep .mat-mdc-card-content {
+    padding: 0;
+  }
+
+  ::ng-deep .mat-mdc-card-header {
+    margin-bottom: var(--fsai-space-4);
+  }
+
+  ::ng-deep .mat-mdc-card-content:last-child {
+    padding-bottom: 0;
+  }
+
+  ::ng-deep .mat-mdc-card-title {
+    font-size: var(--fsai-text-md);
+    font-weight: var(--fsai-weight-semibold);
+    letter-spacing: var(--fsai-tracking-tight);
+  }
+}
+
+// Definition rows: the label column sizes to its content and the value column takes the rest, so
+// values line up in a single column per card. Row gap is larger than it was (0.25rem) — at that
+// spacing the rows read as one dense block rather than discrete fields.
 dl {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0.25rem 1rem;
+  gap: var(--fsai-space-2) var(--fsai-space-4);
   margin: 0;
 }
 
 dt {
-  font-weight: 500;
+  font-size: var(--fsai-text-sm);
+  font-weight: var(--fsai-weight-medium);
   color: var(--mat-sys-on-surface-variant);
 }
 
+// Values are mostly amounts, dates and counts, so they get tabular figures to stay aligned
+// against the labels and each other.
 dd {
   margin: 0;
+  font-size: var(--fsai-text-sm);
+  font-variant-numeric: tabular-nums slashed-zero;
+  font-feature-settings: 'tnum' 1, 'zero' 1;
 }
 
 .transactions-card {
-  margin-bottom: 1rem;
+  margin-bottom: var(--fsai-space-5);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface-container-low);
+  box-shadow: var(--fsai-card-shadow);
+  padding: var(--fsai-space-5);
+
+  ::ng-deep .mat-mdc-card-header,
+  ::ng-deep .mat-mdc-card-content {
+    padding: 0;
+  }
+
+  ::ng-deep .mat-mdc-card-header {
+    margin-bottom: var(--fsai-space-4);
+  }
+
+  ::ng-deep .mat-mdc-card-title {
+    font-size: var(--fsai-text-md);
+    font-weight: var(--fsai-weight-semibold);
+    letter-spacing: var(--fsai-tracking-tight);
+  }
 }
