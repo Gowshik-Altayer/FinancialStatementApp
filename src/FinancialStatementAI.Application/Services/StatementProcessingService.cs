@@ -16,6 +16,7 @@ public class StatementProcessingService(
     IDocumentIntelligenceService documentIntelligenceService,
     IStatementFieldExtractionService statementFieldExtractionService,
     ITransactionExtractionService transactionExtractionService,
+    ISpreadsheetTransactionExtractionService spreadsheetTransactionExtractionService,
     ITransactionClassificationService transactionClassificationService,
     IReconciliationService reconciliationService,
     IDistributedLockService distributedLockService) : IStatementProcessingService
@@ -47,32 +48,45 @@ public class StatementProcessingService(
         var method = ExtractionMethod.DirectPdfText;
         OcrResult? ocrResult = null;
         DocumentIntelligenceResult? structureResult = null;
+        IReadOnlyList<ParsedTransaction>? spreadsheetTransactions = null;
 
-        if (statement.ContentType == "application/pdf")
+        if (statement.ContentType == FileUploadLimits.SpreadsheetContentType)
         {
-            rawText = await TryDirectPdfExtractionAsync(statement, cancellationToken);
+            // A spreadsheet's cells are already unambiguous — there is no text-layer or OCR step
+            // for this path at all (requirement #5), so it deliberately skips the PDF/OCR
+            // fallback chain below entirely rather than trying it and failing.
+            method = ExtractionMethod.Spreadsheet;
+            spreadsheetTransactions = await TryExtractSpreadsheetAsync(statement, cancellationToken);
+            rawText = spreadsheetTransactions.Count > 0 ? BuildSpreadsheetRawTextDump(spreadsheetTransactions) : null;
         }
-
-        if (rawText is null)
+        else
         {
-            method = ExtractionMethod.Ocr;
-            (rawText, ocrResult) = await TryOcrExtractionAsync(statement, cancellationToken);
-
-            // Table/layout reconstruction (PP-StructureV3, when PaddleOcr is the configured
-            // provider) only runs for the OCR path — a scanned document is exactly the case
-            // where reconstructing a transaction table's structure earns its cost; direct PDF
-            // text extraction already has clean, ordered text with no layout ambiguity to
-            // resolve. A failure here is never fatal to the pipeline (see requirement #16): it
-            // just means no table regions get stored alongside this extraction.
-            if (rawText is not null)
+            if (statement.ContentType == "application/pdf")
             {
-                structureResult = await TryDocumentStructureAnalysisAsync(statement, cancellationToken);
+                rawText = await TryDirectPdfExtractionAsync(statement, cancellationToken);
+            }
+
+            if (rawText is null)
+            {
+                method = ExtractionMethod.Ocr;
+                (rawText, ocrResult) = await TryOcrExtractionAsync(statement, cancellationToken);
+
+                // Table/layout reconstruction (PP-StructureV3, when PaddleOcr is the configured
+                // provider) only runs for the OCR path — a scanned document is exactly the case
+                // where reconstructing a transaction table's structure earns its cost; direct PDF
+                // text extraction already has clean, ordered text with no layout ambiguity to
+                // resolve. A failure here is never fatal to the pipeline (see requirement #16): it
+                // just means no table regions get stored alongside this extraction.
+                if (rawText is not null)
+                {
+                    structureResult = await TryDocumentStructureAnalysisAsync(statement, cancellationToken);
+                }
             }
         }
 
         if (rawText is null)
         {
-            // Both available paths were tried and neither produced usable text.
+            // Every available path for this content type was tried and none produced usable text.
             await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.ExtractionFailed, null, cancellationToken);
         }
         else
@@ -83,7 +97,9 @@ public class StatementProcessingService(
             await statementRepository.UpdateExtractedFieldsAsync(statementId, fields, cancellationToken);
 
             var referenceYear = fields.StatementPeriodStart?.Year ?? fields.StatementDate?.Year ?? DateTime.UtcNow.Year;
-            var parsedTransactions = ExtractTransactions(rawText, structureResult, referenceYear);
+            var parsedTransactions = method == ExtractionMethod.Spreadsheet
+                ? spreadsheetTransactions!
+                : ExtractTransactions(rawText, structureResult, referenceYear);
             var transactions = parsedTransactions.Select(p => ToTransactionEntity(statementId, p, method));
             await transactionRepository.ReplaceForStatementAsync(statementId, userId, transactions, cancellationToken);
 
@@ -109,6 +125,19 @@ public class StatementProcessingService(
         var extraction = pdfTextExtractionService.Extract(fileStream);
         return extraction.HasUsableText ? extraction.RawText : null;
     }
+
+    private async Task<IReadOnlyList<ParsedTransaction>> TryExtractSpreadsheetAsync(Statement statement, CancellationToken cancellationToken)
+    {
+        await using var fileStream = await fileStorage.OpenReadAsync(statement.StoredFilePath, cancellationToken);
+        return spreadsheetTransactionExtractionService.Extract(fileStream);
+    }
+
+    /// <summary>Synthesizes a plain-text row dump from the parsed rows so StatementExtraction's
+    /// RawText/CharacterCount/PageCount fields still have something meaningful to store — there is
+    /// no original "raw text" for a spreadsheet source the way there is for PDF/OCR text, since
+    /// transactions are read directly from typed cells rather than parsed from a text layer.</summary>
+    private static string BuildSpreadsheetRawTextDump(IReadOnlyList<ParsedTransaction> transactions) =>
+        string.Join('\n', transactions.Select(t => t.RawLine));
 
     /// <returns>The usable raw text (or null) alongside the full OcrResult, so the caller can
     /// persist confidence/bounding-box detail even though only the text feeds the rest of the

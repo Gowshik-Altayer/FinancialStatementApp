@@ -56,6 +56,7 @@ public static class DependencyInjection
         services.AddSingleton<IStatementFileValidator, StatementFileValidator>();
         services.AddSingleton<IPdfTextExtractionService, PdfTextExtractionService>();
         services.AddSingleton<ITransactionExtractionService, TransactionExtractionService>();
+        services.AddSingleton<ISpreadsheetTransactionExtractionService, SpreadsheetTransactionExtractionService>();
         services.AddSingleton<IStatementFieldExtractionService, StatementFieldExtractionService>();
 
         services.Configure<LocalFileStorageOptions>(configuration.GetSection(LocalFileStorageOptions.SectionName));

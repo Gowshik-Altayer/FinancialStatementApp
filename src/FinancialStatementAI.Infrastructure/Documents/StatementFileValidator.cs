@@ -1,3 +1,4 @@
+using ClosedXML.Excel;
 using FinancialStatementAI.Application.DTOs.Statements;
 using FinancialStatementAI.Application.Interfaces;
 using FinancialStatementAI.Domain.Constants;
@@ -28,7 +29,7 @@ public class StatementFileValidator : IStatementFileValidator
         if (string.IsNullOrEmpty(extension) || !FileUploadLimits.AllowedExtensionsToContentType.TryGetValue(extension, out var expectedContentType))
         {
             return FileValidationResult.Failure(
-                "Unsupported file type. Allowed types: PDF, JPG, JPEG, PNG.");
+                "Unsupported file type. Allowed types: PDF, JPG, JPEG, PNG, XLSX.");
         }
 
         var sniffedContentType = SniffContentType(content);
@@ -44,6 +45,15 @@ public class StatementFileValidator : IStatementFileValidator
             if (pdfCheck is not null)
             {
                 return FileValidationResult.Failure(pdfCheck);
+            }
+        }
+
+        if (sniffedContentType == FileUploadLimits.SpreadsheetContentType)
+        {
+            var xlsxCheck = ValidateSpreadsheet(content);
+            if (xlsxCheck is not null)
+            {
+                return FileValidationResult.Failure(xlsxCheck);
             }
         }
 
@@ -68,6 +78,16 @@ public class StatementFileValidator : IStatementFileValidator
             return "image/png";
         }
 
+        // .xlsx (like every OOXML format — .docx, .pptx too) is a ZIP archive, so this magic byte
+        // alone is ambiguous with any other ZIP-based format or a plain .zip renamed to .xlsx.
+        // ValidateSpreadsheet below is the actual disambiguator: only a file ClosedXML can open as
+        // a real workbook passes, exactly mirroring how ValidatePdf both confirms the format AND
+        // rejects a corrupted/encrypted file.
+        if (content.Length >= 4 && content[0] == 0x50 && content[1] == 0x4B && content[2] == 0x03 && content[3] == 0x04)
+        {
+            return FileUploadLimits.SpreadsheetContentType;
+        }
+
         return null;
     }
 
@@ -87,6 +107,23 @@ public class StatementFileValidator : IStatementFileValidator
         catch (Exception)
         {
             return "This PDF appears to be corrupted and could not be opened.";
+        }
+    }
+
+    /// <returns>An error message if the file isn't actually a valid Excel workbook (corrupted, or
+    /// a different ZIP-based format renamed to .xlsx); otherwise null.</returns>
+    private static string? ValidateSpreadsheet(byte[] content)
+    {
+        try
+        {
+            using var stream = new MemoryStream(content);
+            using var workbook = new XLWorkbook(stream);
+            _ = workbook.Worksheets.Count;
+            return null;
+        }
+        catch (Exception)
+        {
+            return "This file does not appear to be a valid Excel (.xlsx) workbook, or it is corrupted.";
         }
     }
 }

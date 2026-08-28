@@ -21,6 +21,7 @@ public class StatementProcessingServiceLockTests
     private readonly Mock<IDocumentIntelligenceService> _documentIntelligenceService = new();
     private readonly Mock<IStatementFieldExtractionService> _statementFieldExtractionService = new();
     private readonly Mock<ITransactionExtractionService> _transactionExtractionService = new();
+    private readonly Mock<ISpreadsheetTransactionExtractionService> _spreadsheetTransactionExtractionService = new();
     private readonly Mock<ITransactionClassificationService> _transactionClassificationService = new();
     private readonly Mock<IReconciliationService> _reconciliationService = new();
     private readonly Mock<IDistributedLockService> _distributedLockService = new();
@@ -35,6 +36,7 @@ public class StatementProcessingServiceLockTests
         _documentIntelligenceService.Object,
         _statementFieldExtractionService.Object,
         _transactionExtractionService.Object,
+        _spreadsheetTransactionExtractionService.Object,
         _transactionClassificationService.Object,
         _reconciliationService.Object,
         _distributedLockService.Object);
