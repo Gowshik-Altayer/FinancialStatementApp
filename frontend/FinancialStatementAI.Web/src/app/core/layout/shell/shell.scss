@@ -18,8 +18,8 @@
   font-size: 1rem;
 
   // A colored badge behind the brand icon rather than a plain default-colored glyph — this is
-  // the first thing a user sees in the sidenav, so it should carry the brand's primary->tertiary
-  // pairing instead of reading as flat gray chrome.
+  // the first thing a user sees in the sidenav. Solid primary (not a two-hue gradient) reads as
+  // a deliberate, singular brand mark rather than a busy blend at this small (32px) size.
   mat-icon {
     display: flex;
     align-items: center;
@@ -27,7 +27,7 @@
     width: 32px;
     height: 32px;
     border-radius: var(--fsai-radius-sm);
-    background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+    background: var(--mat-sys-primary);
     color: var(--mat-sys-on-primary);
     flex-shrink: 0;
   }
@@ -37,9 +37,10 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  // A subtle diagonal gradient (rather than a flat mat-toolbar color="primary" fill) so the
-  // header carries both brand hues instead of a single flat block of color.
-  background: linear-gradient(120deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 55%, var(--mat-sys-tertiary)));
+  // A restrained same-hue depth gradient (primary fading to a touch darker) rather than a full
+  // primary->tertiary blend — a confident solid brand color reads as premium chrome; stretching
+  // two contrasting hues across the entire header reads as loud/decorative instead.
+  background: linear-gradient(180deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 82%, black));
   color: var(--mat-sys-on-primary);
 }
 
@@ -66,7 +67,7 @@
 // you're on and that the list is interactive at all.
 mat-nav-list a[mat-list-item] {
   border-left: 3px solid transparent;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
+  transition: background-color var(--fsai-transition-fast), border-color var(--fsai-transition-fast);
 
   &:hover {
     background-color: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);

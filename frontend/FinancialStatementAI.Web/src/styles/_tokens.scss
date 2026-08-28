@@ -30,6 +30,24 @@
   --fsai-transition-fast: 0.15s var(--fsai-ease);
   --fsai-transition: 0.22s var(--fsai-ease);
 
+  // True-neutral surface overrides. Material 3 derives its "neutral" tonal palette (the grays
+  // every card/background/sidenav/border uses via --mat-sys-surface-container-*) from a small
+  // amount of chroma pulled from whatever hue is set as `primary` in styles.scss. With a strongly
+  // saturated primary this neutral-derivation becomes visible as an unwanted colored cast across
+  // the whole app (e.g. a violet primary made every "neutral" surface read as pink/lavender
+  // instead of gray). Restating the handful of surface tokens that actually show up as visible
+  // backgrounds/borders here — as true, hue-free grays — decouples "brand accent color" from
+  // "background neutrality" so the primary can change freely without ever re-tinting the page.
+  // (:root has higher specificity than the `html { ... }` selector mat.theme() writes to, so
+  // these values win regardless of source order.)
+  --mat-sys-surface: #ffffff;
+  --mat-sys-surface-container-lowest: #ffffff;
+  --mat-sys-surface-container-low: #f6f7f9;
+  --mat-sys-surface-container: #eff1f4;
+  --mat-sys-surface-container-high: #e8eaee;
+  --mat-sys-surface-container-highest: #e1e4e9;
+  --mat-sys-outline-variant: #e1e4e9;
+
   // Status vocabulary — used by status-badge, confidence-indicator, KPI trend coloring,
   // reconciliation/processing charts. Named by MEANING (success/warning/danger), not by the
   // specific enum value that happens to map to it today, so new statuses can adopt an existing
@@ -54,7 +72,8 @@
   // chart-2/3/4 are intentionally kept equal to success/warning/danger above so a status
   // breakdown chart and its accompanying status-badge always agree on color; chart-1/5/6/7/8
   // round out the sequence for charts with more categories than the status vocabulary (e.g.
-  // per-category spending) and lean into the new violet/cyan brand pairing.
+  // per-category spending) with extra hues that stay distinct from both the status colors and
+  // the blue/orange brand pairing.
   --fsai-chart-1: #0284c7;
   --fsai-chart-2: #15803d;
   --fsai-chart-3: #b45309;
@@ -69,6 +88,15 @@
 // color-scheme handling; the status/chart palette below is deliberately kept a little brighter
 // so it stays legible against Material's dark surface tokens.
 :root[data-theme='dark'] {
+  // Same true-neutral rationale as the light overrides above, just at the dark end of the scale.
+  --mat-sys-surface: #121317;
+  --mat-sys-surface-container-lowest: #0b0c0e;
+  --mat-sys-surface-container-low: #1a1c20;
+  --mat-sys-surface-container: #202226;
+  --mat-sys-surface-container-high: #292b30;
+  --mat-sys-surface-container-highest: #34363c;
+  --mat-sys-outline-variant: #3a3c42;
+
   --fsai-success: #4ade80;
   --fsai-success-bg: #14301f;
   --fsai-warning: #fbbf24;

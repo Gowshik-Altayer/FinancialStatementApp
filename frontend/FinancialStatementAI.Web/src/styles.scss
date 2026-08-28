@@ -9,19 +9,21 @@
 
 html {
   height: 100%;
-  // Primary: violet — a confident blue-violet reads as modern fintech (Mercury/Stripe territory)
-  // without drifting into the blue family already owned by the "info" status color. Because it's
-  // a genuinely different hue from the old azure primary, Material's auto-derived secondary
-  // (nav active-state, chip containers, etc.) and every --mat-sys-surface-container-* tint stop
-  // reading as "neutral gray" and pick up real violet character.
-  // Tertiary: cyan — a distinct, cooler accent (~80° away on the wheel) used by Material for
-  // things like FABs/tertiary buttons and for extra contrast in auto-generated container tones,
-  // so the app isn't a single-hue wash.
+  // Primary: blue — a confident, restrained corporate blue (Mercury/Ramp/Brex territory) rather
+  // than a saturated violet. Violet was tried first, but Material 3 derives its *neutral* surface
+  // tonal palette (the grays every card/background/sidenav uses) from a low-chroma slice of the
+  // primary hue — a hot, highly-saturated violet seed made every "neutral" surface pick up a
+  // visible pink/lavender cast (see the true-neutral overrides below, which fix this properly
+  // regardless of primary choice). Blue's neutral-derivation reads as clean cool-gray instead.
+  // Tertiary: orange — a genuine complementary contrast to blue (not another blue/cyan variant,
+  // which would just recreate the original "everything reads as one dull hue family" complaint).
+  // Used deliberately sparingly (chart-card top rail, not surfaces) so it reads as a considered
+  // accent, not a competing brand color.
   @include mat.theme(
     (
       color: (
-        primary: mat.$violet-palette,
-        tertiary: mat.$cyan-palette,
+        primary: mat.$blue-palette,
+        tertiary: mat.$orange-palette,
       ),
       typography: Roboto,
       density: 0,
