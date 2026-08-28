@@ -101,28 +101,38 @@
 }
 
 // --- Tables --------------------------------------------------------------------------------
+// Angular Material's own MatTable styles carry a same-specificity `.mat-mdc-header-row,
+// .mat-mdc-cell, ... { background: inherit; }` reset and a `border-bottom-color: var(
+// --mat-table-row-item-outline-color, var(--mat-sys-outline, ...))` rule, injected as inline
+// <style> tags whose position in the document (and therefore cascade order) isn't something this
+// stylesheet controls. Confirmed live: without !important the header row rendered pure white
+// instead of --mat-sys-surface-container, the header weight came out 500 instead of this file's
+// 600, and every row divider rendered in --mat-sys-outline (a noticeably darker, harsher gray)
+// instead of --mat-sys-outline-variant — Material's rule was winning by loading later, at equal
+// specificity. This is the same class of override already used in shell.scss's .active-link, for
+// the same reason.
 .mat-mdc-table {
   font-family: var(--fsai-font-sans);
   background: transparent;
 }
 
 .mat-mdc-header-row {
-  background: var(--mat-sys-surface-container);
+  background: var(--mat-sys-surface-container) !important;
 }
 
 .mat-mdc-header-cell {
   font-size: var(--fsai-text-xs);
-  font-weight: var(--fsai-weight-semibold);
+  font-weight: var(--fsai-weight-semibold) !important;
   text-transform: uppercase;
   letter-spacing: var(--fsai-tracking-wide);
   color: var(--mat-sys-on-surface-variant);
-  border-bottom-color: var(--mat-sys-outline-variant);
+  border-bottom-color: var(--mat-sys-outline-variant) !important;
   white-space: nowrap;
 }
 
 .mat-mdc-cell {
   font-size: var(--fsai-text-base);
-  border-bottom-color: var(--mat-sys-outline-variant);
+  border-bottom-color: var(--mat-sys-outline-variant) !important;
 }
 
 .mat-mdc-row {
@@ -131,6 +141,21 @@
 
 .mat-mdc-row:hover {
   background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
+}
+
+// A full-bleed rectangular tint reads as a harsh, "sharp" highlight against the rest of the app's
+// rounded/pill interaction language (nav items, badges, cards all round their corners on
+// hover/active). Rounding just the row's outer two corners — the only ones a <tr>'s cells can
+// carry, since border-radius doesn't apply to the row element itself in table layout — gives the
+// same soft-highlight feel without restructuring the table.
+.mat-mdc-row:hover td:first-child {
+  border-top-left-radius: var(--fsai-radius-sm);
+  border-bottom-left-radius: var(--fsai-radius-sm);
+}
+
+.mat-mdc-row:hover td:last-child {
+  border-top-right-radius: var(--fsai-radius-sm);
+  border-bottom-right-radius: var(--fsai-radius-sm);
 }
 
 // Any cell holding money/counts should align right and use tabular figures. Applied via a class

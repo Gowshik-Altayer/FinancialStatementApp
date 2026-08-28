@@ -39,7 +39,7 @@
   <app-empty-state icon="description" message="No statements match these filters." />
 } @else {
   <div class="table-wrapper">
-    <table mat-table [dataSource]="statements()" class="mat-elevation-z1">
+    <table mat-table [dataSource]="statements()">
       <ng-container matColumnDef="originalFileName">
         <th mat-header-cell *matHeaderCellDef>File</th>
         <td mat-cell *matCellDef="let s">

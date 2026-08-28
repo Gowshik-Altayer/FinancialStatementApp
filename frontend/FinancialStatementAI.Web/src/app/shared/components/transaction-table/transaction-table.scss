@@ -1,6 +1,10 @@
 .review-table {
   width: 100%;
-  border-collapse: collapse;
+  // separate + zero spacing renders identically to collapse for a plain bottom-border grid, but
+  // collapse suppresses per-cell border-radius in most browsers — needed below so hover/duplicate
+  // row highlights can round their outer corners instead of reading as a hard-edged band.
+  border-collapse: separate;
+  border-spacing: 0;
 
   // Header treatment matches the mat-table header rule in styles/_components.scss, so this
   // hand-rolled table and the Material tables elsewhere read as the same component.
@@ -52,6 +56,22 @@
     &:hover {
       background: color-mix(in srgb, var(--fsai-danger) 12%, transparent);
     }
+  }
+
+  // Rounds the row's outer two corners on any tinted state (hover, duplicate-flagged, or both at
+  // once) — a full-bleed rectangular tint reads as a harsh "sharp" band against the rest of the
+  // app's rounded/pill interaction language. border-radius can only apply per-cell, not to the
+  // <tr> itself, hence targeting first/last-child.
+  tbody tr:hover td:first-child,
+  tr.duplicate td:first-child {
+    border-top-left-radius: var(--fsai-radius-sm);
+    border-bottom-left-radius: var(--fsai-radius-sm);
+  }
+
+  tbody tr:hover td:last-child,
+  tr.duplicate td:last-child {
+    border-top-right-radius: var(--fsai-radius-sm);
+    border-bottom-right-radius: var(--fsai-radius-sm);
   }
 }
 
