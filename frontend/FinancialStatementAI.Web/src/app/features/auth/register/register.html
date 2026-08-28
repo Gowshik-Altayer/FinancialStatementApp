@@ -8,10 +8,6 @@
     <h1 class="auth-title fsai-page-title">Create account</h1>
     <p class="auth-subtitle fsai-secondary">Start processing and reconciling statements.</p>
 
-    @if (isSubmitting()) {
-      <mat-progress-bar mode="indeterminate" class="auth-progress" />
-    }
-
     <form [formGroup]="form" (ngSubmit)="submit()" class="auth-form">
       <div class="auth-row">
         <mat-form-field appearance="outline" class="auth-field">
@@ -51,9 +47,7 @@
         </p>
       }
 
-      <button mat-flat-button color="primary" type="submit" class="auth-submit" [disabled]="isSubmitting()">
-        {{ isSubmitting() ? 'Creating account…' : 'Create account' }}
-      </button>
+      <button mat-flat-button color="primary" type="submit" class="auth-submit" [disabled]="isSubmitting()">Create account</button>
     </form>
 
     <div class="auth-footer">

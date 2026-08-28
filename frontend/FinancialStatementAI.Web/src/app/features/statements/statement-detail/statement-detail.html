@@ -10,21 +10,9 @@
       <app-status-badge [label]="processingStatusLabel(s.reconciliationStatus)" [tone]="reconciliationStatusTone(s.reconciliationStatus)" />
     }
     @if (s.processingStatus === 'PendingReview') {
-      <button mat-flat-button color="primary" [disabled]="isVerifying()" (click)="verify()">
-        @if (isVerifying()) {
-          <mat-spinner diameter="18" />
-        } @else {
-          Mark reviewed
-        }
-      </button>
+      <button mat-flat-button color="primary" [disabled]="isVerifying()" (click)="verify()">Mark reviewed</button>
     }
-    <button mat-stroked-button [disabled]="isReprocessing()" (click)="reprocess()">
-      @if (isReprocessing()) {
-        <mat-spinner diameter="18" />
-      } @else {
-        Reprocess
-      }
-    </button>
+    <button mat-stroked-button [disabled]="isReprocessing()" (click)="reprocess()">Reprocess</button>
   </app-page-header>
 
   <!-- Uploading a statement deliberately does NOT start processing (see docs/api.md — the upload
@@ -38,13 +26,7 @@
         <strong>This statement hasn't been processed yet.</strong>
         <span>Uploading stores the file — extracting text, transactions and balances runs as a separate step.</span>
       </div>
-      <button mat-flat-button color="primary" [disabled]="isReprocessing()" (click)="reprocess()">
-        @if (isReprocessing()) {
-          <mat-spinner diameter="18" />
-        } @else {
-          Process statement
-        }
-      </button>
+      <button mat-flat-button color="primary" [disabled]="isReprocessing()" (click)="reprocess()">Process statement</button>
     </div>
   } @else if (processedWithNoTransactions()) {
     <!-- Processing ran but produced nothing. Most often a scanned statement whose table structure
@@ -62,13 +44,7 @@
           detection; you can try processing it again.
         </span>
       </div>
-      <button mat-stroked-button [disabled]="isReprocessing()" (click)="reprocess()">
-        @if (isReprocessing()) {
-          <mat-spinner diameter="18" />
-        } @else {
-          Try again
-        }
-      </button>
+      <button mat-stroked-button [disabled]="isReprocessing()" (click)="reprocess()">Try again</button>
     </div>
   }
 
