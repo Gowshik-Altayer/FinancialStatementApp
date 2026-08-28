@@ -5,7 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDialog } from '@angular/material/dialog';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '../../core/services/notification.service';
 import { forkJoin } from 'rxjs';
 import { ChartConfiguration } from 'chart.js';
 import { CategoryService } from '../../core/services/category.service';
@@ -20,7 +20,7 @@ import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { CategoryFormDialog, CategoryFormDialogResult } from './category-form-dialog/category-form-dialog';
-import { resolveChartPalette } from '../../shared/utils/chart-theme.util';
+import { resolveChartPalette, baseRadialChartOptions } from '../../shared/utils/chart-theme.util';
 
 interface CategoryCardModel {
   detail: CategoryDetail;
@@ -69,7 +69,7 @@ export class Categories implements OnInit {
   private readonly categoryService = inject(CategoryService);
   private readonly authService = inject(AuthService);
   private readonly dialog = inject(MatDialog);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly notifications = inject(NotificationService);
 
   readonly categories = signal<CategoryDetail[]>([]);
   readonly stats = signal<CategoryStats[]>([]);
@@ -114,11 +114,9 @@ export class Categories implements OnInit {
     };
   }
 
-  readonly chartOptions: ChartConfiguration['options'] = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
-  };
+  // Doughnut, so the shared radial options (no cartesian scales) — styling itself comes from
+  // chart-theme.util.ts so this chart matches every other chart in the app.
+  readonly chartOptions = baseRadialChartOptions() as ChartConfiguration['options'];
 
   ngOnInit(): void {
     this.load();
@@ -146,10 +144,10 @@ export class Categories implements OnInit {
       if (!result) return;
       this.categoryService.create(result).subscribe({
         next: () => {
-          this.snackBar.open(`"${result.name}" created.`, undefined, { duration: 3000 });
+          this.notifications.success(`"${result.name}" created.`);
           this.load();
         },
-        error: (err) => this.snackBar.open(err?.error?.detail ?? 'Could not create category.', undefined, { duration: 4000 })
+        error: (err) => this.notifications.error(err?.error?.detail ?? 'Could not create category.')
       });
     });
   }
@@ -160,10 +158,10 @@ export class Categories implements OnInit {
       if (!result) return;
       this.categoryService.update(category.id, result).subscribe({
         next: () => {
-          this.snackBar.open(`"${result.name}" updated.`, undefined, { duration: 3000 });
+          this.notifications.success(`"${result.name}" updated.`);
           this.load();
         },
-        error: (err) => this.snackBar.open(err?.error?.detail ?? 'Could not update category.', undefined, { duration: 4000 })
+        error: (err) => this.notifications.error(err?.error?.detail ?? 'Could not update category.')
       });
     });
   }
@@ -171,20 +169,20 @@ export class Categories implements OnInit {
   deactivate(category: CategoryDetail): void {
     this.categoryService.deactivate(category.id).subscribe({
       next: () => {
-        this.snackBar.open(`"${category.name}" deactivated.`, undefined, { duration: 3000 });
+        this.notifications.success(`"${category.name}" deactivated.`);
         this.load();
       },
-      error: () => this.snackBar.open('Could not deactivate category.', undefined, { duration: 4000 })
+      error: () => this.notifications.error('Could not deactivate category.')
     });
   }
 
   reactivate(category: CategoryDetail): void {
     this.categoryService.reactivate(category.id).subscribe({
       next: () => {
-        this.snackBar.open(`"${category.name}" reactivated.`, undefined, { duration: 3000 });
+        this.notifications.success(`"${category.name}" reactivated.`);
         this.load();
       },
-      error: () => this.snackBar.open('Could not reactivate category.', undefined, { duration: 4000 })
+      error: () => this.notifications.error('Could not reactivate category.')
     });
   }
 

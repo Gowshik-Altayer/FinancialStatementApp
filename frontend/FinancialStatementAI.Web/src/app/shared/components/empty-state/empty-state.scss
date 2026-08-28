@@ -1,23 +1,39 @@
+// Framed as a dashed-border panel rather than bare centered text floating on the page background.
+// An unframed empty state reads as "the page failed to render"; a defined container reads as
+// "this area is working, there's just nothing in it yet".
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--fsai-space-3);
-  padding: var(--fsai-space-8) var(--fsai-space-4);
+  padding: var(--fsai-space-8) var(--fsai-space-5);
   text-align: center;
-  color: var(--fsai-neutral);
+  border: 1px dashed var(--mat-sys-outline-variant);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface-container-low);
+
+  .empty-icon-well {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--mat-sys-surface-container-high);
+    color: var(--mat-sys-on-surface-variant);
+  }
 
   mat-icon {
-    font-size: 2.5rem;
-    width: 2.5rem;
-    height: 2.5rem;
-    opacity: 0.4;
+    font-size: 1.75rem;
+    width: 1.75rem;
+    height: 1.75rem;
   }
 
   p {
     margin: 0;
-    font-size: 0.9rem;
-    max-width: 320px;
+    font-size: var(--fsai-text-base);
+    color: var(--mat-sys-on-surface-variant);
+    max-width: 340px;
   }
 }

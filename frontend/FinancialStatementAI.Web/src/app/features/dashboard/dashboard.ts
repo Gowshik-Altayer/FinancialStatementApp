@@ -15,7 +15,7 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { PipelineStepper, PipelineStageViewModel } from '../../shared/components/pipeline-stepper/pipeline-stepper';
 import { StatusTone, processingStatusLabel } from '../../shared/utils/status-tone.util';
-import { resolveChartPalette } from '../../shared/utils/chart-theme.util';
+import { resolveChartPalette, baseChartOptions, baseRadialChartOptions } from '../../shared/utils/chart-theme.util';
 
 interface KpiWidget {
   key: string;
@@ -44,11 +44,18 @@ const CHART_PALETTE = resolveChartPalette([
   '--fsai-chart-5', '--fsai-chart-6', '--fsai-chart-7', '--fsai-chart-8'
 ]);
 
-const CHART_OPTIONS_COMPACT: ChartConfiguration['options'] = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
-};
+// Shared styling (Inter-matched fonts, themed tooltips/grid, point-style legends) comes from
+// chart-theme.util.ts so every chart in the app agrees; only per-chart specifics are set below.
+// Radial variant drops the cartesian `scales` block, which doughnut/pie charts don't have.
+const CHART_OPTIONS_AXIS = baseChartOptions() as ChartConfiguration['options'];
+const CHART_OPTIONS_RADIAL = baseRadialChartOptions() as ChartConfiguration['options'];
+
+/** Bar charts whose single dataset is already labelled by the axis don't need a legend repeating
+ * the same word underneath. */
+const withoutLegend = (options: ChartConfiguration['options']): ChartConfiguration['options'] => ({
+  ...options,
+  plugins: { ...options?.plugins, legend: { display: false } }
+});
 
 @Component({
   selector: 'app-dashboard',
@@ -136,7 +143,7 @@ export class Dashboard implements OnInit {
           labels: summary.processingStatusBreakdown.map((s) => processingStatusLabel(s.name)),
           datasets: [{ data: summary.processingStatusBreakdown.map((s) => s.count), backgroundColor: CHART_PALETTE }]
         },
-        options: CHART_OPTIONS_COMPACT
+        options: CHART_OPTIONS_RADIAL
       },
       {
         key: 'chart-processing-trend',
@@ -150,7 +157,7 @@ export class Dashboard implements OnInit {
             { label: 'Failed', data: summary.processingTrend.map((p) => p.failedCount), borderColor: CHART_PALETTE[3], tension: 0.3 }
           ]
         },
-        options: CHART_OPTIONS_COMPACT
+        options: CHART_OPTIONS_AXIS
       },
       {
         key: 'chart-transaction-categories',
@@ -160,7 +167,7 @@ export class Dashboard implements OnInit {
           labels: summary.transactionsByCategory.slice(0, 8).map((c) => c.categoryName),
           datasets: [{ label: 'Amount', data: summary.transactionsByCategory.slice(0, 8).map((c) => c.totalAmount), backgroundColor: CHART_PALETTE[0] }]
         },
-        options: { ...CHART_OPTIONS_COMPACT, plugins: { legend: { display: false } } }
+        options: withoutLegend(CHART_OPTIONS_AXIS)
       },
       {
         key: 'chart-confidence-distribution',
@@ -170,7 +177,7 @@ export class Dashboard implements OnInit {
           labels: summary.confidenceDistribution.map((b) => b.name.replace(/([a-z])([A-Z])/g, '$1 $2')),
           datasets: [{ label: 'Transactions', data: summary.confidenceDistribution.map((b) => b.count), backgroundColor: [CHART_PALETTE[1], CHART_PALETTE[2], CHART_PALETTE[3], CHART_PALETTE[7]] }]
         },
-        options: { ...CHART_OPTIONS_COMPACT, plugins: { legend: { display: false } } }
+        options: withoutLegend(CHART_OPTIONS_AXIS)
       },
       {
         key: 'chart-reconciliation-status',
@@ -180,7 +187,7 @@ export class Dashboard implements OnInit {
           labels: summary.reconciliationStatusBreakdown.map((s) => processingStatusLabel(s.name)),
           datasets: [{ data: summary.reconciliationStatusBreakdown.map((s) => s.count), backgroundColor: [CHART_PALETTE[1], CHART_PALETTE[3], CHART_PALETTE[2]] }]
         },
-        options: CHART_OPTIONS_COMPACT
+        options: CHART_OPTIONS_RADIAL
       },
       {
         key: 'chart-review-statistics',
@@ -194,7 +201,7 @@ export class Dashboard implements OnInit {
             backgroundColor: [CHART_PALETTE[2], CHART_PALETTE[4], CHART_PALETTE[1]]
           }]
         },
-        options: { ...CHART_OPTIONS_COMPACT, plugins: { legend: { display: false } } }
+        options: withoutLegend(CHART_OPTIONS_AXIS)
       }
     ];
 

@@ -4,7 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from '@angular/material/button';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '../../../core/services/notification.service';
 import { StatementService } from '../../../core/services/statement.service';
 import { TransactionService } from '../../../core/services/transaction.service';
 import { StatementDetail as StatementDetailModel } from '../../../shared/models/statement.model';
@@ -38,7 +38,7 @@ export class StatementDetail implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly statementService = inject(StatementService);
   private readonly transactionService = inject(TransactionService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly notifications = inject(NotificationService);
 
   readonly statement = signal<StatementDetailModel | null>(null);
   readonly transactions = signal<Transaction[]>([]);
@@ -110,11 +110,11 @@ export class StatementDetail implements OnInit {
         this.statement.set(statement);
         this.isReprocessing.set(false);
         this.loadTransactions();
-        this.snackBar.open('Statement reprocessed.', 'Dismiss', { duration: 3000 });
+        this.notifications.success('Statement reprocessed.');
       },
       error: () => {
         this.isReprocessing.set(false);
-        this.snackBar.open('Reprocessing failed.', 'Dismiss', { duration: 3000 });
+        this.notifications.error('Reprocessing failed.');
       }
     });
   }
@@ -125,11 +125,11 @@ export class StatementDetail implements OnInit {
       next: (statement) => {
         this.statement.set(statement);
         this.isVerifying.set(false);
-        this.snackBar.open('Statement marked as verified.', 'Dismiss', { duration: 3000 });
+        this.notifications.success('Statement marked as verified.');
       },
       error: () => {
         this.isVerifying.set(false);
-        this.snackBar.open('Verification failed — statement must be in PendingReview.', 'Dismiss', { duration: 4000 });
+        this.notifications.error('Verification failed — statement must be in PendingReview.');
       }
     });
   }

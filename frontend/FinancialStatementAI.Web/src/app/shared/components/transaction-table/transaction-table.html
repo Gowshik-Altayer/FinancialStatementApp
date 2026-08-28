@@ -47,9 +47,9 @@
           </td>
           <td>
             @if (t.reviewPriority) {
-              <mat-chip [class]="'priority-' + t.reviewPriority">{{ priorityLabel(t) }}</mat-chip>
+              <app-status-badge [label]="priorityLabel(t)" [tone]="reviewPriorityTone(t.reviewPriority)" />
             } @else {
-              <span class="empty-state">—</span>
+              <span class="muted">—</span>
             }
           </td>
           <td class="actions">

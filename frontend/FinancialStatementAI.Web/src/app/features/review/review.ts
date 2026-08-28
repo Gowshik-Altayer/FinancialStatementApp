@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '../../core/services/notification.service';
 import { TransactionService } from '../../core/services/transaction.service';
 import { CategoryService } from '../../core/services/category.service';
 import { Transaction } from '../../shared/models/transaction.model';
@@ -52,7 +52,7 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
 export class Review implements OnInit {
   private readonly transactionService = inject(TransactionService);
   private readonly categoryService = inject(CategoryService);
-  private readonly snackBar = inject(MatSnackBar);
+  private readonly notifications = inject(NotificationService);
 
   readonly queue = signal<Transaction[]>([]);
   readonly categories = signal<Category[]>([]);
@@ -109,12 +109,12 @@ export class Review implements OnInit {
     this.transactionService.correctCategory(transaction.id, this.selectedCategoryName).subscribe({
       next: () => {
         this.saving.set(false);
-        this.snackBar.open('Category corrected.', 'Dismiss', { duration: 2500 });
+        this.notifications.success('Category corrected.');
         this.advance();
       },
       error: () => {
         this.saving.set(false);
-        this.snackBar.open('Correction failed — please try again.', 'Dismiss', { duration: 3000 });
+        this.notifications.error('Correction failed — please try again.');
       }
     });
   }

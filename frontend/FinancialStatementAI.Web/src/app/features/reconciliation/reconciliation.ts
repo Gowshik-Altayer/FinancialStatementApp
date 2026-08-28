@@ -19,7 +19,7 @@ import { Skeleton } from '../../shared/components/skeleton/skeleton';
 import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { reconciliationStatusTone, processingStatusLabel } from '../../shared/utils/status-tone.util';
-import { resolveChartPalette } from '../../shared/utils/chart-theme.util';
+import { resolveChartPalette, baseRadialChartOptions } from '../../shared/utils/chart-theme.util';
 
 // Resolved once, not passed as raw `var(--x)` strings — see chart-theme.util.ts for why Chart.js
 // (Canvas 2D) can't parse CSS custom-property syntax and silently renders unresolved colors as
@@ -89,11 +89,9 @@ export class Reconciliation implements OnInit {
     };
   }
 
-  readonly chartOptions: ChartConfiguration['options'] = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } }
-  };
+  // Doughnut, so the shared radial options (no cartesian scales) — styling itself comes from
+  // chart-theme.util.ts so this chart matches every other chart in the app.
+  readonly chartOptions = baseRadialChartOptions() as ChartConfiguration['options'];
 
   ngOnInit(): void {
     this.loadSummary();

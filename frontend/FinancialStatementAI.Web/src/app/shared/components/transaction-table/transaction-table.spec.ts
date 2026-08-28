@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { MatSnackBar } from '@angular/material/snack-bar';
+import { NotificationService } from '../../../core/services/notification.service';
 import { Observable, of, throwError } from 'rxjs';
 import { TransactionTable } from './transaction-table';
 import { TransactionService } from '../../../core/services/transaction.service';
@@ -59,7 +59,16 @@ describe('TransactionTable', () => {
           }
         },
         { provide: CategoryService, useValue: { getAll: () => of(categories) } },
-        { provide: MatSnackBar, useValue: { open: (message: string) => snackBarMessages.push(message) } }
+        // Toasts now go through NotificationService (which applies the shared tone/panelClass);
+        // the assertions below still just check which message the user was shown.
+        {
+          provide: NotificationService,
+          useValue: {
+            success: (message: string) => snackBarMessages.push(message),
+            warning: (message: string) => snackBarMessages.push(message),
+            error: (message: string) => snackBarMessages.push(message)
+          }
+        }
       ]
     });
 

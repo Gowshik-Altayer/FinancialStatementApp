@@ -1,23 +1,40 @@
+// Deliberately quieter than a full red alert panel: a failed fetch is recoverable (there's a
+// Retry right there), so a danger-tinted icon plus a neutral surface communicates "this didn't
+// load" without the alarm weight of a solid error slab.
 .error-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: var(--fsai-space-3);
-  padding: var(--fsai-space-8) var(--fsai-space-4);
+  padding: var(--fsai-space-8) var(--fsai-space-5);
   text-align: center;
-  color: var(--fsai-danger);
+  border: 1px solid color-mix(in srgb, var(--fsai-danger) 25%, transparent);
+  border-radius: var(--fsai-radius);
+  background: var(--mat-sys-surface-container-low);
+
+  .error-icon-well {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--fsai-danger-bg);
+    color: var(--fsai-danger);
+  }
 
   mat-icon {
-    font-size: 2.5rem;
-    width: 2.5rem;
-    height: 2.5rem;
+    font-size: 1.75rem;
+    width: 1.75rem;
+    height: 1.75rem;
   }
 
   p {
     margin: 0;
-    font-size: 0.9rem;
-    color: var(--fsai-neutral);
-    max-width: 320px;
+    font-size: var(--fsai-text-base);
+    font-weight: var(--fsai-weight-medium);
+    color: var(--mat-sys-on-surface);
+    max-width: 340px;
   }
 }

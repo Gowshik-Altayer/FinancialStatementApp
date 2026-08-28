@@ -2,23 +2,31 @@
   width: 100%;
   border-collapse: collapse;
 
+  // Header treatment matches the mat-table header rule in styles/_components.scss, so this
+  // hand-rolled table and the Material tables elsewhere read as the same component.
   th {
     text-align: left;
-    font-weight: 500;
+    font-size: var(--fsai-text-xs);
+    font-weight: var(--fsai-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: var(--fsai-tracking-wide);
     color: var(--mat-sys-on-surface-variant);
-    padding: 0.5rem 0.75rem;
+    padding: var(--fsai-space-3);
+    background: var(--mat-sys-surface-container);
     border-bottom: 1px solid var(--mat-sys-outline-variant);
+    white-space: nowrap;
   }
 
   td {
-    padding: 0.5rem 0.75rem;
+    padding: var(--fsai-space-3);
     border-bottom: 1px solid var(--mat-sys-outline-variant);
     vertical-align: middle;
   }
 
   .numeric {
     text-align: right;
-    font-variant-numeric: tabular-nums;
+    font-variant-numeric: tabular-nums slashed-zero;
+    font-feature-settings: 'tnum' 1, 'zero' 1;
   }
 
   .actions {
@@ -28,15 +36,21 @@
 
   // A real colored hover, not Material's near-invisible default row highlight — makes it clear
   // the row (and its inline edit/history actions) is interactive.
-  tbody tr:hover {
-    background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
+  tbody tr {
+    transition: background-color var(--fsai-transition-fast);
   }
 
+  tbody tr:hover {
+    background: color-mix(in srgb, var(--mat-sys-primary) 6%, transparent);
+  }
+
+  // Duplicates use the shared danger token, not --mat-sys-error, so the row tint agrees with the
+  // danger badges/charts elsewhere rather than tracking a separate Material palette.
   tr.duplicate {
-    background: color-mix(in srgb, var(--mat-sys-error) 6%, transparent);
+    background: color-mix(in srgb, var(--fsai-danger) 7%, transparent);
 
     &:hover {
-      background: color-mix(in srgb, var(--mat-sys-error) 10%, transparent);
+      background: color-mix(in srgb, var(--fsai-danger) 12%, transparent);
     }
   }
 }
@@ -63,19 +77,13 @@
   }
 }
 
-mat-chip.priority-HighConfidence {
-  --mat-chip-selected-container-color: color-mix(in srgb, #2e7d32 20%, transparent);
-}
+// The three mat-chip.priority-* rules that used to live here hardcoded their own hex greens and
+// ambers, so this table's confidence colors drifted from the status vocabulary every other page
+// uses. The confidence cell now renders <app-status-badge> with a tone from
+// shared/utils/status-tone.util.ts instead, and needs no color CSS here at all.
 
-mat-chip.priority-ReviewRecommended {
-  --mat-chip-selected-container-color: color-mix(in srgb, #f9a825 25%, transparent);
-}
-
-mat-chip.priority-ReviewRequired {
-  --mat-chip-selected-container-color: color-mix(in srgb, var(--mat-sys-error) 20%, transparent);
-}
-
-.empty-state {
+.empty-state,
+.muted {
   color: var(--mat-sys-on-surface-variant);
 }
 
