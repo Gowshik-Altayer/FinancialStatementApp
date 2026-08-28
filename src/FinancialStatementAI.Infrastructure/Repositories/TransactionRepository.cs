@@ -162,6 +162,38 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<int> ApplyBulkCorrectionByMerchantAsync(
+        Guid userId,
+        string merchant,
+        Guid categoryId,
+        string categoryName,
+        string? reason,
+        Guid correctedByUserId,
+        CancellationToken cancellationToken = default)
+    {
+        var transactions = await dbContext.Transactions
+            .Include(t => t.Category)
+            .Where(t => t.Statement!.UserId == userId && t.Merchant == merchant && t.CategoryId != categoryId)
+            .ToListAsync(cancellationToken);
+
+        foreach (var transaction in transactions)
+        {
+            dbContext.TransactionCorrections.Add(new TransactionCorrection
+            {
+                TransactionId = transaction.Id,
+                FieldName = CorrectedField.Category,
+                OriginalValue = transaction.Category?.Name,
+                CorrectedValue = categoryName,
+                CorrectedByUserId = correctedByUserId,
+                CorrectionReason = reason
+            });
+            transaction.CategoryId = categoryId;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return transactions.Count;
+    }
+
     public async Task ApplyClassificationAsync(
         Guid transactionId,
         Guid categoryId,

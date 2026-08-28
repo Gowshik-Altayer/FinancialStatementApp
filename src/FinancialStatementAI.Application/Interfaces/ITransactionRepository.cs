@@ -41,6 +41,22 @@ public interface ITransactionRepository
     /// superseded.</summary>
     Task ApplyCorrectionAsync(Guid transactionId, Guid categoryId, TransactionCorrection correction, CancellationToken cancellationToken = default);
 
+    /// <summary>The bulk counterpart to <see cref="ApplyCorrectionAsync"/>: applies the same
+    /// category correction to every transaction the user owns that shares the given exact
+    /// Merchant text, each getting its own audit-trail TransactionCorrection row so a bulk
+    /// correction is indistinguishable from a solo one in the history afterward. A transaction
+    /// already on the target category is left untouched (and not counted) — re-asserting the
+    /// same value isn't a real edit.</summary>
+    /// <returns>How many transactions were actually changed.</returns>
+    Task<int> ApplyBulkCorrectionByMerchantAsync(
+        Guid userId,
+        string merchant,
+        Guid categoryId,
+        string categoryName,
+        string? reason,
+        Guid correctedByUserId,
+        CancellationToken cancellationToken = default);
+
     /// <summary>Search/filter/paginate across every transaction belonging to one of the user's
     /// statements (Phase 13) — the "All Transactions" page, as opposed to the single-statement
     /// list or the PendingReview-only review queue. Runs the filter/count/page entirely in the

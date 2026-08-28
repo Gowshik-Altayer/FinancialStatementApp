@@ -140,6 +140,10 @@
   min-width: 220px;
 }
 
+.apply-to-all-checkbox {
+  font-size: var(--fsai-text-sm);
+}
+
 .review-buttons {
   display: flex;
   gap: var(--fsai-space-2);

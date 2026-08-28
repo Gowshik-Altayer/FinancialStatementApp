@@ -26,4 +26,10 @@ public interface ITransactionService
     /// <summary>Applies a human's category correction to one transaction (requirement #9) and
     /// records it as an audit row.</summary>
     Task<CorrectTransactionResult> CorrectCategoryAsync(Guid transactionId, Guid userId, CorrectTransactionRequest request, CancellationToken cancellationToken = default);
+
+    /// <summary>Applies the same category correction to every transaction the user owns that
+    /// shares <paramref name="anchorTransactionId"/>'s exact Merchant text — the bulk counterpart
+    /// to <see cref="CorrectCategoryAsync"/>, for a reviewer who wants one decision to apply to
+    /// every occurrence of a recognizable merchant instead of correcting each one by hand.</summary>
+    Task<BulkCorrectTransactionResult> BulkCorrectCategoryAsync(Guid anchorTransactionId, Guid userId, CorrectTransactionRequest request, CancellationToken cancellationToken = default);
 }
