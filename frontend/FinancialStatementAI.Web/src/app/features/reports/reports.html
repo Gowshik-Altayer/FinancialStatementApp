@@ -1,0 +1,40 @@
+<app-page-header title="Reports" subtitle="Export any of your data areas as an XLSX spreadsheet or a PDF document."></app-page-header>
+
+<div class="report-grid">
+  @for (option of areas; track option.area) {
+    <mat-card class="report-card">
+      <mat-card-content>
+        <div class="report-icon">
+          <mat-icon>{{ option.icon }}</mat-icon>
+        </div>
+        <h3>{{ option.label }}</h3>
+        <p class="report-description">{{ option.description }}</p>
+
+        <mat-button-toggle-group
+          class="format-toggle"
+          [value]="selectedFormat()[option.area]"
+          (change)="setFormat(option.area, $event.value)"
+          [disabled]="downloadingArea() === option.area"
+        >
+          <mat-button-toggle value="xlsx">XLSX</mat-button-toggle>
+          <mat-button-toggle value="pdf">PDF</mat-button-toggle>
+        </mat-button-toggle-group>
+
+        <button
+          mat-flat-button
+          color="primary"
+          class="download-button"
+          [disabled]="!!downloadingArea()"
+          (click)="download(option.area)"
+        >
+          @if (downloadingArea() === option.area) {
+            <mat-progress-spinner diameter="18" mode="indeterminate" />
+          } @else {
+            <mat-icon>download</mat-icon>
+          }
+          Download
+        </button>
+      </mat-card-content>
+    </mat-card>
+  }
+</div>

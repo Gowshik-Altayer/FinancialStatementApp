@@ -9,6 +9,7 @@ using FinancialStatementAI.Infrastructure.OCR;
 using FinancialStatementAI.Infrastructure.OCR.PaddleOcr;
 using FinancialStatementAI.Infrastructure.Persistence;
 using FinancialStatementAI.Infrastructure.Repositories;
+using FinancialStatementAI.Infrastructure.Reports;
 using FinancialStatementAI.Infrastructure.Security;
 using FinancialStatementAI.Infrastructure.Storage;
 using Hangfire;
@@ -49,6 +50,7 @@ public static class DependencyInjection
         services.AddScoped<IAiRequestLogRepository, AiRequestLogRepository>();
         services.AddScoped<IReconciliationRepository, ReconciliationRepository>();
         services.AddScoped<IReconciliationService, Application.Services.ReconciliationService>();
+        services.AddScoped<IReportGenerationService, ReportGenerationService>();
         services.AddScoped<IDashboardRepository, DashboardRepository>();
         services.AddScoped<IDashboardService, Application.Services.DashboardService>();
         services.AddScoped<IDashboardConfigRepository, DashboardConfigRepository>();
