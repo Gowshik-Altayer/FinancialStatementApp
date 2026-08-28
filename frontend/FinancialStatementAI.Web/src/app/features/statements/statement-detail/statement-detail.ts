@@ -69,7 +69,11 @@ export class StatementDetail implements OnInit {
     return [
       stage('upload', 'Upload', true),
       stage('text-extraction', 'Text Extraction', s.extractionMethod === 'DirectPdfText'),
-      stage('ocr', 'OCR', s.extractionMethod !== null && s.extractionMethod !== 'DirectPdfText'),
+      stage(
+        'ocr',
+        'OCR',
+        s.extractionMethod !== null && s.extractionMethod !== 'DirectPdfText' && s.extractionMethod !== 'Spreadsheet'
+      ),
       stage('transaction-extraction', 'Transaction Extraction', s.transactionCount > 0),
       stage('ai-classification', 'AI Classification', ['ClassificationComplete', 'PendingReview', 'Verified'].includes(s.processingStatus)),
       stage('review', 'Review', ['PendingReview', 'Verified'].includes(s.processingStatus)),

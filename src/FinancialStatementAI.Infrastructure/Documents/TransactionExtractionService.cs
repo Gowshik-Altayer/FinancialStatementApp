@@ -55,8 +55,28 @@ public class TransactionExtractionService : ITransactionExtractionService
     // else. Anchored at both ends deliberately — TrailingAmountRegex only anchors at the end, so
     // it would also match a description line that happens to finish with a number, which is
     // exactly the ambiguity this parser has to avoid when cells arrive without column context.
+    // Unlike TrailingAmountRegex, the decimal portion here is OPTIONAL (some real statement
+    // exports carry whole-rupee/whole-dollar amounts with no decimal at all — "1,245", not
+    // "1,245.00") and the comma-group size is unconstrained rather than fixed at 3 digits, since
+    // Indian-style grouping ("2,50,000" = 250,000) groups by 2 after the first 3. That relaxation
+    // is safe specifically because this regex is only ever applied to an ALREADY-ISOLATED
+    // cell/line with no other content to confuse it with — the ambiguity TrailingAmountRegex
+    // guards against doesn't exist here.
     private static readonly Regex FullCellAmountRegex = new(
-        @"^[-+]?\(?\s*[$€£]?\s*\d+(?:,\d{3})*\.\d{2}\)?\s*(?:CR|DR)?$",
+        @"^[-+]?\(?\s*[$€£₹]?\s*\d{1,3}(?:,\d{1,3})*(?:\.\d+)?\)?\s*(?:CR|DR)?$",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
+    // Recognizes a transaction line that has NO date at all but explicitly states its own
+    // direction — "4 TXN1004 Food & Dining Swiggy food order Debit 425" — a real shape seen in
+    // transaction-log-style exports (as opposed to a traditional bank statement) that neither
+    // Extract's date-anchored parsing nor the table/cell-per-line parsers can recognize, since all
+    // three require finding a date to anchor a row. The leading row-number and reference-code
+    // groups are optional and discarded/captured respectively; the description is deliberately
+    // left as everything between them and the type keyword rather than trying to split out a
+    // category that may be present but is not reliably delimited in flattened text (see Extract's
+    // dateless branch for why guessing that boundary would violate the "never fabricate" rule).
+    private static readonly Regex DatelessTransactionRegex = new(
+        @"^\s*(?:\d+\s+)?(?:(?<ref>[A-Z]{2,10}\d{3,})\s+)?(?<description>.+?)\s+(?<type>Debit|Dbit|Debi|Credit)\.?\s+(?<amount>[-+]?\(?\s*[$€£₹]?\s*\d{1,3}(?:,\d{1,3})*(?:\.\d+)?\)?)\s*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // Every transaction row except the last is bounded by the next date-only line; the last row
@@ -272,6 +292,24 @@ public class TransactionExtractionService : ITransactionExtractionService
                     continue;
                 }
             }
+            else
+            {
+                // No date anywhere on the line — some real exports are transaction LOGS rather
+                // than traditional statements and never carry a per-row date at all ("4 TXN1004
+                // Food & Dining Swiggy food order Debit 425"). Only treated as a new transaction
+                // when the line explicitly states its own direction (Debit/Credit) immediately
+                // before a clean trailing amount — a deliberately narrow signal, so a genuine
+                // wrapped-description continuation line doesn't get misread as a new row just for
+                // happening to contain a number. TransactionDate is left null (it's nullable end
+                // to end) rather than guessing one that isn't in the source.
+                var datelessParsed = TryParseDatelessTransactionLine(line);
+                if (datelessParsed is not null)
+                {
+                    transactions.Add(datelessParsed);
+                    current = datelessParsed;
+                    continue;
+                }
+            }
 
             // No recognizable date+amount on this line — treat it as a continuation of the
             // previous transaction's description (wrapped/multi-line descriptions, requirement #5).
@@ -283,6 +321,42 @@ public class TransactionExtractionService : ITransactionExtractionService
         }
 
         return transactions;
+    }
+
+    private static ParsedTransaction? TryParseDatelessTransactionLine(string line)
+    {
+        var match = DatelessTransactionRegex.Match(line);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        if (!TryParseAmountToken(match.Groups["amount"].Value, out var absoluteAmount, out _, out var currency))
+        {
+            return null;
+        }
+
+        // The type keyword is explicit here (unlike the sign/keyword heuristics ClassifyDirection
+        // needs for a dateless-agnostic line), so it maps directly rather than being inferred.
+        var isDebit = match.Groups["type"].Value.StartsWith('D') || match.Groups["type"].Value.StartsWith('d');
+        var transactionType = isDebit ? TransactionType.Debit : TransactionType.Credit;
+        var signedAmount = isDebit ? -absoluteAmount : absoluteAmount;
+        var description = match.Groups["description"].Value.Trim();
+        var reference = match.Groups["ref"].Success ? match.Groups["ref"].Value : null;
+
+        return new ParsedTransaction
+        {
+            RawLine = line,
+            TransactionDate = null,
+            Description = description,
+            Merchant = description,
+            ReferenceNumber = reference,
+            Amount = signedAmount,
+            DebitAmount = signedAmount < 0 ? absoluteAmount : null,
+            CreditAmount = signedAmount >= 0 ? absoluteAmount : null,
+            Currency = currency,
+            TransactionType = transactionType
+        };
     }
 
     private static ParsedTransaction? TryParseTransactionLine(string rawLine, string remainder, DateOnly date)
@@ -337,14 +411,8 @@ public class TransactionExtractionService : ITransactionExtractionService
         };
     }
 
-    private static bool TryParseAmountToken(string text, out decimal absoluteAmount, out bool hasNegativeIndicator, out string? currency)
-    {
-        currency = text.Contains('$') ? "USD" : text.Contains('€') ? "EUR" : text.Contains('£') ? "GBP" : null;
-        hasNegativeIndicator = text.TrimStart().StartsWith('-') || text.Contains('(') || Regex.IsMatch(text, @"\bDR\b", RegexOptions.IgnoreCase);
-
-        var digitsOnly = Regex.Replace(text, @"[^\d.]", "");
-        return decimal.TryParse(digitsOnly, NumberStyles.Number, CultureInfo.InvariantCulture, out absoluteAmount);
-    }
+    private static bool TryParseAmountToken(string text, out decimal absoluteAmount, out bool hasNegativeIndicator, out string? currency) =>
+        AmountTokenParser.TryParse(text, out absoluteAmount, out hasNegativeIndicator, out currency);
 
     private static TransactionType ClassifyDirection(bool hasNegativeIndicator, string context)
     {

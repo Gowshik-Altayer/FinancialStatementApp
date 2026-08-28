@@ -9,7 +9,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { StatementService } from '../../../core/services/statement.service';
 import { PageHeader } from '../../../shared/components/page-header/page-header';
 
-const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png'];
+const ALLOWED_EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.xlsx'];
 const MAX_SIZE_BYTES = 20 * 1024 * 1024;
 
 @Component({
@@ -27,6 +27,7 @@ export class StatementUpload {
   readonly selectedFile = signal<File | null>(null);
   readonly previewUrl = signal<SafeResourceUrl | null>(null);
   readonly isImagePreview = signal(false);
+  readonly isSpreadsheetFile = signal(false);
   readonly isDragOver = signal(false);
   readonly isUploading = signal(false);
   readonly errorMessage = signal<string | null>(null);
@@ -61,7 +62,7 @@ export class StatementUpload {
 
     const extension = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(extension)) {
-      this.errorMessage.set('Unsupported file type. Allowed types: PDF, JPG, JPEG, PNG.');
+      this.errorMessage.set('Unsupported file type. Allowed types: PDF, JPG, JPEG, PNG, XLSX.');
       return;
     }
     if (file.size > MAX_SIZE_BYTES) {
@@ -70,14 +71,20 @@ export class StatementUpload {
     }
 
     this.selectedFile.set(file);
-    const objectUrl = URL.createObjectURL(file);
-    this.previewUrl.set(this.sanitizer.bypassSecurityTrustResourceUrl(objectUrl));
     this.isImagePreview.set(file.type.startsWith('image/'));
+    this.isSpreadsheetFile.set(extension === '.xlsx');
+
+    // An .xlsx has nothing a browser can render inline (unlike a PDF/image), so there is no
+    // preview URL to build for it — the template shows a generic file-info card instead.
+    this.previewUrl.set(
+      extension === '.xlsx' ? null : this.sanitizer.bypassSecurityTrustResourceUrl(URL.createObjectURL(file))
+    );
   }
 
   clearSelection(): void {
     this.selectedFile.set(null);
     this.previewUrl.set(null);
+    this.isSpreadsheetFile.set(false);
     this.errorMessage.set(null);
   }
 

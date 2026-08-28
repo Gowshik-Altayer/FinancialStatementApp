@@ -6,5 +6,9 @@ public enum ExtractionMethod
     DirectPdfText,
     Ocr,
     VisionAi,
-    DocumentIntelligence
+    DocumentIntelligence,
+    /// <summary>Read directly from a structured spreadsheet (.xlsx) rather than extracted from
+    /// text or an image — see SpreadsheetTransactionExtractionService. There is no OCR/text-layer
+    /// step for this path at all: cells are read by column header.</summary>
+    Spreadsheet
 }

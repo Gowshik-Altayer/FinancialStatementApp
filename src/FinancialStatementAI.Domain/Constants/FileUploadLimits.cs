@@ -10,6 +10,12 @@ public static class FileUploadLimits
             [".pdf"] = "application/pdf",
             [".jpg"] = "image/jpeg",
             [".jpeg"] = "image/jpeg",
-            [".png"] = "image/png"
+            [".png"] = "image/png",
+            [".xlsx"] = SpreadsheetContentType
         };
+
+    /// <summary>The OOXML spreadsheet MIME type — pulled into a constant because both the
+    /// validator (sniffing) and StatementProcessingService (branching to the spreadsheet
+    /// extraction path) need to compare against the exact same string.</summary>
+    public const string SpreadsheetContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 }

@@ -313,4 +313,99 @@ public class TransactionExtractionServiceTests
         Assert.DoesNotContain("statement reflects", lastRow.Description);
         Assert.DoesNotContain("Please review", lastRow.Description);
     }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Reads_A_Whole_Number_Amount_With_No_Decimal_Point()
+    {
+        // Some real exports carry whole-currency amounts ("425", not "425.00") — see
+        // FullCellAmountRegex's doc comment for why the decimal portion is optional there.
+        var text = """
+            03/02
+            SOME MERCHANT
+            425
+            """;
+
+        var result = _service.ExtractFromCellPerLineText(text, Year);
+
+        Assert.Equal(425m, Assert.Single(result).Amount);
+    }
+
+    [Fact]
+    public void ExtractFromCellPerLineText_Reads_Indian_Style_Comma_Grouping()
+    {
+        // "2,50,000" groups by 2 after the first 3 digits (Indian numbering), unlike Western
+        // "250,000" — FullCellAmountRegex accepts both shapes.
+        var text = """
+            03/02
+            LOAN DISBURSEMENT
+            2,50,000
+            """;
+
+        var result = _service.ExtractFromCellPerLineText(text, Year);
+
+        Assert.Equal(250000m, Assert.Single(result).Amount);
+    }
+
+    // --- Dateless transaction-log lines (real Transactions_pdf.pdf reference file shape) -------
+    // "# | Transaction ID | Category | Description | Type | Amount (₹)" with NO date column at
+    // all — Extract's normal date-anchored parsing finds nothing, so a dedicated fallback
+    // recognizes the explicit Debit/Credit keyword instead.
+
+    [Fact]
+    public void Extract_Recognizes_A_Dateless_Line_With_An_Explicit_Debit_Keyword()
+    {
+        var result = _service.Extract("4 TXN1004 Food & Dining Swiggy food order Debit 425", Year);
+
+        var transaction = Assert.Single(result);
+        Assert.Null(transaction.TransactionDate);
+        Assert.Equal("TXN1004", transaction.ReferenceNumber);
+        Assert.Contains("Swiggy food order", transaction.Description);
+        Assert.Equal(-425m, transaction.Amount);
+        Assert.Equal(425m, transaction.DebitAmount);
+        Assert.Equal(TransactionType.Debit, transaction.TransactionType);
+    }
+
+    [Fact]
+    public void Extract_Recognizes_A_Dateless_Line_With_An_Explicit_Credit_Keyword_And_Indian_Grouping()
+    {
+        var result = _service.Extract("60 TXN1060 Loan Loan disbursement Credit 2,50,000", Year);
+
+        var transaction = Assert.Single(result);
+        Assert.Null(transaction.TransactionDate);
+        Assert.Equal(250000m, transaction.Amount);
+        Assert.Equal(250000m, transaction.CreditAmount);
+        Assert.Equal(TransactionType.Credit, transaction.TransactionType);
+    }
+
+    [Theory]
+    [InlineData("32 TXN1032 Education Online course fee Dbit 2,999", -2999)]
+    [InlineData("44 TXN1044 Travel Hotel restaurant Debi 2,250", -2250)]
+    public void Extract_Tolerates_Real_World_Typos_In_The_Debit_Keyword(string line, decimal expectedAmount)
+    {
+        var transaction = Assert.Single(_service.Extract(line, Year));
+
+        Assert.Equal(expectedAmount, transaction.Amount);
+        Assert.Equal(TransactionType.Debit, transaction.TransactionType);
+    }
+
+    [Fact]
+    public void Extract_Detects_The_Rupee_Symbol_As_INR()
+    {
+        var transaction = Assert.Single(_service.Extract("4 TXN1004 Food Swiggy order Debit ₹425", Year));
+
+        Assert.Equal("INR", transaction.Currency);
+    }
+
+    [Fact]
+    public void Extract_Still_Treats_A_Wrapped_Description_Line_As_A_Continuation_Not_A_New_Dateless_Row()
+    {
+        // No explicit Debit/Credit keyword on the second line => must not be misread as its own
+        // transaction; the narrow dateless fallback only fires on an explicit keyword.
+        var rawText = "01/08 AMAZON WEB SERVICES 129.45\nORDER NUMBER 55512345";
+
+        var result = _service.Extract(rawText, Year);
+
+        var transaction = Assert.Single(result);
+        Assert.Contains("ORDER NUMBER 55512345", transaction.Description);
+    }
 }

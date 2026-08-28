@@ -39,7 +39,7 @@
         <strong>No transactions were extracted from this statement.</strong>
         <span>
           The document was read
-          @if (s.extractionMethod === 'Ocr') { via OCR } @else { directly }
+          @if (s.extractionMethod === 'Ocr') { via OCR } @else if (s.extractionMethod === 'Spreadsheet') { from the spreadsheet } @else { directly }
           but no transaction rows could be identified. Scanned documents depend on table-structure
           detection; you can try processing it again.
         </span>
@@ -97,8 +97,12 @@
           <p class="placeholder">Not yet processed — click Reprocess to extract text.</p>
         } @else if (s.hasUsableText) {
           <p>
-            ✓ Usable text extracted from {{ s.extractedPageCount }} page(s)
-            via {{ s.extractionMethod === 'Ocr' ? 'OCR' : 'direct PDF text extraction' }}.
+            @if (s.extractionMethod === 'Spreadsheet') {
+              ✓ {{ s.transactionCount }} row(s) read directly from the spreadsheet — no OCR or text extraction was needed.
+            } @else {
+              ✓ Usable text extracted from {{ s.extractedPageCount }} page(s)
+              via {{ s.extractionMethod === 'Ocr' ? 'OCR' : 'direct PDF text extraction' }}.
+            }
           </p>
         } @else {
           <p>Insufficient embedded text — this document will need OCR/Vision (Phase 8) once available.</p>
