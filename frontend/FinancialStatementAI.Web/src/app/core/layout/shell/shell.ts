@@ -46,7 +46,8 @@ export class Shell {
     { path: '/transactions', label: 'Transactions', icon: 'receipt_long' },
     { path: '/review', label: 'Review', icon: 'fact_check' },
     { path: '/reconciliation', label: 'Reconciliation', icon: 'balance' },
-    { path: '/categories', label: 'Categories', icon: 'category' }
+    { path: '/categories', label: 'Categories', icon: 'category' },
+    { path: '/reports', label: 'Reports', icon: 'summarize' }
   ];
 
   private readonly breakpointObserver = inject(BreakpointObserver);

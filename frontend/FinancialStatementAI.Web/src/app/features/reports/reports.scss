@@ -1,0 +1,64 @@
+@use 'styles/breakpoints' as bp;
+
+.report-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--fsai-space-4);
+}
+
+.report-card {
+  height: 100%;
+
+  mat-card-content {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--fsai-space-2);
+    height: 100%;
+  }
+}
+
+.report-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--fsai-radius);
+  background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+  color: var(--mat-sys-primary);
+}
+
+.report-description {
+  margin: 0;
+  font-size: var(--fsai-text-sm);
+  opacity: 0.75;
+  flex: 1 1 auto;
+}
+
+.format-toggle {
+  align-self: stretch;
+
+  ::ng-deep .mat-button-toggle {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+}
+
+.download-button {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--fsai-space-1);
+
+  mat-progress-spinner {
+    display: inline-flex;
+  }
+}
+
+@include bp.respond(mobile) {
+  .report-grid {
+    grid-template-columns: 1fr;
+  }
+}
