@@ -38,4 +38,11 @@ export class TransactionService {
   correctCategory(transactionId: string, categoryName: string, reason?: string): Observable<Transaction> {
     return this.http.post<Transaction>(`/api/transactions/${transactionId}/corrections`, { categoryName, reason });
   }
+
+  bulkCorrectCategory(transactionId: string, categoryName: string, reason?: string): Observable<{ updatedCount: number; transaction: Transaction }> {
+    return this.http.post<{ updatedCount: number; transaction: Transaction }>(
+      `/api/transactions/${transactionId}/corrections/bulk`,
+      { categoryName, reason }
+    );
+  }
 }

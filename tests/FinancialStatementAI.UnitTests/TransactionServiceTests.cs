@@ -135,4 +135,71 @@ public class TransactionServiceTests
         Assert.Equal(UserId, capturedCorrection.CorrectedByUserId);
         Assert.Equal("Wrong merchant match", capturedCorrection.CorrectionReason);
     }
+
+    // --- BulkCorrectCategoryAsync: the "apply to all transactions from this merchant" path ------
+
+    [Fact]
+    public async Task BulkCorrectCategoryAsync_Returns_NotFound_For_Another_Users_Transaction()
+    {
+        _transactionRepository.Setup(r => r.GetByIdAsync(TransactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildTransaction(Guid.NewGuid()));
+
+        var result = await CreateService().BulkCorrectCategoryAsync(TransactionId, UserId, new CorrectTransactionRequest { CategoryName = "Groceries" });
+
+        Assert.True(result.NotFound);
+        Assert.False(result.Succeeded);
+    }
+
+    [Fact]
+    public async Task BulkCorrectCategoryAsync_Rejects_An_Unknown_Category_Name()
+    {
+        _transactionRepository.Setup(r => r.GetByIdAsync(TransactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BuildTransaction(UserId));
+        _categoryRepository.Setup(r => r.GetByNameAsync("Not A Real Category", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Category?)null);
+
+        var result = await CreateService().BulkCorrectCategoryAsync(TransactionId, UserId, new CorrectTransactionRequest { CategoryName = "Not A Real Category" });
+
+        Assert.False(result.Succeeded);
+        _transactionRepository.Verify(
+            r => r.ApplyBulkCorrectionByMerchantAsync(
+                It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<Guid>(), It.IsAny<string>(), It.IsAny<string?>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Fact]
+    public async Task BulkCorrectCategoryAsync_Refuses_To_Group_By_A_Missing_Merchant()
+    {
+        var transaction = BuildTransaction(UserId);
+        transaction.Merchant = null;
+        _transactionRepository.Setup(r => r.GetByIdAsync(TransactionId, It.IsAny<CancellationToken>())).ReturnsAsync(transaction);
+
+        var result = await CreateService().BulkCorrectCategoryAsync(TransactionId, UserId, new CorrectTransactionRequest { CategoryName = "Groceries" });
+
+        Assert.False(result.Succeeded);
+        Assert.False(result.NotFound);
+    }
+
+    [Fact]
+    public async Task BulkCorrectCategoryAsync_Applies_The_Correction_By_Merchant_And_Reports_The_Updated_Count()
+    {
+        var correctedCategory = new Category { Id = Guid.NewGuid(), Name = "Groceries" };
+        var anchor = BuildTransaction(UserId);
+
+        _transactionRepository.SetupSequence(r => r.GetByIdAsync(TransactionId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(anchor)
+            .ReturnsAsync(BuildTransaction(UserId, correctedCategory));
+        _categoryRepository.Setup(r => r.GetByNameAsync("Groceries", It.IsAny<CancellationToken>())).ReturnsAsync(correctedCategory);
+        _transactionRepository
+            .Setup(r => r.ApplyBulkCorrectionByMerchantAsync(
+                UserId, "GROCERY STORE", correctedCategory.Id, "Groceries", "Same merchant", UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(3);
+
+        var result = await CreateService().BulkCorrectCategoryAsync(
+            TransactionId, UserId, new CorrectTransactionRequest { CategoryName = "Groceries", Reason = "Same merchant" });
+
+        Assert.True(result.Succeeded);
+        Assert.Equal(3, result.UpdatedCount);
+        Assert.Equal("Groceries", result.Transaction!.CategoryName);
+    }
 }

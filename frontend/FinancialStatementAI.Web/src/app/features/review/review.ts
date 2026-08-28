@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { NotificationService } from '../../core/services/notification.service';
 import { TransactionService } from '../../core/services/transaction.service';
 import { CategoryService } from '../../core/services/category.service';
@@ -38,6 +39,7 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
     MatSelectModule,
     MatButtonModule,
     MatIconModule,
+    MatCheckboxModule,
     TransactionTable,
     PageHeader,
     KpiCard,
@@ -62,6 +64,7 @@ export class Review implements OnInit {
   readonly saving = signal(false);
 
   selectedCategoryName = '';
+  applyToAllWithSameMerchant = false;
 
   readonly current = computed<Transaction | null>(() => {
     const items = this.queue();
@@ -93,7 +96,7 @@ export class Review implements OnInit {
     } else {
       this.currentIndex.set(0);
     }
-    this.selectedCategoryName = this.current()?.categoryName ?? '';
+    this.resetSelectionForCurrent();
   }
 
   saveAndNext(): void {
@@ -106,6 +109,26 @@ export class Review implements OnInit {
     }
 
     this.saving.set(true);
+
+    // Bulk applies the same category to every transaction sharing this one's exact merchant name
+    // (requirement: individual vs bulk category correction) instead of just this one row.
+    if (this.applyToAllWithSameMerchant) {
+      this.transactionService.bulkCorrectCategory(transaction.id, this.selectedCategoryName).subscribe({
+        next: ({ updatedCount }) => {
+          this.saving.set(false);
+          this.notifications.success(
+            `Category corrected for ${updatedCount} transaction${updatedCount === 1 ? '' : 's'} from "${transaction.merchant}".`
+          );
+          this.advanceRemovingMerchant(transaction.merchant);
+        },
+        error: () => {
+          this.saving.set(false);
+          this.notifications.error('Bulk correction failed — please try again.');
+        }
+      });
+      return;
+    }
+
     this.transactionService.correctCategory(transaction.id, this.selectedCategoryName).subscribe({
       next: () => {
         this.saving.set(false);
@@ -125,7 +148,24 @@ export class Review implements OnInit {
     const items = [...this.queue()];
     items.splice(this.currentIndex(), 1);
     this.queue.set(items);
+    this.resetSelectionForCurrent();
+  }
+
+  /** advance()'s bulk-correction counterpart: every queued item sharing the corrected merchant
+   * was just updated server-side too, so all of them drop out of the queue at once, not just the
+   * one the reviewer was looking at. */
+  private advanceRemovingMerchant(merchant: string | null): void {
+    const items = this.queue().filter((t) => t.merchant !== merchant);
+    this.queue.set(items);
+    if (this.currentIndex() >= items.length) {
+      this.currentIndex.set(0);
+    }
+    this.resetSelectionForCurrent();
+  }
+
+  private resetSelectionForCurrent(): void {
     this.selectedCategoryName = this.current()?.categoryName ?? '';
+    this.applyToAllWithSameMerchant = false;
   }
 
   private load(): void {
@@ -136,7 +176,7 @@ export class Review implements OnInit {
       next: (transactions) => {
         this.queue.set(transactions);
         this.currentIndex.set(0);
-        this.selectedCategoryName = transactions[0]?.categoryName ?? '';
+        this.resetSelectionForCurrent();
         this.isLoading.set(false);
       },
       error: () => {

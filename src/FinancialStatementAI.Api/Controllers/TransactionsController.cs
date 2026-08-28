@@ -69,4 +69,25 @@ public class TransactionsController(ITransactionService transactionService) : Co
 
         return Ok(result.Transaction);
     }
+
+    /// <summary>The bulk counterpart to <see cref="CorrectCategory"/>: applies the same category
+    /// to every transaction the user owns sharing this one's exact merchant name, instead of just
+    /// this single transaction — for a reviewer who wants one decision to cover every occurrence
+    /// of a recognizable merchant at once.</summary>
+    [HttpPost("transactions/{transactionId:guid}/corrections/bulk")]
+    public async Task<IActionResult> BulkCorrectCategory(Guid transactionId, [FromBody] CorrectTransactionRequest request, CancellationToken cancellationToken)
+    {
+        var result = await transactionService.BulkCorrectCategoryAsync(transactionId, CurrentUserId, request, cancellationToken);
+        if (result.NotFound)
+        {
+            return NotFound();
+        }
+
+        if (!result.Succeeded)
+        {
+            return BadRequest(new ProblemDetails { Title = "Correction rejected", Detail = result.Error, Status = StatusCodes.Status400BadRequest });
+        }
+
+        return Ok(new { updatedCount = result.UpdatedCount, transaction = result.Transaction });
+    }
 }
