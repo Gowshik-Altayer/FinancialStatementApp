@@ -28,7 +28,7 @@
 }
 
 .stage:hover {
-  background: var(--fsai-neutral-bg);
+  background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
 }
 
 .stage-icon-well {

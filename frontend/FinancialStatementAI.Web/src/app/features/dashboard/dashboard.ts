@@ -15,6 +15,7 @@ import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { PipelineStepper, PipelineStageViewModel } from '../../shared/components/pipeline-stepper/pipeline-stepper';
 import { StatusTone, processingStatusLabel } from '../../shared/utils/status-tone.util';
+import { resolveChartPalette } from '../../shared/utils/chart-theme.util';
 
 interface KpiWidget {
   key: string;
@@ -34,10 +35,14 @@ interface ChartWidget {
   options?: ChartConfiguration['options'];
 }
 
-const CHART_PALETTE = [
-  'var(--fsai-chart-1)', 'var(--fsai-chart-2)', 'var(--fsai-chart-3)', 'var(--fsai-chart-4)',
-  'var(--fsai-chart-5)', 'var(--fsai-chart-6)', 'var(--fsai-chart-7)', 'var(--fsai-chart-8)'
-];
+// Resolved once per class load, not passed as raw `var(--x)` strings — Chart.js draws through
+// Canvas 2D, whose fillStyle/strokeStyle can't parse CSS custom-property syntax at all (see
+// chart-theme.util.ts). Handing it an unresolved "var(--fsai-chart-1)" silently falls back to
+// canvas's default black fill, which is why every chart used to render solid black.
+const CHART_PALETTE = resolveChartPalette([
+  '--fsai-chart-1', '--fsai-chart-2', '--fsai-chart-3', '--fsai-chart-4',
+  '--fsai-chart-5', '--fsai-chart-6', '--fsai-chart-7', '--fsai-chart-8'
+]);
 
 const CHART_OPTIONS_COMPACT: ChartConfiguration['options'] = {
   responsive: true,

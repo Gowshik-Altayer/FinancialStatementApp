@@ -12,16 +12,35 @@
 .brand {
   display: flex;
   align-items: center;
-  gap: var(--fsai-space-2);
+  gap: var(--fsai-space-3);
   padding: var(--fsai-space-5) var(--fsai-space-4);
   font-weight: 700;
   font-size: 1rem;
+
+  // A colored badge behind the brand icon rather than a plain default-colored glyph — this is
+  // the first thing a user sees in the sidenav, so it should carry the brand's primary->tertiary
+  // pairing instead of reading as flat gray chrome.
+  mat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: var(--fsai-radius-sm);
+    background: linear-gradient(135deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+    color: var(--mat-sys-on-primary);
+    flex-shrink: 0;
+  }
 }
 
 .toolbar {
   position: sticky;
   top: 0;
   z-index: 10;
+  // A subtle diagonal gradient (rather than a flat mat-toolbar color="primary" fill) so the
+  // header carries both brand hues instead of a single flat block of color.
+  background: linear-gradient(120deg, var(--mat-sys-primary), color-mix(in srgb, var(--mat-sys-primary) 55%, var(--mat-sys-tertiary)));
+  color: var(--mat-sys-on-primary);
 }
 
 .spacer {
@@ -42,8 +61,27 @@
   text-transform: uppercase;
 }
 
-.active-link {
-  background-color: var(--mat-sys-secondary-container);
+// Nav items: a real hover tint (not Material's near-invisible default state layer) plus a
+// left accent rail and tinted icon on the active route, so it's obvious at a glance which page
+// you're on and that the list is interactive at all.
+mat-nav-list a[mat-list-item] {
+  border-left: 3px solid transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+
+  &:hover {
+    background-color: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+  }
+}
+
+// Specificity note: must out-rank `mat-nav-list a[mat-list-item]` above (which sets the base
+// transparent border-left) or the active rail color never wins.
+mat-nav-list a[mat-list-item].active-link {
+  background-color: var(--mat-sys-secondary-container) !important;
+  border-left-color: var(--mat-sys-primary);
+
+  .mat-icon {
+    color: var(--mat-sys-primary);
+  }
 }
 
 @include bp.respond(mobile) {

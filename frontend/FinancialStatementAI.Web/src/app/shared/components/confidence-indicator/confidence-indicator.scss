@@ -6,7 +6,7 @@
 }
 
 .confidence-bar-track {
-  height: 6px;
+  height: 7px;
   border-radius: 999px;
   background: var(--fsai-neutral-bg);
   overflow: hidden;
@@ -15,23 +15,35 @@
 .confidence-bar-fill {
   height: 100%;
   border-radius: 999px;
-  transition: width 0.2s ease;
+  transition: width var(--fsai-transition);
+}
+
+.tone-success .confidence-bar-track {
+  background: var(--fsai-success-bg);
 }
 
 .tone-success .confidence-bar-fill {
-  background: var(--fsai-success);
+  background: linear-gradient(90deg, var(--fsai-success), color-mix(in srgb, var(--fsai-success) 65%, white));
+}
+
+.tone-warning .confidence-bar-track {
+  background: var(--fsai-warning-bg);
 }
 
 .tone-warning .confidence-bar-fill {
-  background: var(--fsai-warning);
+  background: linear-gradient(90deg, var(--fsai-warning), color-mix(in srgb, var(--fsai-warning) 65%, white));
+}
+
+.tone-danger .confidence-bar-track {
+  background: var(--fsai-danger-bg);
 }
 
 .tone-danger .confidence-bar-fill {
-  background: var(--fsai-danger);
+  background: linear-gradient(90deg, var(--fsai-danger), color-mix(in srgb, var(--fsai-danger) 65%, white));
 }
 
 .tone-neutral .confidence-bar-fill {
-  background: var(--fsai-neutral);
+  background: linear-gradient(90deg, var(--fsai-neutral), color-mix(in srgb, var(--fsai-neutral) 65%, white));
 }
 
 .confidence-meta {

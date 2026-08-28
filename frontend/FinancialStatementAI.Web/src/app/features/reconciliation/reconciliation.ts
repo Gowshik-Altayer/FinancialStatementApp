@@ -19,6 +19,14 @@ import { LoadingState } from '../../shared/components/loading-state/loading-stat
 import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { reconciliationStatusTone, processingStatusLabel } from '../../shared/utils/status-tone.util';
+import { resolveChartPalette } from '../../shared/utils/chart-theme.util';
+
+// Resolved once, not passed as raw `var(--x)` strings — see chart-theme.util.ts for why Chart.js
+// (Canvas 2D) can't parse CSS custom-property syntax and silently renders unresolved colors as
+// solid black.
+const [RECONCILED_COLOR, MISMATCH_COLOR, INSUFFICIENT_COLOR, PENDING_COLOR] = resolveChartPalette([
+  '--fsai-chart-2', '--fsai-chart-4', '--fsai-chart-3', '--fsai-chart-8'
+]);
 
 /// <summary>Cross-statement reconciliation (requirement 9) — every statement's current
 /// reconciliation result at once, with KPIs, a status chart, and detailed mismatch information,
@@ -76,7 +84,7 @@ export class Reconciliation implements OnInit {
       labels: ['Reconciled', 'Mismatch', 'Insufficient Info', 'Pending'],
       datasets: [{
         data: [c.reconciledCount, c.mismatchCount, c.insufficientInformationCount, c.pendingCount],
-        backgroundColor: ['var(--fsai-chart-2)', 'var(--fsai-chart-4)', 'var(--fsai-chart-3)', 'var(--fsai-chart-8)']
+        backgroundColor: [RECONCILED_COLOR, MISMATCH_COLOR, INSUFFICIENT_COLOR, PENDING_COLOR]
       }]
     };
   }

@@ -21,11 +21,19 @@
 .category-card {
   background: var(--mat-sys-surface-container-low);
   border-radius: var(--fsai-radius);
+  border: 1px solid transparent;
   box-shadow: var(--fsai-card-shadow);
   padding: var(--fsai-space-4);
   display: flex;
   flex-direction: column;
   gap: var(--fsai-space-2);
+  transition: box-shadow var(--fsai-transition), transform var(--fsai-transition), border-color var(--fsai-transition);
+
+  &:hover {
+    box-shadow: var(--fsai-card-shadow-hover), 0 10px 24px -12px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+    border-color: color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+    transform: translateY(-3px);
+  }
 
   &.inactive {
     opacity: 0.65;
@@ -81,18 +89,20 @@
 
 .split-bar {
   display: flex;
-  height: 6px;
-  border-radius: 3px;
+  height: 8px;
+  border-radius: 4px;
   overflow: hidden;
   background: var(--mat-sys-surface-variant);
 }
 
 .split-ai {
-  background: var(--fsai-success);
+  background: linear-gradient(90deg, var(--fsai-success), color-mix(in srgb, var(--fsai-success) 70%, white));
+  transition: width var(--fsai-transition);
 }
 
 .split-human {
-  background: var(--fsai-warning);
+  background: linear-gradient(90deg, var(--fsai-warning), color-mix(in srgb, var(--fsai-warning) 70%, white));
+  transition: width var(--fsai-transition);
 }
 
 .split-legend {

@@ -21,9 +21,18 @@
 .reconciliation-row {
   background: var(--mat-sys-surface-container-low);
   border-radius: var(--fsai-radius);
+  border: 1px solid transparent;
   box-shadow: var(--fsai-card-shadow);
   padding: var(--fsai-space-3) var(--fsai-space-4);
   cursor: pointer;
+  transition: box-shadow var(--fsai-transition), transform var(--fsai-transition), border-color var(--fsai-transition), background-color var(--fsai-transition);
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-primary) 6%, var(--mat-sys-surface-container-low));
+    border-color: color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+    box-shadow: var(--fsai-card-shadow-hover), 0 10px 24px -12px color-mix(in srgb, var(--mat-sys-primary) 35%, transparent);
+    transform: translateY(-2px);
+  }
 }
 
 .row-main {

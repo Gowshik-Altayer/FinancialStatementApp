@@ -4,8 +4,9 @@
   gap: var(--fsai-space-1);
   padding: var(--fsai-space-1) var(--fsai-space-3);
   border-radius: 999px;
+  border: 1px solid transparent;
   font-size: 0.75rem;
-  font-weight: 600;
+  font-weight: 700;
   line-height: 1.5;
   white-space: nowrap;
 }
@@ -18,25 +19,30 @@
 
 .tone-success {
   background: var(--fsai-success-bg);
+  border-color: color-mix(in srgb, var(--fsai-success) 35%, transparent);
   color: var(--fsai-success);
 }
 
 .tone-warning {
   background: var(--fsai-warning-bg);
+  border-color: color-mix(in srgb, var(--fsai-warning) 35%, transparent);
   color: var(--fsai-warning);
 }
 
 .tone-danger {
   background: var(--fsai-danger-bg);
+  border-color: color-mix(in srgb, var(--fsai-danger) 35%, transparent);
   color: var(--fsai-danger);
 }
 
 .tone-info {
   background: var(--fsai-info-bg);
+  border-color: color-mix(in srgb, var(--fsai-info) 35%, transparent);
   color: var(--fsai-info);
 }
 
 .tone-neutral {
   background: var(--fsai-neutral-bg);
+  border-color: color-mix(in srgb, var(--fsai-neutral) 35%, transparent);
   color: var(--fsai-neutral);
 }

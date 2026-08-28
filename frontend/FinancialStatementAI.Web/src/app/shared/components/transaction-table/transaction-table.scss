@@ -26,8 +26,18 @@
     text-align: right;
   }
 
+  // A real colored hover, not Material's near-invisible default row highlight — makes it clear
+  // the row (and its inline edit/history actions) is interactive.
+  tbody tr:hover {
+    background: color-mix(in srgb, var(--mat-sys-primary) 5%, transparent);
+  }
+
   tr.duplicate {
     background: color-mix(in srgb, var(--mat-sys-error) 6%, transparent);
+
+    &:hover {
+      background: color-mix(in srgb, var(--mat-sys-error) 10%, transparent);
+    }
   }
 }
 

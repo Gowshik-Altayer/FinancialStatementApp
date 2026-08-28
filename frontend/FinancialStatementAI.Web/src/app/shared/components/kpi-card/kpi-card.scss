@@ -1,14 +1,30 @@
 .kpi-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: var(--fsai-space-4);
   padding: var(--fsai-card-padding);
   border-radius: var(--fsai-radius);
-  background: var(--mat-sys-surface-container-low);
+  overflow: hidden;
+  // A tone-tinted wash over the neutral surface, plus a colored left rail — this is what keeps
+  // a row of KPI cards from reading as identical white boxes with only the small icon carrying
+  // color. --fsai-tone is set per .tone-* rule below and consumed here so the wash/rail always
+  // track whichever status color the card was given.
+  background: var(--fsai-tone-bg, var(--mat-sys-surface-container-low));
   box-shadow: var(--fsai-card-shadow);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition: box-shadow var(--fsai-transition), transform var(--fsai-transition);
   height: 100%;
   box-sizing: border-box;
+
+  // A soft, tone-colored glow rail down the left edge instead of a flat 4px bar — reads as a
+  // deliberate gradient accent rather than a plain border.
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 4px;
+    background: linear-gradient(180deg, var(--fsai-tone, transparent), color-mix(in srgb, var(--fsai-tone, transparent) 60%, transparent));
+  }
 }
 
 .kpi-card.clickable {
@@ -16,8 +32,12 @@
 }
 
 .kpi-card.clickable:hover {
-  box-shadow: var(--fsai-card-shadow-hover);
-  transform: translateY(-1px);
+  box-shadow: var(--fsai-card-shadow-hover), 0 8px 20px -8px color-mix(in srgb, var(--fsai-tone, var(--mat-sys-primary)) 45%, transparent);
+  transform: translateY(-3px);
+
+  .kpi-icon-well {
+    transform: scale(1.06);
+  }
 }
 
 .kpi-icon-well {
@@ -28,31 +48,57 @@
   height: 44px;
   border-radius: var(--fsai-radius-sm);
   flex-shrink: 0;
+  transition: transform var(--fsai-transition);
+}
+
+.tone-success {
+  --fsai-tone: var(--fsai-success);
+  --fsai-tone-bg: color-mix(in srgb, var(--fsai-success) 12%, var(--mat-sys-surface-container-low));
+}
+
+.tone-warning {
+  --fsai-tone: var(--fsai-warning);
+  --fsai-tone-bg: color-mix(in srgb, var(--fsai-warning) 12%, var(--mat-sys-surface-container-low));
+}
+
+.tone-danger {
+  --fsai-tone: var(--fsai-danger);
+  --fsai-tone-bg: color-mix(in srgb, var(--fsai-danger) 12%, var(--mat-sys-surface-container-low));
+}
+
+.tone-info {
+  --fsai-tone: var(--fsai-info);
+  --fsai-tone-bg: color-mix(in srgb, var(--fsai-info) 12%, var(--mat-sys-surface-container-low));
+}
+
+.tone-neutral {
+  --fsai-tone: var(--fsai-neutral);
+  --fsai-tone-bg: color-mix(in srgb, var(--fsai-neutral) 8%, var(--mat-sys-surface-container-low));
 }
 
 .tone-success .kpi-icon-well {
-  background: var(--fsai-success-bg);
-  color: var(--fsai-success);
+  background: linear-gradient(135deg, var(--fsai-success), color-mix(in srgb, var(--fsai-success) 60%, black));
+  color: white;
 }
 
 .tone-warning .kpi-icon-well {
-  background: var(--fsai-warning-bg);
-  color: var(--fsai-warning);
+  background: linear-gradient(135deg, var(--fsai-warning), color-mix(in srgb, var(--fsai-warning) 60%, black));
+  color: white;
 }
 
 .tone-danger .kpi-icon-well {
-  background: var(--fsai-danger-bg);
-  color: var(--fsai-danger);
+  background: linear-gradient(135deg, var(--fsai-danger), color-mix(in srgb, var(--fsai-danger) 60%, black));
+  color: white;
 }
 
 .tone-info .kpi-icon-well {
-  background: var(--fsai-info-bg);
-  color: var(--fsai-info);
+  background: linear-gradient(135deg, var(--fsai-info), color-mix(in srgb, var(--fsai-info) 60%, black));
+  color: white;
 }
 
 .tone-neutral .kpi-icon-well {
-  background: var(--fsai-neutral-bg);
-  color: var(--fsai-neutral);
+  background: linear-gradient(135deg, var(--fsai-neutral), color-mix(in srgb, var(--fsai-neutral) 60%, black));
+  color: white;
 }
 
 .kpi-body {

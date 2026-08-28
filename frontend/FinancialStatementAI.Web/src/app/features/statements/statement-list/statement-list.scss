@@ -6,6 +6,15 @@ table {
   width: 100%;
 }
 
+// A real colored hover instead of Material's near-invisible default row state layer.
+tr[mat-row] {
+  transition: background-color var(--fsai-transition-fast);
+}
+
+tr[mat-row]:hover {
+  background: color-mix(in srgb, var(--mat-sys-primary) 7%, transparent);
+}
+
 .muted {
   color: var(--mat-sys-on-surface-variant);
 }

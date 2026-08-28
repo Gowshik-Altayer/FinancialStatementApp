@@ -1,4 +1,5 @@
 .chart-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--fsai-space-3);
@@ -8,12 +9,28 @@
   box-shadow: var(--fsai-card-shadow);
   height: 100%;
   box-sizing: border-box;
+  overflow: hidden;
+
+  // Brand-colored top rail (primary -> tertiary) so a page full of chart-cards reads as a
+  // deliberate, branded surface rather than a plain gray box — a small, consistent accent
+  // rather than tinting the whole card (which would fight with the chart's own data colors).
+  // A pseudo-element (rather than border-image) keeps the card's rounded corners intact.
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--mat-sys-primary), var(--mat-sys-tertiary));
+  }
 }
 
 .chart-title {
   margin: 0;
   font-size: 0.95rem;
   font-weight: 600;
+  color: var(--mat-sys-on-surface);
 }
 
 .chart-body {

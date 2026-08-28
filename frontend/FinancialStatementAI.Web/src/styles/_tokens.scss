@@ -22,31 +22,47 @@
   --fsai-card-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 1px 3px rgba(15, 23, 42, 0.08);
   --fsai-card-shadow-hover: 0 2px 4px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.1);
 
+  // Motion — one shared easing curve (Material's "standard" curve: fast out, gentle settle) so
+  // every hover/lift/tint transition across the app decelerates the same way instead of each
+  // component picking its own "ease"/"ease-out", which reads as inconsistent polish even when
+  // each individual transition looks fine in isolation.
+  --fsai-ease: cubic-bezier(0.2, 0, 0, 1);
+  --fsai-transition-fast: 0.15s var(--fsai-ease);
+  --fsai-transition: 0.22s var(--fsai-ease);
+
   // Status vocabulary — used by status-badge, confidence-indicator, KPI trend coloring,
   // reconciliation/processing charts. Named by MEANING (success/warning/danger), not by the
   // specific enum value that happens to map to it today, so new statuses can adopt an existing
   // color without inventing a new token.
-  --fsai-success: #1a7f4b;
-  --fsai-success-bg: #e6f6ec;
-  --fsai-warning: #b25e02;
-  --fsai-warning-bg: #fdf1e0;
-  --fsai-danger: #b3241d;
-  --fsai-danger-bg: #fbe9e8;
-  --fsai-info: #1857b2;
-  --fsai-info-bg: #e8f0fc;
-  --fsai-neutral: #56606f;
-  --fsai-neutral-bg: #eef1f4;
+  // Each hue is picked to be visibly saturated (not just "dark gray with a tint") while every
+  // foreground value below still clears 4.5:1 contrast against white / its own -bg tint —
+  // see scratchpad contrast check run while choosing these; do not darken-for-vividness without
+  // re-checking contrast.
+  --fsai-success: #15803d;
+  --fsai-success-bg: #e3f6e9;
+  --fsai-warning: #b45309;
+  --fsai-warning-bg: #fdedd9;
+  --fsai-danger: #b91c1c;
+  --fsai-danger-bg: #fbe4e4;
+  --fsai-info: #1d4ed8;
+  --fsai-info-bg: #e4eafc;
+  --fsai-neutral: #475569;
+  --fsai-neutral-bg: #eaedf1;
 
   // Chart palette — fixed, consistent ordering so the same category/status always renders the
   // same color across every chart on the dashboard (not re-randomized per chart instance).
-  --fsai-chart-1: #2f6fed;
-  --fsai-chart-2: #1a7f4b;
-  --fsai-chart-3: #b25e02;
-  --fsai-chart-4: #b3241d;
-  --fsai-chart-5: #7c4dc4;
-  --fsai-chart-6: #0f8a8a;
-  --fsai-chart-7: #c2478a;
-  --fsai-chart-8: #56606f;
+  // chart-2/3/4 are intentionally kept equal to success/warning/danger above so a status
+  // breakdown chart and its accompanying status-badge always agree on color; chart-1/5/6/7/8
+  // round out the sequence for charts with more categories than the status vocabulary (e.g.
+  // per-category spending) and lean into the new violet/cyan brand pairing.
+  --fsai-chart-1: #0284c7;
+  --fsai-chart-2: #15803d;
+  --fsai-chart-3: #b45309;
+  --fsai-chart-4: #b91c1c;
+  --fsai-chart-5: #7c3aed;
+  --fsai-chart-6: #0d9488;
+  --fsai-chart-7: #db2777;
+  --fsai-chart-8: #52606d;
 }
 
 // Dark theme: Material's own --mat-sys-* tokens already flip automatically via mat.theme()'s
@@ -63,4 +79,15 @@
   --fsai-info-bg: #122540;
   --fsai-neutral: #9aa5b1;
   --fsai-neutral-bg: #262b31;
+
+  // Chart palette stays in the same fixed order, just lifted to the same brighter register as
+  // the status colors above so charts don't go muddy against Material's dark surface tokens.
+  --fsai-chart-1: #38bdf8;
+  --fsai-chart-2: #4ade80;
+  --fsai-chart-3: #fbbf24;
+  --fsai-chart-4: #f87171;
+  --fsai-chart-5: #a78bfa;
+  --fsai-chart-6: #2dd4bf;
+  --fsai-chart-7: #f472b6;
+  --fsai-chart-8: #9aa5b1;
 }

@@ -20,22 +20,26 @@ import { LoadingState } from '../../shared/components/loading-state/loading-stat
 import { ErrorState } from '../../shared/components/error-state/error-state';
 import { EmptyState } from '../../shared/components/empty-state/empty-state';
 import { CategoryFormDialog, CategoryFormDialogResult } from './category-form-dialog/category-form-dialog';
+import { resolveChartPalette } from '../../shared/utils/chart-theme.util';
 
 interface CategoryCardModel {
   detail: CategoryDetail;
   stats: CategoryStats | null;
 }
 
-const CHART_COLORS = [
-  'var(--fsai-chart-1)',
-  'var(--fsai-chart-2)',
-  'var(--fsai-chart-3)',
-  'var(--fsai-chart-4)',
-  'var(--fsai-chart-5)',
-  'var(--fsai-chart-6)',
-  'var(--fsai-chart-7)',
-  'var(--fsai-chart-8)'
-];
+// Resolved once, not passed as raw `var(--x)` strings — see chart-theme.util.ts for why Chart.js
+// (Canvas 2D) can't parse CSS custom-property syntax and silently renders unresolved colors as
+// solid black.
+const CHART_COLORS = resolveChartPalette([
+  '--fsai-chart-1',
+  '--fsai-chart-2',
+  '--fsai-chart-3',
+  '--fsai-chart-4',
+  '--fsai-chart-5',
+  '--fsai-chart-6',
+  '--fsai-chart-7',
+  '--fsai-chart-8'
+]);
 
 /// <summary>Category taxonomy management (requirement 10) — per-category transaction count/spend
 /// and AI-vs-human-corrected split, plus Admin-only create/edit/deactivate. Everyone can view;

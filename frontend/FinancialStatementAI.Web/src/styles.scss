@@ -9,11 +9,19 @@
 
 html {
   height: 100%;
+  // Primary: violet — a confident blue-violet reads as modern fintech (Mercury/Stripe territory)
+  // without drifting into the blue family already owned by the "info" status color. Because it's
+  // a genuinely different hue from the old azure primary, Material's auto-derived secondary
+  // (nav active-state, chip containers, etc.) and every --mat-sys-surface-container-* tint stop
+  // reading as "neutral gray" and pick up real violet character.
+  // Tertiary: cyan — a distinct, cooler accent (~80° away on the wheel) used by Material for
+  // things like FABs/tertiary buttons and for extra contrast in auto-generated container tones,
+  // so the app isn't a single-hue wash.
   @include mat.theme(
     (
       color: (
-        primary: mat.$azure-palette,
-        tertiary: mat.$blue-palette,
+        primary: mat.$violet-palette,
+        tertiary: mat.$cyan-palette,
       ),
       typography: Roboto,
       density: 0,

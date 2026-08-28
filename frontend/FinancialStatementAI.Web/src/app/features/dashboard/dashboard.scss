@@ -37,9 +37,16 @@
   display: flex;
   align-items: center;
   gap: var(--fsai-space-3);
-  padding: var(--fsai-space-2) 0;
+  padding: var(--fsai-space-2) var(--fsai-space-2);
+  margin: 0 calc(var(--fsai-space-2) * -1);
   border-bottom: 1px solid var(--mat-sys-outline-variant);
+  border-radius: var(--fsai-radius-sm);
   font-size: 0.85rem;
+  transition: background-color var(--fsai-transition-fast);
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-primary) 7%, transparent);
+  }
 
   &:last-child {
     border-bottom: none;
