@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
 import { NotificationService } from '../../../core/services/notification.service';
 import { StatementService } from '../../../core/services/statement.service';
 import { TransactionService } from '../../../core/services/transaction.service';
@@ -25,6 +26,7 @@ import { processingStatusLabel, processingStatusTone, reconciliationStatusTone }
     MatCardModule,
     MatProgressSpinnerModule,
     MatButtonModule,
+    MatIconModule,
     TransactionTable,
     PageHeader,
     StatusBadge,
@@ -76,6 +78,17 @@ export class StatementDetail implements OnInit {
       stage('reconciliation', 'Reconciliation', s.reconciliationStatus !== null),
       stage('completed', 'Completed', s.processingStatus === 'Verified')
     ];
+  });
+
+  /** Uploaded but never processed — nothing has been extracted, so every metadata/balance field
+   * on this page is necessarily blank. Drives the call-to-action banner. */
+  readonly isUnprocessed = computed(() => this.statement()?.processingStatus === 'Uploaded');
+
+  /** Processing ran to completion but yielded no transaction rows. Distinct from the above: the
+   * document WAS read, so "not processed yet" would be misleading. */
+  readonly processedWithNoTransactions = computed(() => {
+    const s = this.statement();
+    return !!s && s.processingStatus !== 'Uploaded' && s.transactionCount === 0;
   });
 
   private statementId = '';

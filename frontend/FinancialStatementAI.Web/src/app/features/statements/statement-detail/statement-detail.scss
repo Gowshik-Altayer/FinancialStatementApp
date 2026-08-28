@@ -3,6 +3,63 @@ app-pipeline-stepper {
   margin-bottom: var(--fsai-space-5);
 }
 
+// Actionable banner shown above the pipeline when the statement needs the user to do something.
+// Tone-agnostic base; the --fsai-notice-* pair is set per variant below.
+.notice {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-4);
+  padding: var(--fsai-space-4) var(--fsai-space-5);
+  margin-bottom: var(--fsai-space-5);
+  border-radius: var(--fsai-radius);
+  border: 1px solid color-mix(in srgb, var(--fsai-notice) 30%, transparent);
+  background: var(--fsai-notice-bg);
+
+  > mat-icon {
+    color: var(--fsai-notice);
+    flex-shrink: 0;
+  }
+
+  button {
+    flex-shrink: 0;
+  }
+}
+
+.notice-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 auto;
+  min-width: 0;
+
+  strong {
+    font-size: var(--fsai-text-base);
+    font-weight: var(--fsai-weight-semibold);
+  }
+
+  span {
+    font-size: var(--fsai-text-sm);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.notice-action {
+  --fsai-notice: var(--fsai-info);
+  --fsai-notice-bg: var(--fsai-info-bg);
+}
+
+.notice-warning {
+  --fsai-notice: var(--fsai-warning);
+  --fsai-notice-bg: var(--fsai-warning-bg);
+}
+
+@media (max-width: 599.98px) {
+  .notice {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+
 .placeholder {
   color: var(--mat-sys-on-surface-variant);
 }
