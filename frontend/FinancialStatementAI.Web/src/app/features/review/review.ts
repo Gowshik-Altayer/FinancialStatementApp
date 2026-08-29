@@ -1,8 +1,9 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
+import { DatePipe, PercentPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -33,10 +34,10 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
   imports: [
     RouterLink,
     DatePipe,
-    DecimalPipe,
     PercentPipe,
     FormsModule,
     MatFormFieldModule,
+    MatInputModule,
     MatSelectModule,
     MatButtonModule,
     MatIconModule,
@@ -66,6 +67,18 @@ export class Review implements OnInit {
 
   selectedCategoryName = '';
   applyToAllWithSameMerchant = false;
+
+  // Editable copies of the current transaction's other correctable fields (requirement #9 — date,
+  // description, merchant, amount, and debit/credit type, alongside category). Kept as plain
+  // component fields bound via ngModel rather than a reactive form, matching selectedCategoryName's
+  // existing pattern on this page.
+  editDate = '';
+  editDescription = '';
+  editMerchant = '';
+  editAmount: number | null = null;
+  editTransactionType = '';
+
+  readonly transactionTypeOptions = ['Debit', 'Credit', 'Payment', 'Refund', 'Purchase', 'Transfer', 'Other'];
 
   readonly current = computed<Transaction | null>(() => {
     const items = this.queue();
@@ -104,16 +117,17 @@ export class Review implements OnInit {
     const transaction = this.current();
     if (!transaction) return;
 
-    if (!this.selectedCategoryName || this.selectedCategoryName === transaction.categoryName) {
-      this.advance();
-      return;
-    }
-
-    this.saving.set(true);
-
     // Bulk applies the same category to every transaction sharing this one's exact merchant name
-    // (requirement: individual vs bulk category correction) instead of just this one row.
+    // (requirement: individual vs bulk category correction) — scoped to category only, since
+    // "apply this category to every X transaction" is the only one of the correctable fields that
+    // makes sense as a batch operation across unrelated rows.
     if (this.applyToAllWithSameMerchant) {
+      if (!this.selectedCategoryName || this.selectedCategoryName === transaction.categoryName) {
+        this.advance();
+        return;
+      }
+
+      this.saving.set(true);
       this.transactionService.bulkCorrectCategory(transaction.id, this.selectedCategoryName).subscribe({
         next: ({ updatedCount }) => {
           this.saving.set(false);
@@ -130,10 +144,36 @@ export class Review implements OnInit {
       return;
     }
 
-    this.transactionService.correctCategory(transaction.id, this.selectedCategoryName).subscribe({
+    const fields: Parameters<TransactionService['correctTransaction']>[1] = {};
+    if (this.selectedCategoryName && this.selectedCategoryName !== transaction.categoryName) {
+      fields.categoryName = this.selectedCategoryName;
+    }
+    if (this.editDate && this.editDate !== (transaction.transactionDate ?? '')) {
+      fields.transactionDate = this.editDate;
+    }
+    if (this.editDescription && this.editDescription !== transaction.description) {
+      fields.description = this.editDescription;
+    }
+    if (this.editMerchant && this.editMerchant !== (transaction.merchant ?? '')) {
+      fields.merchant = this.editMerchant;
+    }
+    if (this.editAmount !== null && this.editAmount !== transaction.amount) {
+      fields.amount = this.editAmount;
+    }
+    if (this.editTransactionType && this.editTransactionType !== transaction.transactionType) {
+      fields.transactionType = this.editTransactionType;
+    }
+
+    if (Object.keys(fields).length === 0) {
+      this.advance();
+      return;
+    }
+
+    this.saving.set(true);
+    this.transactionService.correctTransaction(transaction.id, fields).subscribe({
       next: () => {
         this.saving.set(false);
-        this.notifications.success('Category corrected.');
+        this.notifications.success('Transaction corrected.');
         this.advance();
       },
       error: () => {
@@ -165,8 +205,14 @@ export class Review implements OnInit {
   }
 
   private resetSelectionForCurrent(): void {
-    this.selectedCategoryName = this.current()?.categoryName ?? '';
+    const transaction = this.current();
+    this.selectedCategoryName = transaction?.categoryName ?? '';
     this.applyToAllWithSameMerchant = false;
+    this.editDate = transaction?.transactionDate ?? '';
+    this.editDescription = transaction?.description ?? '';
+    this.editMerchant = transaction?.merchant ?? '';
+    this.editAmount = transaction?.amount ?? null;
+    this.editTransactionType = transaction?.transactionType ?? '';
   }
 
   private load(): void {

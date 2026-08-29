@@ -35,11 +35,13 @@ public interface ITransactionRepository
         string? reason,
         CancellationToken cancellationToken = default);
 
-    /// <summary>Applies a human's category correction (requirement #9): sets the transaction's
-    /// live CategoryId to <paramref name="categoryId"/> and persists <paramref name="correction"/>
-    /// as an immutable audit row — the original AI-assigned category is never overwritten, only
-    /// superseded.</summary>
-    Task ApplyCorrectionAsync(Guid transactionId, Guid categoryId, TransactionCorrection correction, CancellationToken cancellationToken = default);
+    /// <summary>Applies a human's correction to one or more fields (requirement #9 — date,
+    /// description, merchant, amount, type, and category are all correctable) and persists one
+    /// <see cref="TransactionCorrection"/> audit row per field actually changed — the original
+    /// AI-assigned/extracted values are never overwritten, only superseded. Only the fields set on
+    /// <paramref name="updates"/> are touched; everything else on the transaction is left alone.</summary>
+    Task ApplyCorrectionAsync(
+        Guid transactionId, TransactionFieldUpdates updates, IReadOnlyList<TransactionCorrection> corrections, CancellationToken cancellationToken = default);
 
     /// <summary>The bulk counterpart to <see cref="ApplyCorrectionAsync"/>: applies the same
     /// category correction to every transaction the user owns that shares the given exact

@@ -22,19 +22,35 @@
       </a>
     </div>
 
+    <!-- Every field here is directly editable (requirement #9 — date, description, merchant,
+         amount, and type are all correctable, not just category). Disabled while "apply to all"
+         is checked: that bulk action is category-only, so editing these here would silently be
+         dropped rather than applied — see saveAndNext(). -->
     <div class="review-transaction">
-      <div class="review-field">
-        <span class="review-field-label">Date</span>
-        <span class="review-field-value">{{ current()!.transactionDate || '—' }}</span>
-      </div>
-      <div class="review-field wide">
-        <span class="review-field-label">Description</span>
-        <span class="review-field-value">{{ current()!.description }}</span>
-      </div>
-      <div class="review-field">
-        <span class="review-field-label">Amount</span>
-        <span class="review-field-value amount" [class.negative]="(current()!.amount ?? 0) < 0">{{ current()!.amount | number: '1.2-2' }}</span>
-      </div>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="review-input">
+        <mat-label>Date</mat-label>
+        <input matInput type="date" [(ngModel)]="editDate" [disabled]="applyToAllWithSameMerchant" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="review-input wide">
+        <mat-label>Description</mat-label>
+        <input matInput [(ngModel)]="editDescription" [disabled]="applyToAllWithSameMerchant" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="review-input wide">
+        <mat-label>Merchant</mat-label>
+        <input matInput [(ngModel)]="editMerchant" [disabled]="applyToAllWithSameMerchant" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="review-input">
+        <mat-label>Amount</mat-label>
+        <input matInput type="number" step="0.01" [(ngModel)]="editAmount" [disabled]="applyToAllWithSameMerchant" />
+      </mat-form-field>
+      <mat-form-field appearance="outline" subscriptSizing="dynamic" class="review-input">
+        <mat-label>Type</mat-label>
+        <mat-select [(ngModel)]="editTransactionType" [disabled]="applyToAllWithSameMerchant">
+          @for (t of transactionTypeOptions; track t) {
+            <mat-option [value]="t">{{ t }}</mat-option>
+          }
+        </mat-select>
+      </mat-form-field>
       @if (current()!.extractionConfidence !== null) {
         <div class="review-field">
           <span class="review-field-label">Extraction confidence</span>

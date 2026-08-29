@@ -39,6 +39,24 @@ export class TransactionService {
     return this.http.post<Transaction>(`/api/transactions/${transactionId}/corrections`, { categoryName, reason });
   }
 
+  /** General multi-field correction (requirement #9 — date, description, merchant, amount, type,
+   * and category are all correctable) — only the fields present in `fields` are sent, so the
+   * backend only touches (and audits) what actually changed. */
+  correctTransaction(
+    transactionId: string,
+    fields: {
+      categoryName?: string;
+      transactionDate?: string;
+      description?: string;
+      merchant?: string;
+      amount?: number;
+      transactionType?: string;
+      reason?: string;
+    }
+  ): Observable<Transaction> {
+    return this.http.post<Transaction>(`/api/transactions/${transactionId}/corrections`, fields);
+  }
+
   bulkCorrectCategory(transactionId: string, categoryName: string, reason?: string): Observable<{ updatedCount: number; transaction: Transaction }> {
     return this.http.post<{ updatedCount: number; transaction: Transaction }>(
       `/api/transactions/${transactionId}/corrections/bulk`,

@@ -1,4 +1,5 @@
 using FinancialStatementAI.Application.DTOs.Statements;
+using FinancialStatementAI.Domain.Constants;
 using FinancialStatementAI.Domain.Entities;
 
 namespace FinancialStatementAI.Application.Services;
@@ -38,7 +39,10 @@ public static class StatementMapper
         HasUsableText = statement.StatementExtraction?.HasUsableText,
         ExtractedPageCount = statement.StatementExtraction?.PageCount,
         ExtractionMethod = statement.StatementExtraction?.ExtractionMethod.ToString(),
-        ReconciliationStatus = LatestReconciliationStatus(statement)
+        ReconciliationStatus = LatestReconciliationStatus(statement),
+        ExtractionConfidence = statement.StatementExtraction?.ConfidenceScore,
+        IsLowQualityExtraction = statement.StatementExtraction?.ConfidenceScore is { } score
+            && score < OcrQualityThresholds.LowConfidenceMaximum
     };
 
     private static string? LatestReconciliationStatus(Statement statement) =>

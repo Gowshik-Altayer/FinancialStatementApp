@@ -80,6 +80,17 @@ describe('TransactionService', () => {
     req.flush(updated);
   });
 
+  it('correctTransaction() posts only the supplied fields', () => {
+    const updated: Partial<Transaction> = { id: 't1', description: 'Corrected', amount: -12.5 };
+
+    service.correctTransaction('t1', { description: 'Corrected', amount: -12.5 }).subscribe((result) => expect(result).toEqual(updated));
+
+    const req = httpMock.expectOne('/api/transactions/t1/corrections');
+    expect(req.request.method).toBe('POST');
+    expect(req.request.body).toEqual({ description: 'Corrected', amount: -12.5 });
+    req.flush(updated);
+  });
+
   it('bulkCorrectCategory() posts to the bulk corrections endpoint and returns the updated count', () => {
     const response = { updatedCount: 4, transaction: { id: 't1', categoryName: 'Groceries' } as Partial<Transaction> };
 

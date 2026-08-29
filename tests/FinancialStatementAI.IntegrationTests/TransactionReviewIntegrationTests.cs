@@ -112,6 +112,59 @@ public class TransactionReviewIntegrationTests : IClassFixture<CustomWebApplicat
     }
 
     [Fact]
+    public async Task Correcting_Several_Fields_At_Once_Persists_All_Of_Them_With_Separate_Audit_Rows()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var (_, transactionId) = await UploadReprocessAndGetSoleTransactionAsync(client, "01/08 ZZYYXX ORIGINAL MERCHANT 40.00");
+
+        var response = await client.PostAsJsonAsync($"/api/transactions/{transactionId}/corrections", new
+        {
+            transactionDate = "2026-02-01",
+            description = "Corrected description",
+            merchant = "Corrected Merchant",
+            amount = -55.25,
+            transactionType = "Refund"
+        });
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var updated = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("2026-02-01", updated.GetProperty("transactionDate").GetString());
+        Assert.Equal("Corrected description", updated.GetProperty("description").GetString());
+        Assert.Equal("Corrected Merchant", updated.GetProperty("merchant").GetString());
+        Assert.Equal(-55.25, updated.GetProperty("amount").GetDouble());
+        Assert.Equal("Refund", updated.GetProperty("transactionType").GetString());
+
+        var fieldNames = updated.GetProperty("corrections").EnumerateArray().Select(c => c.GetProperty("fieldName").GetString()).ToList();
+        Assert.Equal(5, fieldNames.Count); // one audit row per corrected field
+        Assert.Contains("TransactionDate", fieldNames);
+        Assert.Contains("Description", fieldNames);
+        Assert.Contains("Merchant", fieldNames);
+        Assert.Contains("Amount", fieldNames);
+        Assert.Contains("TransactionType", fieldNames);
+    }
+
+    [Fact]
+    public async Task Correcting_A_Transactions_Amount_Re_Reconciles_The_Statement()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        var (statementId, transactionId) = await UploadReprocessAndGetSoleTransactionAsync(
+            client, "Opening Balance $1000.00\n01/08 GROCERY STORE WEEKLY SHOPPING TRIP 100.00\nClosing Balance $1100.00");
+
+        var beforeCorrection = await client.GetAsync($"/api/statements/{statementId}/reconciliation");
+        var reconciliationBefore = await beforeCorrection.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("Reconciled", reconciliationBefore.GetProperty("status").GetString()); // 1000 + 100 - 0 = 1100
+
+        var correctionResponse = await client.PostAsJsonAsync($"/api/transactions/{transactionId}/corrections", new { amount = -50.00 });
+        Assert.Equal(HttpStatusCode.OK, correctionResponse.StatusCode);
+
+        var afterCorrection = await client.GetAsync($"/api/statements/{statementId}/reconciliation");
+        var reconciliationAfter = await afterCorrection.Content.ReadFromJsonAsync<JsonElement>();
+        // 1000 + 0 credits - 50 debits = 950, but the statement still reports a $1100 closing
+        // balance — the correction must have re-triggered reconciliation against the live totals.
+        Assert.Equal("Mismatch", reconciliationAfter.GetProperty("status").GetString());
+    }
+
+    [Fact]
     public async Task Correcting_To_An_Unknown_Category_Returns_BadRequest()
     {
         var client = await CreateAuthenticatedClientAsync();

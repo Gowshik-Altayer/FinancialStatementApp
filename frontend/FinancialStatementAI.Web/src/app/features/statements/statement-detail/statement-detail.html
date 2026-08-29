@@ -48,6 +48,21 @@
     </div>
   }
 
+  @if (s.isLowQualityExtraction) {
+    <!-- A poor-quality scan still produces usable text (HasUsableText stays true — see
+         PdfTextExtractionService's char-count threshold), so it sails through the pipeline
+         looking like any other statement unless something calls out the low OCR confidence
+         explicitly (requirement #14 — "poor-quality scans" must be handled, not silently
+         accepted as clean). Extraction still completes; this is a caution, not a blocker. -->
+    <div class="notice notice-warning">
+      <mat-icon>visibility_off</mat-icon>
+      <div class="notice-text">
+        <strong>This scan had low OCR confidence ({{ s.extractionConfidence! | percent: '1.0-0' }}).</strong>
+        <span>Extracted dates, amounts, or descriptions may contain errors — review the transactions below carefully.</span>
+      </div>
+    </div>
+  }
+
   <app-pipeline-stepper [stages]="pipelineStages()" />
 
   <div class="cards">

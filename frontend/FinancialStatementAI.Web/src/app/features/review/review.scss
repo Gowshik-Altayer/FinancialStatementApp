@@ -69,6 +69,15 @@
   min-width: 200px;
 }
 
+.review-input {
+  width: 140px;
+}
+
+.review-input.wide {
+  flex: 1 1 auto;
+  min-width: 180px;
+}
+
 .review-field-label {
   font-size: var(--fsai-text-xs);
   text-transform: uppercase;

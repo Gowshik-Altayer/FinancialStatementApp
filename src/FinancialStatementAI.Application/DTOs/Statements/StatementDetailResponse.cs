@@ -32,4 +32,14 @@ public class StatementDetailResponse
     public int? ExtractedPageCount { get; set; }
     public string? ExtractionMethod { get; set; }
     public string? ReconciliationStatus { get; set; }
+
+    /// <summary>OCR's own confidence in the text it produced — null for a direct-text or
+    /// spreadsheet extraction, which has no OCR confidence concept at all.</summary>
+    public decimal? ExtractionConfidence { get; set; }
+
+    /// <summary>True when <see cref="ExtractionConfidence"/> is below
+    /// <see cref="FinancialStatementAI.Domain.Constants.OcrQualityThresholds.LowConfidenceMaximum"/> — a poor-quality
+    /// scan (requirement #14) that still produced usable text but warrants extra scrutiny before
+    /// trusting the extracted transactions.</summary>
+    public bool IsLowQualityExtraction { get; set; }
 }
