@@ -103,6 +103,11 @@ public class StatementProcessingService(
             var transactions = parsedTransactions.Select(p => ToTransactionEntity(statementId, p, method));
             await transactionRepository.ReplaceForStatementAsync(statementId, userId, transactions, cancellationToken);
 
+            // Extraction (text + transaction rows) is done at this point; classification hasn't
+            // started yet — requirement #10 lists this as its own distinct status, not something
+            // to skip straight past on the way to ClassificationComplete.
+            await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.ExtractionComplete, null, cancellationToken);
+
             await transactionClassificationService.ClassifyStatementTransactionsAsync(statementId, userId, cancellationToken);
             await statementRepository.UpdateStatusAsync(statementId, StatementProcessingStatus.ClassificationComplete, DateTime.UtcNow, cancellationToken);
 

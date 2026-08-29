@@ -31,6 +31,8 @@ describe('TransactionTable', () => {
       amount: -64.02,
       currency: 'USD',
       transactionType: 'Debit',
+      pageSourceLocation: null,
+      extractionConfidence: null,
       categoryId: null,
       categoryName: 'Other',
       classificationConfidence: 0.5,

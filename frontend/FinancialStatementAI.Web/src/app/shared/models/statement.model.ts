@@ -50,6 +50,8 @@ export interface StatementDetail {
   extractedPageCount: number | null;
   extractionMethod: string | null;
   reconciliationStatus: ReconciliationStatus | null;
+  extractionConfidence: number | null;
+  isLowQualityExtraction: boolean;
 }
 
 export interface StatementStatus {

@@ -51,12 +51,13 @@ public class TransactionsController(ITransactionService transactionService) : Co
         return Ok(summary);
     }
 
-    /// <summary>Applies a human's category correction (requirement #9) — the original AI-assigned
-    /// category is preserved in the audit trail, never overwritten.</summary>
+    /// <summary>Applies a human's correction to one or more fields — date, description, merchant,
+    /// amount, type, and category are all supported (requirement #9) — with the original
+    /// AI-assigned/extracted values preserved in the audit trail, never overwritten.</summary>
     [HttpPost("transactions/{transactionId:guid}/corrections")]
-    public async Task<IActionResult> CorrectCategory(Guid transactionId, [FromBody] CorrectTransactionRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> CorrectTransaction(Guid transactionId, [FromBody] CorrectTransactionRequest request, CancellationToken cancellationToken)
     {
-        var result = await transactionService.CorrectCategoryAsync(transactionId, CurrentUserId, request, cancellationToken);
+        var result = await transactionService.CorrectTransactionAsync(transactionId, CurrentUserId, request, cancellationToken);
         if (result.NotFound)
         {
             return NotFound();

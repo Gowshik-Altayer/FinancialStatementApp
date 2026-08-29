@@ -158,23 +158,40 @@ regardless of processing status (unlike the review queue, which is PendingReview
 
 ### `POST /api/transactions/{transactionId}/corrections`
 
-Applies a human's category correction (requirement #9). Body: `{ categoryName, reason? }`. Scoped
-to Category only for now — see `docs/ai-processing.md` for why. The original AI-assigned category
-is preserved in the returned transaction's `corrections` array, never overwritten.
+Applies a human's correction to one or more fields (requirement #9 — date, description, merchant,
+amount, type, and category are all correctable). Body: `{ categoryName?, transactionDate?,
+description?, merchant?, amount?, transactionType?, reason? }` — every field optional; only the
+ones supplied are applied, each producing its own audit row in the returned transaction's
+`corrections` array. The original AI-assigned/extracted value for each corrected field is
+preserved, never overwritten. A corrected `amount` also re-triggers reconciliation for the
+transaction's statement, since it changes the statement's totals.
 
 - `200 OK` → updated `TransactionResponse`
-- `400 Bad Request` → `categoryName` missing or doesn't match any active category
+- `400 Bad Request` → `categoryName`/`transactionType` supplied but unrecognized
+- `404 Not Found` → the transaction doesn't exist or belongs to another user's statement
+
+### `POST /api/transactions/{transactionId}/corrections/bulk`
+
+The bulk counterpart, scoped to Category only: applies the same category to every transaction the
+user owns sharing this one's exact Merchant text, each getting its own audit row. Body:
+`{ categoryName, reason? }`.
+
+- `200 OK` → `{ updatedCount, transaction: TransactionResponse }`
+- `400 Bad Request` → `categoryName` missing/unrecognized, or the anchor transaction has no merchant to group by
 - `404 Not Found` → the transaction doesn't exist or belongs to another user's statement
 
 ## Categories (Phase 12)
 
 ### `GET /api/categories`
 
-Active categories, for the review UI's correction picker. Full category management
-(create/edit/deactivate) is a later phase. Cached for 5 minutes (Phase 15 — see
-`docs/architecture.md`), since nothing can currently change the active category list at runtime.
+Active categories, for the review UI's correction picker.
 
 - `200 OK` → `{ id, name }[]`
+
+### `POST /api/categories`, `PUT /api/categories/{id}`, `POST /api/categories/{id}/deactivate`, `POST /api/categories/{id}/reactivate`
+
+Full category management (`Admin` role required) — categories are not a fixed list; new ones can
+be created and existing ones edited or soft-deleted at runtime.
 
 ## Background processing (Phase 14)
 

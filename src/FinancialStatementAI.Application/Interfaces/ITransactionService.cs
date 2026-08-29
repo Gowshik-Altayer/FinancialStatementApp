@@ -23,9 +23,11 @@ public interface ITransactionService
     /// read as stable totals rather than shifting with every search keystroke.</summary>
     Task<TransactionSummaryResponse> GetSummaryAsync(Guid userId, CancellationToken cancellationToken = default);
 
-    /// <summary>Applies a human's category correction to one transaction (requirement #9) and
-    /// records it as an audit row.</summary>
-    Task<CorrectTransactionResult> CorrectCategoryAsync(Guid transactionId, Guid userId, CorrectTransactionRequest request, CancellationToken cancellationToken = default);
+    /// <summary>Applies a human's correction to one or more of a transaction's fields —
+    /// date, description, merchant, amount, type, and category are all supported (requirement
+    /// #9) — and records one audit row per field actually changed. Only the fields set on
+    /// <paramref name="request"/> are touched.</summary>
+    Task<CorrectTransactionResult> CorrectTransactionAsync(Guid transactionId, Guid userId, CorrectTransactionRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>Applies the same category correction to every transaction the user owns that
     /// shares <paramref name="anchorTransactionId"/>'s exact Merchant text — the bulk counterpart

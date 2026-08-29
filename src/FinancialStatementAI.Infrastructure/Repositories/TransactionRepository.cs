@@ -156,12 +156,51 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
-    public async Task ApplyCorrectionAsync(Guid transactionId, Guid categoryId, TransactionCorrection correction, CancellationToken cancellationToken = default)
+    public async Task ApplyCorrectionAsync(
+        Guid transactionId, TransactionFieldUpdates updates, IReadOnlyList<TransactionCorrection> corrections, CancellationToken cancellationToken = default)
     {
         var transaction = await dbContext.Transactions.SingleAsync(t => t.Id == transactionId, cancellationToken);
-        transaction.CategoryId = categoryId;
 
-        dbContext.TransactionCorrections.Add(correction);
+        if (updates.CategoryId is { } categoryId)
+        {
+            transaction.CategoryId = categoryId;
+        }
+
+        if (updates.TransactionDate is { } transactionDate)
+        {
+            transaction.TransactionDate = transactionDate;
+        }
+
+        if (updates.Description is not null)
+        {
+            transaction.Description = updates.Description;
+        }
+
+        if (updates.Merchant is not null)
+        {
+            transaction.Merchant = updates.Merchant;
+        }
+
+        if (updates.TransactionType is { } transactionType)
+        {
+            transaction.TransactionType = transactionType;
+        }
+
+        if (updates.Amount is { } amount)
+        {
+            // Amount's sign is the single source of truth for Debit/CreditAmount — the same
+            // convention every extraction path already uses — rather than cross-referencing
+            // TransactionType, so a correction to just one of the two never leaves them disagreeing.
+            transaction.Amount = amount;
+            transaction.DebitAmount = amount < 0 ? Math.Abs(amount) : null;
+            transaction.CreditAmount = amount >= 0 ? Math.Abs(amount) : null;
+        }
+
+        foreach (var correction in corrections)
+        {
+            dbContext.TransactionCorrections.Add(correction);
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
