@@ -35,6 +35,12 @@
         <span class="review-field-label">Amount</span>
         <span class="review-field-value amount" [class.negative]="(current()!.amount ?? 0) < 0">{{ current()!.amount | number: '1.2-2' }}</span>
       </div>
+      @if (current()!.extractionConfidence !== null) {
+        <div class="review-field">
+          <span class="review-field-label">Extraction confidence</span>
+          <span class="review-field-value">{{ current()!.extractionConfidence! | percent: '1.0-0' }}</span>
+        </div>
+      }
     </div>
 
     <div class="ai-recommendation">

@@ -19,6 +19,13 @@ public class TransactionResponse
     public decimal? Amount { get; set; }
     public string? Currency { get; set; }
     public string TransactionType { get; set; } = string.Empty;
+    public string? PageSourceLocation { get; set; }
+
+    /// <summary>How confident the EXTRACTION step (not classification) is that this row was
+    /// parsed correctly — requirement #8 lists this as a distinct confidence type. Reflects which
+    /// parsing strategy produced the row (direct line match, reconstructed table, OCR cell-per-line
+    /// heuristics, or a typed spreadsheet cell).</summary>
+    public decimal? ExtractionConfidence { get; set; }
 
     public Guid? CategoryId { get; set; }
     public string? CategoryName { get; set; }

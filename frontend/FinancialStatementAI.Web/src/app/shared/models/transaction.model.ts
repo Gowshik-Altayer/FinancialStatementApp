@@ -24,6 +24,8 @@ export interface Transaction {
   amount: number | null;
   currency: string | null;
   transactionType: string;
+  pageSourceLocation: string | null;
+  extractionConfidence: number | null;
   categoryId: string | null;
   categoryName: string | null;
   classificationConfidence: number | null;

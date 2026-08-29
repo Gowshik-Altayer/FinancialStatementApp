@@ -270,53 +270,65 @@ public class TransactionExtractionService : ITransactionExtractionService
         var transactions = new List<ParsedTransaction>();
         ParsedTransaction? current = null;
 
-        foreach (var rawLine in rawText.Replace("\f", "\n").Split('\n'))
+        // PdfExtractionResult joins pages with a form-feed, so splitting on it first (before
+        // splitting each page into lines) is what lets a transaction record which page it came
+        // from (requirement #4's "page/source location, where available") — collapsing straight
+        // to '\n' the way earlier code did throws that boundary away entirely.
+        var pages = rawText.Split('\f');
+        for (var pageIndex = 0; pageIndex < pages.Length; pageIndex++)
         {
-            var line = rawLine.Trim();
-            if (line.Length == 0)
-            {
-                continue;
-            }
+            var pageNumber = (pageIndex + 1).ToString();
 
-            var dateMatch = LeadingDateRegex.Match(line);
-            var date = dateMatch.Success ? ParseDateToken(dateMatch.Groups["date"].Value, referenceYear) : null;
-
-            if (date is not null)
+            foreach (var rawLine in pages[pageIndex].Split('\n'))
             {
-                var remainder = line[dateMatch.Length..].Trim().Trim('|', '-', ' ');
-                var parsed = TryParseTransactionLine(line, remainder, date.Value);
-                if (parsed is not null)
+                var line = rawLine.Trim();
+                if (line.Length == 0)
                 {
-                    transactions.Add(parsed);
-                    current = parsed;
                     continue;
                 }
-            }
-            else
-            {
-                // No date anywhere on the line — some real exports are transaction LOGS rather
-                // than traditional statements and never carry a per-row date at all ("4 TXN1004
-                // Food & Dining Swiggy food order Debit 425"). Only treated as a new transaction
-                // when the line explicitly states its own direction (Debit/Credit) immediately
-                // before a clean trailing amount — a deliberately narrow signal, so a genuine
-                // wrapped-description continuation line doesn't get misread as a new row just for
-                // happening to contain a number. TransactionDate is left null (it's nullable end
-                // to end) rather than guessing one that isn't in the source.
-                var datelessParsed = TryParseDatelessTransactionLine(line);
-                if (datelessParsed is not null)
-                {
-                    transactions.Add(datelessParsed);
-                    current = datelessParsed;
-                    continue;
-                }
-            }
 
-            // No recognizable date+amount on this line — treat it as a continuation of the
-            // previous transaction's description (wrapped/multi-line descriptions, requirement #5).
-            if (current is not null)
-            {
-                current.Description = $"{current.Description} {line}".Trim();
-                current.Merchant = current.Description;
+                var dateMatch = LeadingDateRegex.Match(line);
+                var date = dateMatch.Success ? ParseDateToken(dateMatch.Groups["date"].Value, referenceYear) : null;
+
+                if (date is not null)
+                {
+                    var remainder = line[dateMatch.Length..].Trim().Trim('|', '-', ' ');
+                    var parsed = TryParseTransactionLine(line, remainder, date.Value);
+                    if (parsed is not null)
+                    {
+                        parsed.PageSourceLocation = pageNumber;
+                        transactions.Add(parsed);
+                        current = parsed;
+                        continue;
+                    }
+                }
+                else
+                {
+                    // No date anywhere on the line — some real exports are transaction LOGS rather
+                    // than traditional statements and never carry a per-row date at all ("4 TXN1004
+                    // Food & Dining Swiggy food order Debit 425"). Only treated as a new transaction
+                    // when the line explicitly states its own direction (Debit/Credit) immediately
+                    // before a clean trailing amount — a deliberately narrow signal, so a genuine
+                    // wrapped-description continuation line doesn't get misread as a new row just for
+                    // happening to contain a number. TransactionDate is left null (it's nullable end
+                    // to end) rather than guessing one that isn't in the source.
+                    var datelessParsed = TryParseDatelessTransactionLine(line);
+                    if (datelessParsed is not null)
+                    {
+                        datelessParsed.PageSourceLocation = pageNumber;
+                        transactions.Add(datelessParsed);
+                        current = datelessParsed;
+                        continue;
+                    }
+                }
+
+                // No recognizable date+amount on this line — treat it as a continuation of the
+                // previous transaction's description (wrapped/multi-line descriptions, requirement #5).
+                if (current is not null)
+                {
+                    current.Description = $"{current.Description} {line}".Trim();
+                    current.Merchant = current.Description;
+                }
             }
         }
 
@@ -416,7 +428,16 @@ public class TransactionExtractionService : ITransactionExtractionService
 
     private static TransactionType ClassifyDirection(bool hasNegativeIndicator, string context)
     {
-        if (Regex.IsMatch(context, @"\bCR\b|\bcredit\b|\brefund\b", RegexOptions.IgnoreCase))
+        // Checked ahead of the generic Credit/Debit keywords so a refund or purchase gets its own
+        // distinct TransactionType (requirement #4's explicit list) instead of collapsing into the
+        // generic direction it happens to share a sign with — the signed-amount ternary below
+        // still treats Purchase as money out and Refund as money in, so amounts are unaffected.
+        if (Regex.IsMatch(context, @"\brefund\b", RegexOptions.IgnoreCase))
+        {
+            return TransactionType.Refund;
+        }
+
+        if (Regex.IsMatch(context, @"\bCR\b|\bcredit\b", RegexOptions.IgnoreCase))
         {
             return TransactionType.Credit;
         }
@@ -431,7 +452,12 @@ public class TransactionExtractionService : ITransactionExtractionService
             return TransactionType.Payment;
         }
 
-        if (Regex.IsMatch(context, @"\bDR\b|\bdebit\b|\bpurchase\b", RegexOptions.IgnoreCase))
+        if (Regex.IsMatch(context, @"\bpurchase\b", RegexOptions.IgnoreCase))
+        {
+            return TransactionType.Purchase;
+        }
+
+        if (Regex.IsMatch(context, @"\bDR\b|\bdebit\b", RegexOptions.IgnoreCase))
         {
             return TransactionType.Debit;
         }

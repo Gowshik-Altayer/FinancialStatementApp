@@ -1,5 +1,5 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
-import { DatePipe, DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe, PercentPipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -34,6 +34,7 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
     RouterLink,
     DatePipe,
     DecimalPipe,
+    PercentPipe,
     FormsModule,
     MatFormFieldModule,
     MatSelectModule,
