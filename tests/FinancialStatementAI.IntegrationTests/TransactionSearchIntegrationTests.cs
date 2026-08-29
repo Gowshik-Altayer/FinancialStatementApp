@@ -201,6 +201,64 @@ public class TransactionSearchIntegrationTests : IClassFixture<CustomWebApplicat
     }
 
     [Fact]
+    public async Task Filtering_By_Merchant_Only_Matches_The_Merchant_Field()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        await UploadAndReprocessAsync(client, "01/08 WHOLE FOODS MARKET 64.02\n01/09 UBER TRIP RIDESHARE 18.20");
+
+        var response = await client.GetAsync("/api/transactions?merchant=whole foods");
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var items = result.GetProperty("items").EnumerateArray().ToList();
+        Assert.Single(items);
+        Assert.Contains("WHOLE FOODS", items[0].GetProperty("merchant").GetString());
+    }
+
+    [Fact]
+    public async Task Filtering_By_Amount_Range_Only_Returns_Transactions_In_That_Range()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        await UploadAndReprocessAsync(client, "01/08 WHOLE FOODS MARKET 64.02\n01/09 UBER TRIP RIDESHARE 18.20");
+
+        var response = await client.GetAsync("/api/transactions?amountMin=50&amountMax=100");
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        var items = result.GetProperty("items").EnumerateArray().ToList();
+        Assert.Single(items);
+        Assert.Contains("WHOLE FOODS", items[0].GetProperty("description").GetString());
+    }
+
+    [Fact]
+    public async Task Filtering_By_TransactionType_Only_Returns_That_Type()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        await UploadAndReprocessAsync(client, "01/08 WHOLE FOODS MARKET 64.02");
+        var all = await (await client.GetAsync("/api/transactions")).Content.ReadFromJsonAsync<JsonElement>();
+        var wholeFoodsId = all.GetProperty("items").EnumerateArray().Single().GetProperty("id").GetGuid();
+        await client.PostAsJsonAsync($"/api/transactions/{wholeFoodsId}/corrections", new { transactionType = "Refund" });
+
+        var response = await client.GetAsync("/api/transactions?transactionType=Refund");
+
+        var result = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, result.GetProperty("totalCount").GetInt32());
+    }
+
+    [Fact]
+    public async Task Filtering_By_ProcessingStatus_Matches_The_Owning_Statements_Status()
+    {
+        var client = await CreateAuthenticatedClientAsync();
+        await UploadAndReprocessAsync(client, "01/08 WHOLE FOODS MARKET 64.02");
+
+        var pendingReview = await client.GetAsync("/api/transactions?processingStatus=PendingReview");
+        var uploaded = await client.GetAsync("/api/transactions?processingStatus=Uploaded");
+
+        var pendingReviewResult = await pendingReview.Content.ReadFromJsonAsync<JsonElement>();
+        var uploadedResult = await uploaded.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(1, pendingReviewResult.GetProperty("totalCount").GetInt32());
+        Assert.Equal(0, uploadedResult.GetProperty("totalCount").GetInt32());
+    }
+
+    [Fact]
     public async Task Search_Never_Returns_Another_Users_Transactions()
     {
         var owner = await CreateAuthenticatedClientAsync();

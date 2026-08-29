@@ -18,11 +18,26 @@
   (clearFilters)="clearFilters()"
 >
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Merchant</mat-label>
+    <input matInput [(ngModel)]="merchant" (ngModelChange)="onFilterChange()" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>Category</mat-label>
     <mat-select [(ngModel)]="categoryId" (ngModelChange)="onFilterChange()">
       <mat-option value="">All categories</mat-option>
       @for (c of categories(); track c.id) {
         <mat-option [value]="c.id">{{ c.name }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Statement</mat-label>
+    <mat-select [(ngModel)]="statementId" (ngModelChange)="onFilterChange()">
+      <mat-option value="">All statements</mat-option>
+      @for (s of statements(); track s.id) {
+        <mat-option [value]="s.id">{{ s.originalFileName }}</mat-option>
       }
     </mat-select>
   </mat-form-field>
@@ -35,6 +50,36 @@
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>To date</mat-label>
     <input matInput type="date" [(ngModel)]="dateTo" (ngModelChange)="onFilterChange()" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Min amount</mat-label>
+    <input matInput type="number" step="0.01" [(ngModel)]="amountMin" (ngModelChange)="onFilterChange()" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Max amount</mat-label>
+    <input matInput type="number" step="0.01" [(ngModel)]="amountMax" (ngModelChange)="onFilterChange()" />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Type</mat-label>
+    <mat-select [(ngModel)]="transactionType" (ngModelChange)="onFilterChange()">
+      <mat-option value="">All types</mat-option>
+      @for (t of transactionTypeOptions; track t) {
+        <mat-option [value]="t">{{ t }}</mat-option>
+      }
+    </mat-select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>Processing status</mat-label>
+    <mat-select [(ngModel)]="processingStatus" (ngModelChange)="onFilterChange()">
+      <mat-option value="">Any status</mat-option>
+      @for (p of processingStatusOptions; track p) {
+        <mat-option [value]="p">{{ p }}</mat-option>
+      }
+    </mat-select>
   </mat-form-field>
 
   <mat-form-field appearance="outline" subscriptSizing="dynamic">

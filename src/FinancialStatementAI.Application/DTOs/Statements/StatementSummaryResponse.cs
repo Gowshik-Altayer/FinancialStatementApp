@@ -5,6 +5,8 @@ public class StatementSummaryResponse
     public Guid Id { get; set; }
     public string OriginalFileName { get; set; } = string.Empty;
     public string? ProviderName { get; set; }
+    public string? AccountHolderName { get; set; }
+    public string? AccountNumberMasked { get; set; }
     public DateOnly? StatementPeriodStart { get; set; }
     public DateOnly? StatementPeriodEnd { get; set; }
     public int TransactionCount { get; set; }

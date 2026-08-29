@@ -52,6 +52,22 @@
         <td mat-cell *matCellDef="let s">{{ s.providerName ?? '—' }}</td>
       </ng-container>
 
+      <ng-container matColumnDef="account">
+        <th mat-header-cell *matHeaderCellDef>Account</th>
+        <td mat-cell *matCellDef="let s">{{ s.accountHolderName ?? s.accountNumberMasked ?? '—' }}</td>
+      </ng-container>
+
+      <ng-container matColumnDef="statementPeriod">
+        <th mat-header-cell *matHeaderCellDef>Statement Period</th>
+        <td mat-cell *matCellDef="let s">
+          @if (s.statementPeriodStart && s.statementPeriodEnd) {
+            {{ s.statementPeriodStart }} – {{ s.statementPeriodEnd }}
+          } @else {
+            <span class="muted">—</span>
+          }
+        </td>
+      </ng-container>
+
       <ng-container matColumnDef="transactionCount">
         <th mat-header-cell *matHeaderCellDef>Transactions</th>
         <td mat-cell *matCellDef="let s">{{ s.transactionCount }}</td>

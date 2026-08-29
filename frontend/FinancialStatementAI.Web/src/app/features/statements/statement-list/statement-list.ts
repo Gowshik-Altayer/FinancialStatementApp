@@ -48,6 +48,8 @@ export class StatementList implements OnInit {
   readonly displayedColumns = [
     'originalFileName',
     'providerName',
+    'account',
+    'statementPeriod',
     'transactionCount',
     'totalDebits',
     'totalCredits',

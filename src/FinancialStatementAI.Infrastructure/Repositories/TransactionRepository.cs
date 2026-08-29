@@ -327,6 +327,32 @@ public class TransactionRepository(AppDbContext dbContext) : ITransactionReposit
                 (t.Merchant != null && t.Merchant.ToLower().Contains(term)));
         }
 
+        if (!string.IsNullOrWhiteSpace(filter.Merchant))
+        {
+            var merchantTerm = filter.Merchant.ToLower();
+            query = query.Where(t => t.Merchant != null && t.Merchant.ToLower().Contains(merchantTerm));
+        }
+
+        if (filter.AmountMin.HasValue)
+        {
+            query = query.Where(t => t.Amount >= filter.AmountMin.Value);
+        }
+
+        if (filter.AmountMax.HasValue)
+        {
+            query = query.Where(t => t.Amount <= filter.AmountMax.Value);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.TransactionType) && Enum.TryParse<TransactionType>(filter.TransactionType, ignoreCase: true, out var transactionType))
+        {
+            query = query.Where(t => t.TransactionType == transactionType);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filter.ProcessingStatus) && Enum.TryParse<StatementProcessingStatus>(filter.ProcessingStatus, ignoreCase: true, out var processingStatus))
+        {
+            query = query.Where(t => t.Statement!.ProcessingStatus == processingStatus);
+        }
+
         if (filter.CategoryId.HasValue)
         {
             query = query.Where(t => t.CategoryId == filter.CategoryId.Value);
