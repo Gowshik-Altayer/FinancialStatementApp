@@ -164,6 +164,15 @@ public class StatementProcessingService(
     /// the table's actual row/column structure is exactly what's needed there instead. Direct PDF
     /// text extraction never has a structureResult (see ProcessAsync), so it always uses the
     /// line-based parser, which is what its already-clean line-per-transaction text expects.</summary>
+    // Extraction confidence (requirement #8) reflects how much inference each parsing strategy
+    // needs, not any per-row signal: a direct date+amount match on one line is nearly certain,
+    // while reconstructing rows from OCR's cell-per-line output leans on several heuristics
+    // (row-per-date-line, whole-line-is-the-amount, a word-count cutoff for the footer boundary)
+    // and so is trusted least among the three.
+    private const decimal TableExtractionConfidence = 0.90m;
+    private const decimal LineExtractionConfidence = 0.95m;
+    private const decimal CellPerLineExtractionConfidence = 0.75m;
+
     private IReadOnlyList<ParsedTransaction> ExtractTransactions(string rawText, DocumentIntelligenceResult? structureResult, int referenceYear)
     {
         var tableHtml = structureResult?.Tables?.FirstOrDefault()?.Html;
@@ -172,14 +181,14 @@ public class StatementProcessingService(
             var fromTable = transactionExtractionService.ExtractFromTable(tableHtml, referenceYear);
             if (fromTable.Count > 0)
             {
-                return fromTable;
+                return WithConfidence(fromTable, TableExtractionConfidence);
             }
         }
 
         var fromLines = transactionExtractionService.Extract(rawText, referenceYear);
         if (fromLines.Count > 0)
         {
-            return fromLines;
+            return WithConfidence(fromLines, LineExtractionConfidence);
         }
 
         // Last resort, and the one that matters for scanned statements in practice. The line-based
@@ -189,7 +198,18 @@ public class StatementProcessingService(
         // structure pipeline is disabled or has run out of memory) silently produced zero
         // transactions. Reached only when neither of the strategies above found anything, so it
         // cannot change the result for a statement that already parsed.
-        return transactionExtractionService.ExtractFromCellPerLineText(rawText, referenceYear);
+        var fromCells = transactionExtractionService.ExtractFromCellPerLineText(rawText, referenceYear);
+        return WithConfidence(fromCells, CellPerLineExtractionConfidence);
+    }
+
+    private static IReadOnlyList<ParsedTransaction> WithConfidence(IReadOnlyList<ParsedTransaction> transactions, decimal confidence)
+    {
+        foreach (var transaction in transactions)
+        {
+            transaction.Confidence = confidence;
+        }
+
+        return transactions;
     }
 
     private async Task<DocumentIntelligenceResult?> TryDocumentStructureAnalysisAsync(Statement statement, CancellationToken cancellationToken)
@@ -272,10 +292,13 @@ public class StatementProcessingService(
         Amount = parsed.Amount,
         Currency = parsed.Currency,
         TransactionType = parsed.TransactionType,
+        PageSourceLocation = parsed.PageSourceLocation,
         Extraction = new TransactionExtraction
         {
             RawText = parsed.RawLine,
-            ExtractionMethod = method
+            ExtractionMethod = method,
+            ConfidenceScore = parsed.Confidence,
+            PageNumber = int.TryParse(parsed.PageSourceLocation, out var pageNumber) ? pageNumber : null
         }
     };
 }

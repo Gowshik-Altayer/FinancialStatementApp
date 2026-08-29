@@ -140,6 +140,7 @@ public class StatementRepository(AppDbContext dbContext) : IStatementRepository
         statement.TotalPayments = fields.TotalPayments ?? statement.TotalPayments;
         statement.TotalPurchases = fields.TotalPurchases ?? statement.TotalPurchases;
         statement.Currency = fields.Currency ?? statement.Currency;
+        statement.DocumentType = fields.DocumentType ?? statement.DocumentType;
 
         await dbContext.SaveChangesAsync(cancellationToken);
     }

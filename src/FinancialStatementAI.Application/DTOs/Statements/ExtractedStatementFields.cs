@@ -1,3 +1,5 @@
+using FinancialStatementAI.Domain.Enums;
+
 namespace FinancialStatementAI.Application.DTOs.Statements;
 
 /// <summary>Statement-level fields pulled out of the raw extracted text (requirement #3). Every
@@ -17,4 +19,10 @@ public class ExtractedStatementFields
     public decimal? TotalPayments { get; set; }
     public decimal? TotalPurchases { get; set; }
     public string? Currency { get; set; }
+
+    /// <summary>Best-effort classification of the statement itself as a bank statement or credit
+    /// card statement (requirement #1 — "identify the document type where possible"), distinct
+    /// from the file's Content-Type. Null/<see cref="Domain.Enums.DocumentType.Unknown"/> when the
+    /// text gives no confident signal either way — never guessed.</summary>
+    public DocumentType? DocumentType { get; set; }
 }

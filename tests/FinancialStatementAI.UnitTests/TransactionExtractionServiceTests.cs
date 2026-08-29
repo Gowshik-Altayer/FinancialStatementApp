@@ -53,7 +53,7 @@ public class TransactionExtractionServiceTests
 
         var transaction = Assert.Single(result);
         Assert.Equal(-1234.56m, transaction.Amount);
-        Assert.Equal(TransactionType.Debit, transaction.TransactionType);
+        Assert.Equal(TransactionType.Purchase, transaction.TransactionType); // "PURCHASE" keyword recognized
     }
 
     [Fact]
@@ -62,7 +62,18 @@ public class TransactionExtractionServiceTests
         var result = _service.Extract("04/01 REFUND FROM MERCHANT 50.00", Year);
 
         var transaction = Assert.Single(result);
-        Assert.Equal(TransactionType.Credit, transaction.TransactionType);
+        Assert.Equal(TransactionType.Refund, transaction.TransactionType);
+        Assert.Equal(50.00m, transaction.Amount); // refunds are money in, same sign as Credit
+    }
+
+    [Fact]
+    public void Extract_Recognizes_An_Explicit_Purchase_Keyword_As_Its_Own_Type()
+    {
+        var result = _service.Extract("04/02 IN-STORE PURCHASE AT MERCHANT 75.00", Year);
+
+        var transaction = Assert.Single(result);
+        Assert.Equal(TransactionType.Purchase, transaction.TransactionType);
+        Assert.Equal(-75.00m, transaction.Amount); // purchases are money out, same sign as Debit
     }
 
     [Fact]
@@ -394,6 +405,22 @@ public class TransactionExtractionServiceTests
         var transaction = Assert.Single(_service.Extract("4 TXN1004 Food Swiggy order Debit ₹425", Year));
 
         Assert.Equal("INR", transaction.Currency);
+    }
+
+    // --- Page/source location (requirement #4) --------------------------------------------------
+    // PdfExtractionResult joins per-page text with a form-feed ('\f') — see PdfExtractionResult.cs.
+
+    [Fact]
+    public void Extract_Tags_Each_Transaction_With_Its_Source_Page_Number()
+    {
+        var rawText = "01/08 AMAZON WEB SERVICES 129.45\f01/09 UBER TRIP 22.10\f01/10 WHOLE FOODS 64.20";
+
+        var result = _service.Extract(rawText, Year);
+
+        Assert.Equal(3, result.Count);
+        Assert.Equal("1", result[0].PageSourceLocation);
+        Assert.Equal("2", result[1].PageSourceLocation);
+        Assert.Equal("3", result[2].PageSourceLocation);
     }
 
     [Fact]

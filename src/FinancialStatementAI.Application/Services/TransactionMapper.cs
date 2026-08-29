@@ -27,6 +27,8 @@ public static class TransactionMapper
             Amount = transaction.Amount,
             Currency = transaction.Currency,
             TransactionType = transaction.TransactionType.ToString(),
+            PageSourceLocation = transaction.PageSourceLocation,
+            ExtractionConfidence = transaction.Extraction?.ConfidenceScore,
             CategoryId = transaction.CategoryId,
             CategoryName = transaction.Category?.Name,
             ClassificationConfidence = currentClassification?.ConfidenceScore,
