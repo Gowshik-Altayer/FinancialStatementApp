@@ -11,6 +11,25 @@ public class TransactionSearchFilter
     public DateOnly? DateFrom { get; set; }
     public DateOnly? DateTo { get; set; }
 
+    /// <summary>Substring match against Merchant only — distinct from <see cref="Search"/>,
+    /// which also matches Description, for a reviewer who specifically wants "every transaction
+    /// from this merchant" without pulling in unrelated hits that merely mention it in passing.</summary>
+    public string? Merchant { get; set; }
+
+    public decimal? AmountMin { get; set; }
+    public decimal? AmountMax { get; set; }
+
+    /// <summary>One of the <see cref="FinancialStatementAI.Domain.Enums.TransactionType"/> names —
+    /// an unrecognized value is ignored (treated as no filter) rather than erroring, consistent
+    /// with how a malformed query-string filter shouldn't 500 the whole search.</summary>
+    public string? TransactionType { get; set; }
+
+    /// <summary>One of the <see cref="FinancialStatementAI.Domain.Enums.StatementProcessingStatus"/> names — filters by
+    /// the OWNING STATEMENT's processing status (e.g. only transactions on a PendingReview
+    /// statement), a different axis than <see cref="ReviewPriority"/>'s per-transaction
+    /// classification confidence.</summary>
+    public string? ProcessingStatus { get; set; }
+
     /// <summary>Minimum current classification confidence (0..1) — transactions with no
     /// classification at all never match a MinConfidence filter, since there's nothing to compare.</summary>
     public decimal? MinConfidence { get; set; }

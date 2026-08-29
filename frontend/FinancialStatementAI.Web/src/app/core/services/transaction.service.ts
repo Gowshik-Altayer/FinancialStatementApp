@@ -20,10 +20,15 @@ export class TransactionService {
   search(query: TransactionQuery = {}): Observable<PagedResult<Transaction>> {
     let params = new HttpParams().set('page', String(query.page ?? 1)).set('pageSize', String(query.pageSize ?? 20));
     if (query.search) params = params.set('search', query.search);
+    if (query.merchant) params = params.set('merchant', query.merchant);
     if (query.categoryId) params = params.set('categoryId', query.categoryId);
     if (query.statementId) params = params.set('statementId', query.statementId);
     if (query.dateFrom) params = params.set('dateFrom', query.dateFrom);
     if (query.dateTo) params = params.set('dateTo', query.dateTo);
+    if (query.amountMin !== undefined) params = params.set('amountMin', String(query.amountMin));
+    if (query.amountMax !== undefined) params = params.set('amountMax', String(query.amountMax));
+    if (query.transactionType) params = params.set('transactionType', query.transactionType);
+    if (query.processingStatus) params = params.set('processingStatus', query.processingStatus);
     if (query.minConfidence !== undefined) params = params.set('minConfidence', String(query.minConfidence));
     if (query.reviewPriority) params = params.set('reviewPriority', query.reviewPriority);
     if (query.hasBeenCorrected !== undefined) params = params.set('hasBeenCorrected', String(query.hasBeenCorrected));

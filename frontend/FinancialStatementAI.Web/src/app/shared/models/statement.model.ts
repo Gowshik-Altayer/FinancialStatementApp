@@ -13,6 +13,8 @@ export interface StatementSummary {
   id: string;
   originalFileName: string;
   providerName: string | null;
+  accountHolderName: string | null;
+  accountNumberMasked: string | null;
   statementPeriodStart: string | null;
   statementPeriodEnd: string | null;
   transactionCount: number;
