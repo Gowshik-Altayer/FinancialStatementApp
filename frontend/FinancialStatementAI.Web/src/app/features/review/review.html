@@ -126,7 +126,11 @@
   <section class="section">
     <h2 class="section-title">Full Queue</h2>
     <div class="transaction-table-card">
-      <app-transaction-table [transactions]="queue()" [showStatementColumn]="true" />
+      @if (queue().length === 0) {
+        <p class="empty-state">No transactions here.</p>
+      } @else {
+        <app-data-grid [columnDefs]="columnDefs" [rowData]="queue()" [getRowId]="getRowId" [rowClassRules]="rowClassRules" (cellValueChanged)="onCellValueChanged($event)" />
+      }
     </div>
   </section>
 }

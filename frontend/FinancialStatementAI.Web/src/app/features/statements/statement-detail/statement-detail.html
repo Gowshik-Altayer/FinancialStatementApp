@@ -129,7 +129,11 @@
   <mat-card class="transactions-card">
     <mat-card-header><mat-card-title>Transactions</mat-card-title></mat-card-header>
     <mat-card-content>
-      <app-transaction-table [transactions]="transactions()" [showStatementColumn]="false" />
+      @if (transactions().length === 0) {
+        <p class="empty-state">No transactions here.</p>
+      } @else {
+        <app-data-grid [columnDefs]="columnDefs" [rowData]="transactions()" [getRowId]="getRowId" [rowClassRules]="rowClassRules" (cellValueChanged)="onCellValueChanged($event)" />
+      }
     </mat-card-content>
   </mat-card>
 

@@ -1,0 +1,6 @@
+/* AG Grid's base + Quartz theme CSS, scoped to this component (not the global styles.scss) so it
+   only ships in the JS bundle of whatever lazy route actually renders a DataGrid — Sass's @import
+   would pass a .css path through unresolved rather than inlining it, so this file is plain CSS,
+   letting Angular's esbuild-based component style pipeline bundle the node_modules import for real. */
+@import 'ag-grid-community/styles/ag-grid.css';
+@import 'ag-grid-community/styles/ag-theme-quartz.css';

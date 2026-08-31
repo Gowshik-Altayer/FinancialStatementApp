@@ -1,0 +1,19 @@
+.empty {
+  color: var(--mat-sys-on-surface-variant);
+  margin: 0;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--fsai-space-3);
+}
+
+.history-meta {
+  font-size: var(--fsai-text-xs);
+  color: var(--mat-sys-on-surface-variant);
+  margin-top: var(--fsai-space-1);
+}

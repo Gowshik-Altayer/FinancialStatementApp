@@ -5,117 +5,33 @@
   </a>
 </app-page-header>
 
-<app-filter-panel
-  searchPlaceholder="File name, provider, account holder…"
-  [searchValue]="search"
-  [hasActiveFilters]="hasActiveFilters"
-  (searchValueChange)="onSearchValueChange($event)"
-  (clearFilters)="clearFilters()"
->
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Status</mat-label>
-    <mat-select [(ngModel)]="status" (ngModelChange)="onFilterChange()">
-      <mat-option value="">All statuses</mat-option>
-      @for (option of statusOptions; track option) {
-        <mat-option [value]="option">{{ processingStatusLabel(option) }}</mat-option>
-      }
-    </mat-select>
+<div class="search-row">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+    <mat-label>Search</mat-label>
+    <input matInput placeholder="File name, provider, account holder…" [ngModel]="search()" (ngModelChange)="search.set($event)" />
   </mat-form-field>
 
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Reconciliation</mat-label>
-    <mat-select [(ngModel)]="reconciliationStatus" (ngModelChange)="onFilterChange()">
-      <mat-option value="">All</mat-option>
-      @for (option of reconciliationOptions; track option) {
-        <mat-option [value]="option">{{ processingStatusLabel(option) }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-</app-filter-panel>
+  @if (hasActiveFilters()) {
+    <button mat-button type="button" (click)="clearFilters()">Clear filters</button>
+  }
+</div>
+
+<p class="filter-hint">Use the column headers below to filter by status, reconciliation, dates, and amounts.</p>
 
 @if (isLoading()) {
   <app-skeleton variant="table" [count]="8" />
+} @else if (loadError()) {
+  <app-error-state message="We couldn't load your statements." (retry)="retry()" />
 } @else if (statements().length === 0) {
   <app-empty-state icon="description" message="No statements match these filters." />
 } @else {
-  <div class="table-wrapper">
-    <table mat-table [dataSource]="statements()">
-      <ng-container matColumnDef="originalFileName">
-        <th mat-header-cell *matHeaderCellDef>File</th>
-        <td mat-cell *matCellDef="let s">
-          <a [routerLink]="['/statements', s.id]">{{ s.originalFileName }}</a>
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="providerName">
-        <th mat-header-cell *matHeaderCellDef>Provider</th>
-        <td mat-cell *matCellDef="let s">{{ s.providerName ?? '—' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="account">
-        <th mat-header-cell *matHeaderCellDef>Account</th>
-        <td mat-cell *matCellDef="let s">{{ s.accountHolderName ?? s.accountNumberMasked ?? '—' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="statementPeriod">
-        <th mat-header-cell *matHeaderCellDef>Statement Period</th>
-        <td mat-cell *matCellDef="let s">
-          @if (s.statementPeriodStart && s.statementPeriodEnd) {
-            {{ s.statementPeriodStart }} – {{ s.statementPeriodEnd }}
-          } @else {
-            <span class="muted">—</span>
-          }
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="transactionCount">
-        <th mat-header-cell *matHeaderCellDef>Transactions</th>
-        <td mat-cell *matCellDef="let s">{{ s.transactionCount }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="totalDebits">
-        <th mat-header-cell *matHeaderCellDef>Total Debits</th>
-        <td mat-cell *matCellDef="let s">{{ s.totalDebits != null ? (s.totalDebits | number: '1.2-2') : '—' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="totalCredits">
-        <th mat-header-cell *matHeaderCellDef>Total Credits</th>
-        <td mat-cell *matCellDef="let s">{{ s.totalCredits != null ? (s.totalCredits | number: '1.2-2') : '—' }}</td>
-      </ng-container>
-
-      <ng-container matColumnDef="processingStatus">
-        <th mat-header-cell *matHeaderCellDef>Status</th>
-        <td mat-cell *matCellDef="let s">
-          <app-status-badge [label]="processingStatusLabel(s.processingStatus)" [tone]="processingStatusTone(s.processingStatus)" />
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="reconciliationStatus">
-        <th mat-header-cell *matHeaderCellDef>Reconciliation</th>
-        <td mat-cell *matCellDef="let s">
-          @if (s.reconciliationStatus) {
-            <app-status-badge [label]="processingStatusLabel(s.reconciliationStatus)" [tone]="reconciliationStatusTone(s.reconciliationStatus)" />
-          } @else {
-            <span class="muted">—</span>
-          }
-        </td>
-      </ng-container>
-
-      <ng-container matColumnDef="uploadedAt">
-        <th mat-header-cell *matHeaderCellDef>Uploaded</th>
-        <td mat-cell *matCellDef="let s">{{ s.uploadedAt | date: 'medium' }}</td>
-      </ng-container>
-
-      <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumns"></tr>
-    </table>
-  </div>
-
-  <mat-paginator
-    [length]="totalCount()"
-    [pageSize]="pageSize"
-    [pageIndex]="pageIndex"
-    [pageSizeOptions]="[10, 20, 50, 100]"
-    (page)="onPage($event)"
+  <app-data-grid
+    [columnDefs]="columnDefs"
+    [rowData]="statements()"
+    [getRowId]="getRowId"
+    [pagination]="true"
+    [paginationPageSize]="20"
+    (gridApiReady)="onGridApiReady($event)"
+    (filterChanged)="onGridFilterChanged($event)"
   />
 }

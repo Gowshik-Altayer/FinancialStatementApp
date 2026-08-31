@@ -7,16 +7,21 @@
   margin-bottom: var(--fsai-space-5);
 }
 
-.transaction-table-card {
-  background: var(--mat-sys-surface-container-low);
-  border-radius: var(--fsai-radius);
-  box-shadow: var(--fsai-card-shadow);
-  padding: var(--fsai-space-2);
-  overflow-x: auto;
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-3);
+  margin-bottom: var(--fsai-space-3);
+
+  .search-field {
+    width: 20rem;
+  }
 }
 
-::ng-deep app-filter-panel mat-form-field {
-  width: 14rem;
+.filter-hint {
+  margin: 0 0 var(--fsai-space-3);
+  color: var(--mat-sys-on-surface-variant);
+  font-size: var(--fsai-text-sm);
 }
 
 @include bp.respond(mobile) {
@@ -24,7 +29,7 @@
     grid-template-columns: 1fr 1fr;
   }
 
-  ::ng-deep app-filter-panel mat-form-field {
+  .search-row .search-field {
     width: 100%;
   }
 }

@@ -1,0 +1,127 @@
+// Maps AG Grid's own CSS custom properties onto this app's Material 3 tokens (see
+// src/styles/_tokens.scss) so a grid reads as part of the same design system rather than a
+// visibly bolted-on third-party widget. Plain CSS variable resolution — unlike Chart.js's Canvas
+// 2D fillStyle, AG Grid renders real DOM, so var() here works exactly as written.
+.app-data-grid {
+  --ag-background-color: var(--mat-sys-surface-container-low);
+  --ag-foreground-color: var(--mat-sys-on-surface);
+  --ag-header-background-color: var(--mat-sys-surface-container);
+  --ag-header-foreground-color: var(--mat-sys-on-surface);
+  --ag-border-color: var(--mat-sys-outline-variant);
+  --ag-row-border-color: var(--mat-sys-outline-variant);
+  --ag-row-hover-color: var(--mat-sys-surface-container);
+  --ag-selected-row-background-color: var(--mat-sys-surface-container-high);
+  --ag-font-family: var(--fsai-font-family, inherit);
+  --ag-font-size: var(--fsai-text-sm, 13px);
+  --ag-border-radius: var(--fsai-radius);
+  --ag-wrapper-border-radius: var(--fsai-radius);
+  --ag-accent-color: var(--mat-sys-primary);
+
+  border-radius: var(--fsai-radius);
+  overflow: hidden;
+  box-shadow: var(--fsai-card-shadow);
+
+  // rowClassRules callers can opt a row into this via a "row-duplicate" class — AG Grid renders
+  // rows as plain (non-shadow-DOM) elements under this host, so ::ng-deep reaches them.
+  ::ng-deep .row-duplicate {
+    background-color: var(--fsai-warning-bg) !important;
+  }
+
+  // Styling for the plain-DOM cell renderers built in feature pages (see transactions.ts's
+  // createIcon/renderConfidence/renderActions) — mirrors app-status-badge and mat-icon-button's
+  // own look without using those Angular components, since AG Grid's Angular-component cell
+  // renderer wrapper doesn't work in this app (see transactions.ts's top-of-file comment).
+  ::ng-deep {
+    .cell-icon {
+      font-size: 1rem;
+      vertical-align: middle;
+      margin-left: var(--fsai-space-1);
+      opacity: 0.7;
+      cursor: default;
+    }
+
+    .cell-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: var(--fsai-space-1) var(--fsai-space-3);
+      border-radius: 999px;
+      border: 1px solid transparent;
+      font-size: var(--fsai-text-xs);
+      font-weight: 700;
+      line-height: 1.5;
+      white-space: nowrap;
+
+      &.tone-success {
+        background: var(--fsai-success-bg);
+        border-color: color-mix(in srgb, var(--fsai-success) 35%, transparent);
+        color: var(--fsai-success);
+      }
+
+      &.tone-warning {
+        background: var(--fsai-warning-bg);
+        border-color: color-mix(in srgb, var(--fsai-warning) 35%, transparent);
+        color: var(--fsai-warning);
+      }
+
+      &.tone-danger {
+        background: var(--fsai-danger-bg);
+        border-color: color-mix(in srgb, var(--fsai-danger) 35%, transparent);
+        color: var(--fsai-danger);
+      }
+
+      &.tone-neutral {
+        background: var(--fsai-neutral-bg);
+        border-color: color-mix(in srgb, var(--fsai-neutral) 35%, transparent);
+        color: var(--fsai-neutral);
+      }
+    }
+
+    .grid-icon-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2rem;
+      height: 2rem;
+      padding: 0;
+      border: none;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--mat-sys-on-surface-variant);
+      cursor: pointer;
+
+      &:hover {
+        background: var(--mat-sys-surface-container-high);
+      }
+
+      .cell-icon {
+        margin-left: 0;
+        opacity: 1;
+      }
+    }
+
+    .muted {
+      color: var(--mat-sys-on-surface-variant);
+      opacity: 0.7;
+    }
+
+    // SelectFilter / SelectFloatingFilter (see select-filter.ts) render a plain <select> rather
+    // than an AG Grid-provided input, so they need their own sizing/border to sit flush in the
+    // floating-filter row and popup menu.
+    .select-floating-filter,
+    .select-filter-input {
+      width: 100%;
+      font: inherit;
+      font-size: var(--fsai-text-xs);
+      color: var(--ag-foreground-color);
+      background: var(--ag-background-color);
+      border: 1px solid var(--ag-border-color);
+      border-radius: var(--fsai-radius);
+      padding: 2px 4px;
+    }
+
+    .select-filter-popup {
+      padding: var(--fsai-space-2);
+      min-width: 160px;
+    }
+  }
+}

@@ -1,6 +1,6 @@
 import { Component, OnInit, inject, signal, computed } from '@angular/core';
 import { DatePipe, PercentPipe } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
@@ -8,12 +8,22 @@ import { MatSelectModule } from '@angular/material/select';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatDialog } from '@angular/material/dialog';
+import { CellValueChangedEvent, ColDef, GetRowIdFunc, ICellRendererParams, RowClassRules } from 'ag-grid-community';
 import { NotificationService } from '../../core/services/notification.service';
 import { TransactionService } from '../../core/services/transaction.service';
 import { CategoryService } from '../../core/services/category.service';
 import { Transaction } from '../../shared/models/transaction.model';
 import { Category } from '../../shared/models/category.model';
-import { TransactionTable } from '../../shared/components/transaction-table/transaction-table';
+import { DataGrid } from '../../shared/components/data-grid/data-grid';
+import {
+  renderCategoryCell,
+  renderConfidenceCell,
+  renderDescriptionCell,
+  renderHistoryActionCell,
+  renderStatementLinkCell
+} from '../../shared/components/data-grid/transaction-cell-renderers';
+import { TransactionHistoryDialog } from '../../shared/components/transaction-history-dialog/transaction-history-dialog';
 import { PageHeader } from '../../shared/components/page-header/page-header';
 import { KpiCard } from '../../shared/components/kpi-card/kpi-card';
 import { ConfidenceIndicator } from '../../shared/components/confidence-indicator/confidence-indicator';
@@ -42,7 +52,7 @@ import { EmptyState } from '../../shared/components/empty-state/empty-state';
     MatButtonModule,
     MatIconModule,
     MatCheckboxModule,
-    TransactionTable,
+    DataGrid,
     PageHeader,
     KpiCard,
     ConfidenceIndicator,
@@ -57,9 +67,67 @@ export class Review implements OnInit {
   private readonly transactionService = inject(TransactionService);
   private readonly categoryService = inject(CategoryService);
   private readonly notifications = inject(NotificationService);
+  private readonly router = inject(Router);
+  private readonly dialog = inject(MatDialog);
 
   readonly queue = signal<Transaction[]>([]);
   readonly categories = signal<Category[]>([]);
+
+  readonly getRowId: GetRowIdFunc<Transaction> = (params) => params.data.id;
+  readonly rowClassRules: RowClassRules<Transaction> = {
+    'row-duplicate': (params) => !!params.data?.isPotentialDuplicate
+  };
+
+  /// <summary>Same column shape as the Transactions page's own grid (see
+  /// shared/components/data-grid/transaction-cell-renderers.ts) minus native filters — the review
+  /// queue is a short, already-fully-loaded list with no need to filter it, and always includes
+  /// the Statement column since every row here spans a different statement.</summary>
+  columnDefs: ColDef<Transaction>[] = this.buildColumnDefs();
+
+  private buildColumnDefs(): ColDef<Transaction>[] {
+    return [
+      { headerName: 'Statement', field: 'statementFileName', cellRenderer: (p: ICellRendererParams<Transaction>) => renderStatementLinkCell(p, this.router), flex: 1.2, minWidth: 160 },
+      { headerName: 'Date', field: 'transactionDate', valueFormatter: (p) => p.value ?? '—', width: 120 },
+      { headerName: 'Description', field: 'description', cellRenderer: renderDescriptionCell, flex: 2, minWidth: 220 },
+      { headerName: 'Amount', field: 'amount', width: 130, type: 'rightAligned', valueFormatter: (p) => (p.value != null ? Number(p.value).toFixed(2) : '—') },
+      {
+        headerName: 'Category',
+        field: 'categoryName',
+        cellRenderer: renderCategoryCell,
+        editable: true,
+        cellEditor: 'agSelectCellEditor',
+        cellEditorParams: { values: this.categories().map((c) => c.name) },
+        width: 170
+      },
+      { headerName: 'Confidence', field: 'reviewPriority', cellRenderer: renderConfidenceCell, width: 150, sortable: false },
+      {
+        headerName: '',
+        cellRenderer: (p: ICellRendererParams<Transaction>) => renderHistoryActionCell(p, this.dialog, TransactionHistoryDialog),
+        width: 64,
+        sortable: false,
+        resizable: false
+      }
+    ];
+  }
+
+  onCellValueChanged(event: CellValueChangedEvent<Transaction>): void {
+    if (event.colDef.field !== 'categoryName' || !event.data) return;
+
+    const transaction = event.data;
+    const newCategoryName = event.newValue as string;
+    if (!newCategoryName || newCategoryName === event.oldValue) return;
+
+    this.transactionService.correctCategory(transaction.id, newCategoryName).subscribe({
+      next: (updated) => {
+        Object.assign(transaction, updated);
+        this.notifications.success('Category corrected.');
+      },
+      error: () => {
+        transaction.categoryName = event.oldValue;
+        this.notifications.error('Correction failed — please try again.');
+      }
+    });
+  }
   readonly currentIndex = signal(0);
   readonly isLoading = signal(true);
   readonly loadError = signal(false);
@@ -90,7 +158,10 @@ export class Review implements OnInit {
   readonly remainingCount = computed(() => this.queue().length);
 
   ngOnInit(): void {
-    this.categoryService.getAll().subscribe((categories) => this.categories.set(categories));
+    this.categoryService.getAll().subscribe((categories) => {
+      this.categories.set(categories);
+      this.columnDefs = this.buildColumnDefs();
+    });
     this.load();
   }
 

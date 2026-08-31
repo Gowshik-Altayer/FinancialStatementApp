@@ -28,6 +28,11 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "{ag-grid,ag-theme-quartz}.css",
+                "input": "node_modules/ag-grid-community/styles",
+                "output": "assets/ag-grid"
               }
             ],
             "styles": [
