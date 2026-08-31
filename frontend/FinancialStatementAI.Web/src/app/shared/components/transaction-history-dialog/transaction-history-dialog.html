@@ -1,0 +1,23 @@
+<h2 mat-dialog-title>Correction history</h2>
+<mat-dialog-content>
+  @if (data.corrections.length === 0) {
+    <p class="empty">No corrections have been made to this transaction.</p>
+  } @else {
+    <ul class="history-list">
+      @for (c of data.corrections; track c.id) {
+        <li>
+          <strong>{{ c.fieldName }}</strong>: "{{ c.originalValue ?? '(none)' }}" &rarr; "{{ c.correctedValue }}"
+          <div class="history-meta">
+            by {{ c.correctedByUserName ?? 'a reviewer' }} on {{ c.correctedAt | date: 'medium' }}
+            @if (c.correctionReason) {
+              &mdash; {{ c.correctionReason }}
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</mat-dialog-content>
+<mat-dialog-actions align="end">
+  <button mat-button mat-dialog-close>Close</button>
+</mat-dialog-actions>

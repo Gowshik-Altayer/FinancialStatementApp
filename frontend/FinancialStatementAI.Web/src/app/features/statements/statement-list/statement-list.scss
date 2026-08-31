@@ -1,28 +1,16 @@
-// Matches Transactions' .transaction-table-card treatment (rounded, shadowed container the table
-// sits inside) — this page's table previously relied on Material's own `mat-elevation-z1` utility
-// instead, which has no border-radius and a different shadow, so it read as a bare, uncontained
-// table rather than the same "card" every other data grid in the app uses.
-.table-wrapper {
-  background: var(--mat-sys-surface-container-low);
-  border-radius: var(--fsai-radius);
-  box-shadow: var(--fsai-card-shadow);
-  padding: var(--fsai-space-2);
-  overflow-x: auto;
+.search-row {
+  display: flex;
+  align-items: center;
+  gap: var(--fsai-space-3);
+  margin-bottom: var(--fsai-space-3);
+
+  .search-field {
+    width: 20rem;
+  }
 }
 
-table {
-  width: 100%;
-}
-
-// A real colored hover instead of Material's near-invisible default row state layer.
-tr[mat-row] {
-  transition: background-color var(--fsai-transition-fast);
-}
-
-tr[mat-row]:hover {
-  background: color-mix(in srgb, var(--mat-sys-primary) 7%, transparent);
-}
-
-.muted {
+.filter-hint {
+  margin: 0 0 var(--fsai-space-3);
   color: var(--mat-sys-on-surface-variant);
+  font-size: var(--fsai-text-sm);
 }

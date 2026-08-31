@@ -10,97 +10,18 @@
   </div>
 }
 
-<app-filter-panel
-  searchPlaceholder="Search description or merchant…"
-  [searchValue]="search"
-  [hasActiveFilters]="hasActiveFilters()"
-  (searchValueChange)="onSearchValueChange($event)"
-  (clearFilters)="clearFilters()"
->
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Merchant</mat-label>
-    <input matInput [(ngModel)]="merchant" (ngModelChange)="onFilterChange()" />
+<div class="search-row">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic" class="search-field">
+    <mat-label>Search</mat-label>
+    <input matInput placeholder="Search description or merchant…" [ngModel]="search()" (ngModelChange)="search.set($event)" />
   </mat-form-field>
 
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Category</mat-label>
-    <mat-select [(ngModel)]="categoryId" (ngModelChange)="onFilterChange()">
-      <mat-option value="">All categories</mat-option>
-      @for (c of categories(); track c.id) {
-        <mat-option [value]="c.id">{{ c.name }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
+  @if (hasActiveFilters()) {
+    <button mat-button type="button" (click)="clearFilters()">Clear filters</button>
+  }
+</div>
 
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Statement</mat-label>
-    <mat-select [(ngModel)]="statementId" (ngModelChange)="onFilterChange()">
-      <mat-option value="">All statements</mat-option>
-      @for (s of statements(); track s.id) {
-        <mat-option [value]="s.id">{{ s.originalFileName }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>From date</mat-label>
-    <input matInput type="date" [(ngModel)]="dateFrom" (ngModelChange)="onFilterChange()" />
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>To date</mat-label>
-    <input matInput type="date" [(ngModel)]="dateTo" (ngModelChange)="onFilterChange()" />
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Min amount</mat-label>
-    <input matInput type="number" step="0.01" [(ngModel)]="amountMin" (ngModelChange)="onFilterChange()" />
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Max amount</mat-label>
-    <input matInput type="number" step="0.01" [(ngModel)]="amountMax" (ngModelChange)="onFilterChange()" />
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Type</mat-label>
-    <mat-select [(ngModel)]="transactionType" (ngModelChange)="onFilterChange()">
-      <mat-option value="">All types</mat-option>
-      @for (t of transactionTypeOptions; track t) {
-        <mat-option [value]="t">{{ t }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Processing status</mat-label>
-    <mat-select [(ngModel)]="processingStatus" (ngModelChange)="onFilterChange()">
-      <mat-option value="">Any status</mat-option>
-      @for (p of processingStatusOptions; track p) {
-        <mat-option [value]="p">{{ p }}</mat-option>
-      }
-    </mat-select>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Review status</mat-label>
-    <mat-select [(ngModel)]="reviewPriority" (ngModelChange)="onFilterChange()">
-      <mat-option value="">Any confidence</mat-option>
-      <mat-option value="HighConfidence">High confidence</mat-option>
-      <mat-option value="ReviewRecommended">Review recommended</mat-option>
-      <mat-option value="ReviewRequired">Review required</mat-option>
-    </mat-select>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>Correction status</mat-label>
-    <mat-select [(ngModel)]="correctedFilter" (ngModelChange)="onFilterChange()">
-      <mat-option value="">Any</mat-option>
-      <mat-option value="true">Corrected</mat-option>
-      <mat-option value="false">Not corrected</mat-option>
-    </mat-select>
-  </mat-form-field>
-</app-filter-panel>
+<p class="filter-hint">Use the column headers below to filter by statement, date, amount, type, category, or confidence.</p>
 
 @if (isLoading()) {
   <app-skeleton variant="table" [count]="10" />
@@ -109,15 +30,15 @@
 } @else if (transactions().length === 0) {
   <app-empty-state icon="receipt_long" message="No transactions match these filters." [actionLabel]="hasActiveFilters() ? 'Clear filters' : undefined" (action)="clearFilters()" />
 } @else {
-  <div class="transaction-table-card">
-    <app-transaction-table [transactions]="transactions()" [showStatementColumn]="true" />
-  </div>
-
-  <mat-paginator
-    [length]="totalCount()"
-    [pageSize]="pageSize"
-    [pageIndex]="pageIndex"
-    [pageSizeOptions]="[10, 20, 50, 100]"
-    (page)="onPage($event)"
+  <app-data-grid
+    [columnDefs]="columnDefs"
+    [rowData]="transactions()"
+    [getRowId]="getRowId"
+    [rowClassRules]="rowClassRules"
+    [pagination]="true"
+    [paginationPageSize]="20"
+    (cellValueChanged)="onCellValueChanged($event)"
+    (gridApiReady)="onGridApiReady($event)"
+    (filterChanged)="onGridFilterChanged($event)"
   />
 }

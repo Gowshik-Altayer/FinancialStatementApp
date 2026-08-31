@@ -1,0 +1,20 @@
+<!-- theme="legacy": AG Grid v33+ defaults to its new CSS-in-JS Theming API (themeQuartz) even
+     when a legacy ag-theme-quartz.css file is also loaded — the two conflict (AG Grid error #239)
+     and the grid renders unstyled. "legacy" tells it to use the CSS-file-based theme this
+     component actually loads (see data-grid.ts's runtime <link> injection), matching the
+     custom-property theming in data-grid.scss. -->
+<ag-grid-angular
+  class="ag-theme-quartz app-data-grid"
+  [theme]="'legacy'"
+  [columnDefs]="columnDefs"
+  [rowData]="rowData"
+  [defaultColDef]="defaultColDef"
+  [getRowId]="getRowId"
+  [rowClassRules]="rowClassRules"
+  [pagination]="pagination"
+  [paginationPageSize]="paginationPageSize"
+  domLayout="autoHeight"
+  (gridReady)="onGridReady($event)"
+  (cellValueChanged)="onCellValueChanged($event)"
+  (filterChanged)="onFilterChanged($event)"
+></ag-grid-angular>
