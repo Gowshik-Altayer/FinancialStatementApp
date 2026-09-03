@@ -17,6 +17,7 @@ import { Transaction } from '../../shared/models/transaction.model';
 import { Category } from '../../shared/models/category.model';
 import { DataGrid } from '../../shared/components/data-grid/data-grid';
 import {
+  formatTransactionAmount,
   renderCategoryCell,
   renderConfidenceCell,
   renderDescriptionCell,
@@ -89,7 +90,7 @@ export class Review implements OnInit {
       { headerName: 'Statement', field: 'statementFileName', cellRenderer: (p: ICellRendererParams<Transaction>) => renderStatementLinkCell(p, this.router), flex: 1.2, minWidth: 160 },
       { headerName: 'Date', field: 'transactionDate', valueFormatter: (p) => p.value ?? '—', width: 120 },
       { headerName: 'Description', field: 'description', cellRenderer: renderDescriptionCell, flex: 2, minWidth: 220 },
-      { headerName: 'Amount', field: 'amount', width: 130, type: 'rightAligned', valueFormatter: (p) => (p.value != null ? Number(p.value).toFixed(2) : '—') },
+      { headerName: 'Amount', field: 'amount', width: 130, type: 'rightAligned', valueFormatter: (p) => formatTransactionAmount(p.value) },
       {
         headerName: 'Category',
         field: 'categoryName',

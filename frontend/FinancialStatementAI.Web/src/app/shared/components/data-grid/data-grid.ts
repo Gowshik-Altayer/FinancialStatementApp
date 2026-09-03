@@ -1,5 +1,5 @@
 import { DOCUMENT } from '@angular/common';
-import { Component, Input, Output, EventEmitter, OnInit, inject } from '@angular/core';
+import { Component, ElementRef, Input, Output, EventEmitter, OnInit, inject } from '@angular/core';
 import { AgGridAngular } from 'ag-grid-angular';
 import {
   AllCommunityModule,
@@ -10,6 +10,7 @@ import {
   GridApi,
   GridReadyEvent,
   ModuleRegistry,
+  PaginationChangedEvent,
   RowClassRules
 } from 'ag-grid-community';
 
@@ -38,6 +39,7 @@ let stylesheetsInjected = false;
 })
 export class DataGrid<TData = unknown> implements OnInit {
   private readonly document = inject(DOCUMENT);
+  private readonly elementRef = inject(ElementRef<HTMLElement>);
 
   ngOnInit(): void {
     if (stylesheetsInjected) return;
@@ -100,5 +102,54 @@ export class DataGrid<TData = unknown> implements OnInit {
   onGridReady(event: GridReadyEvent<TData>): void {
     event.api.setGridOption('columnDefs', event.api.getColumnDefs());
     this.gridApiReady.emit(event.api);
+    this.fixAutoHeightHeaderGap();
+  }
+
+  /// <summary>Same underlying defect as onGridReady above, resurfacing at a second lifecycle
+  /// point: rows that enter the DOM for the first time when the user pages to a page they haven't
+  /// visited yet don't render their cell renderers until something re-applies columnDefs — the
+  /// grid's own row-recycling on subsequent visits to an already-rendered page works fine, which
+  /// is why the symptom was reported as "only shows up the first time I page there." Re-applying
+  /// on every pagination change is cheap (one page's worth of rows) and covers every page's first
+  /// visit, not just the grid's very first paint.
+  ///
+  /// Deferred one tick (setTimeout 0): `paginationChanged` itself fires before the new page's row
+  /// DOM actually exists — confirmed by testing every page of a 110-row / 6-page grid, where a
+  /// synchronous reapply left the final (partial, 10-row) page's custom-rendered cells blank while
+  /// plain-text cells on that same page rendered fine. Pushing the reapply to the next tick lets
+  /// AG Grid finish creating that page's row elements first.</summary>
+  onPaginationChanged(event: PaginationChangedEvent<TData>): void {
+    setTimeout(() => {
+      event.api.setGridOption('columnDefs', event.api.getColumnDefs());
+      this.fixAutoHeightHeaderGap();
+    });
+  }
+
+  /// <summary>Works around a third AG Grid Angular `domLayout="autoHeight"` defect: on first
+  /// render, the sticky header container's height (".ag-grid-pinned-top-rows", which sets its own
+  /// height from the CSS variable --ag-header-rows-height) is sometimes computed wildly larger
+  /// than the header + floating-filter rows it actually holds — confirmed by inspecting the live
+  /// DOM on a grid with only 3 rows: the variable was set to 768px (looking like a stale
+  /// viewport-height fallback from a premature measurement) instead of the correct ~96px, leaving
+  /// a large empty gap between the header and the visible rows for the lifetime of that grid
+  /// instance. Once wrong, it is never re-asserted by AG Grid (confirmed empirically — nothing
+  /// else in this file's workarounds, nor resetRowHeights()/a domLayout toggle/a rowData reset,
+  /// corrects it), so it's safe to fix by directly measuring the real header and floating-filter
+  /// row elements once they exist and overwriting the variable with their true combined height.
+  /// Scoped to this instance's own host element via ElementRef so multiple DataGrids on one page
+  /// never cross-correct each other.</summary>
+  private fixAutoHeightHeaderGap(): void {
+    setTimeout(() => {
+      const host = this.elementRef.nativeElement;
+      const pinnedTopRows = host.querySelector('.ag-grid-pinned-top-rows') as HTMLElement | null;
+      const headerRow = host.querySelector('.ag-header-row-column') as HTMLElement | null;
+      const filterRow = host.querySelector('.ag-header-row-filter') as HTMLElement | null;
+      if (!pinnedTopRows) return;
+
+      const realHeight = (headerRow?.offsetHeight ?? 0) + (filterRow?.offsetHeight ?? 0);
+      if (realHeight > 0) {
+        pinnedTopRows.style.setProperty('--ag-header-rows-height', `${realHeight}px`);
+      }
+    });
   }
 }

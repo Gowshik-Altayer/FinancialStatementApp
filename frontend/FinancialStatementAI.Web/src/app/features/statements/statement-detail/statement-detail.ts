@@ -15,6 +15,7 @@ import { Category } from '../../../shared/models/category.model';
 import { CategoryService } from '../../../core/services/category.service';
 import { DataGrid } from '../../../shared/components/data-grid/data-grid';
 import {
+  formatTransactionAmount,
   renderCategoryCell,
   renderConfidenceCell,
   renderDescriptionCell,
@@ -71,7 +72,7 @@ export class StatementDetail implements OnInit {
     return [
       { headerName: 'Date', field: 'transactionDate', valueFormatter: (p) => p.value ?? '—', width: 120 },
       { headerName: 'Description', field: 'description', cellRenderer: renderDescriptionCell, flex: 2, minWidth: 220 },
-      { headerName: 'Amount', field: 'amount', width: 130, type: 'rightAligned', valueFormatter: (p) => (p.value != null ? Number(p.value).toFixed(2) : '—') },
+      { headerName: 'Amount', field: 'amount', width: 130, type: 'rightAligned', valueFormatter: (p) => formatTransactionAmount(p.value) },
       {
         headerName: 'Category',
         field: 'categoryName',

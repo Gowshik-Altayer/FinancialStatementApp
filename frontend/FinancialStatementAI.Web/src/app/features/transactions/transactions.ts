@@ -27,6 +27,7 @@ import { TransactionSummary, TransactionTypeFilter } from '../../shared/models/t
 import { DataGrid } from '../../shared/components/data-grid/data-grid';
 import { SelectFilter, SelectFilterOption, SelectFloatingFilter } from '../../shared/components/data-grid/select-filter';
 import {
+  formatTransactionAmount,
   renderCategoryCell,
   renderConfidenceCell,
   renderDescriptionCell,
@@ -172,7 +173,7 @@ export class Transactions implements OnInit {
         field: 'amount',
         width: 160,
         type: 'rightAligned',
-        valueFormatter: (p) => (p.value != null ? Number(p.value).toFixed(2) : '—'),
+        valueFormatter: (p) => formatTransactionAmount(p.value),
         filter: 'agNumberColumnFilter'
       },
       {

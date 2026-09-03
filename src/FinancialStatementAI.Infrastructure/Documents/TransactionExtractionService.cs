@@ -3,6 +3,7 @@ using System.Net;
 using System.Text.RegularExpressions;
 using FinancialStatementAI.Application.DTOs.Statements;
 using FinancialStatementAI.Application.Interfaces;
+using FinancialStatementAI.Domain.Constants;
 using FinancialStatementAI.Domain.Enums;
 
 namespace FinancialStatementAI.Infrastructure.Documents;
@@ -75,8 +76,17 @@ public class TransactionExtractionService : ITransactionExtractionService
     // left as everything between them and the type keyword rather than trying to split out a
     // category that may be present but is not reliably delimited in flattened text (see Extract's
     // dateless branch for why guessing that boundary would violate the "never fabricate" rule).
+    //
+    // The whitespace before the type keyword is `\s*` (optional), not `\s+` — some real PDF text
+    // extractions run a description word straight into the following keyword with no space at all
+    // ("Internet billDebit 999", "Coffee shopDebit 185"), a column-layout artifact of whatever
+    // tool generated the source PDF. Requiring `\s+` there meant those specific lines never
+    // matched at all and fell through to the "continuation of the previous description" branch —
+    // silently gluing dozens of unrelated rows into one runaway Description string that then
+    // overflowed the DB column and crashed the whole statement's save (confirmed against a real
+    // exported transaction-log PDF with this exact pattern).
     private static readonly Regex DatelessTransactionRegex = new(
-        @"^\s*(?:\d+\s+)?(?:(?<ref>[A-Z]{2,10}\d{3,})\s+)?(?<description>.+?)\s+(?<type>Debit|Dbit|Debi|Credit)\.?\s+(?<amount>[-+]?\(?\s*[$€£₹]?\s*\d{1,3}(?:,\d{1,3})*(?:\.\d+)?\)?)\s*$",
+        @"^\s*(?:\d+\s+)?(?:(?<ref>[A-Z]{2,10}\d{3,})\s+)?(?<description>.+?)\s*(?<type>Debit|Dbit|Debi|Credit)\.?\s+(?<amount>[-+]?\(?\s*[$€£₹]?\s*\d{1,3}(?:,\d{1,3})*(?:\.\d+)?\)?)\s*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     // Every transaction row except the last is bounded by the next date-only line; the last row
@@ -245,7 +255,7 @@ public class TransactionExtractionService : ITransactionExtractionService
         }
 
         var rawLine = string.Join(" | ", cells);
-        var description = string.Join(" ", cells.Where((_, i) => i != dateIndex && i != amountIndex)).Trim();
+        var description = TrimToLimit(string.Join(" ", cells.Where((_, i) => i != dateIndex && i != amountIndex)).Trim(), TransactionFieldLimits.DescriptionMaxLength);
         var transactionType = ClassifyDirection(hasNegativeIndicator, rawLine);
         var signedAmount = transactionType is TransactionType.Debit or TransactionType.Payment or TransactionType.Purchase or TransactionType.Transfer
             ? -absoluteAmount
@@ -256,7 +266,7 @@ public class TransactionExtractionService : ITransactionExtractionService
             RawLine = rawLine,
             TransactionDate = date.Value,
             Description = description,
-            Merchant = description,
+            Merchant = TrimToLimit(description, TransactionFieldLimits.MerchantMaxLength),
             Amount = signedAmount,
             DebitAmount = signedAmount < 0 ? absoluteAmount : null,
             CreditAmount = signedAmount >= 0 ? absoluteAmount : null,
@@ -264,6 +274,12 @@ public class TransactionExtractionService : ITransactionExtractionService
             TransactionType = transactionType
         };
     }
+
+    // Applied wherever a ParsedTransaction's Description/Merchant is set — see TransactionFieldLimits'
+    // doc comment for why this exists (requirement #14: one bad/oversized line should never crash
+    // the whole statement's save).
+    private static string TrimToLimit(string value, int maxLength) =>
+        value.Length <= maxLength ? value : value[..maxLength];
 
     public IReadOnlyList<ParsedTransaction> Extract(string rawText, int referenceYear)
     {
@@ -324,10 +340,13 @@ public class TransactionExtractionService : ITransactionExtractionService
 
                 // No recognizable date+amount on this line — treat it as a continuation of the
                 // previous transaction's description (wrapped/multi-line descriptions, requirement #5).
+                // Capped at the DB column limits (see TrimToLimit) — a long run of unrecognized
+                // lines gluing onto the same transaction must never grow past what the column can
+                // actually store; better a truncated description than a crashed save.
                 if (current is not null)
                 {
-                    current.Description = $"{current.Description} {line}".Trim();
-                    current.Merchant = current.Description;
+                    current.Description = TrimToLimit($"{current.Description} {line}".Trim(), TransactionFieldLimits.DescriptionMaxLength);
+                    current.Merchant = TrimToLimit(current.Description, TransactionFieldLimits.MerchantMaxLength);
                 }
             }
         }
@@ -353,7 +372,7 @@ public class TransactionExtractionService : ITransactionExtractionService
         var isDebit = match.Groups["type"].Value.StartsWith('D') || match.Groups["type"].Value.StartsWith('d');
         var transactionType = isDebit ? TransactionType.Debit : TransactionType.Credit;
         var signedAmount = isDebit ? -absoluteAmount : absoluteAmount;
-        var description = match.Groups["description"].Value.Trim();
+        var description = TrimToLimit(match.Groups["description"].Value.Trim(), TransactionFieldLimits.DescriptionMaxLength);
         var reference = match.Groups["ref"].Success ? match.Groups["ref"].Value : null;
 
         return new ParsedTransaction
@@ -361,7 +380,7 @@ public class TransactionExtractionService : ITransactionExtractionService
             RawLine = line,
             TransactionDate = null,
             Description = description,
-            Merchant = description,
+            Merchant = TrimToLimit(description, TransactionFieldLimits.MerchantMaxLength),
             ReferenceNumber = reference,
             Amount = signedAmount,
             DebitAmount = signedAmount < 0 ? absoluteAmount : null,
@@ -409,12 +428,14 @@ public class TransactionExtractionService : ITransactionExtractionService
             ? -absoluteAmount
             : absoluteAmount;
 
+        description = TrimToLimit(description, TransactionFieldLimits.DescriptionMaxLength);
+
         return new ParsedTransaction
         {
             RawLine = rawLine,
             TransactionDate = date,
             Description = description,
-            Merchant = description,
+            Merchant = TrimToLimit(description, TransactionFieldLimits.MerchantMaxLength),
             Amount = signedAmount,
             DebitAmount = signedAmount < 0 ? absoluteAmount : null,
             CreditAmount = signedAmount >= 0 ? absoluteAmount : null,

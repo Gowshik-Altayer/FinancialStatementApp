@@ -1,3 +1,4 @@
+using FinancialStatementAI.Domain.Constants;
 using FinancialStatementAI.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
@@ -8,8 +9,8 @@ public class TransactionConfiguration : IEntityTypeConfiguration<Transaction>
 {
     public void Configure(EntityTypeBuilder<Transaction> builder)
     {
-        builder.Property(t => t.Description).IsRequired().HasMaxLength(1000);
-        builder.Property(t => t.Merchant).HasMaxLength(500);
+        builder.Property(t => t.Description).IsRequired().HasMaxLength(TransactionFieldLimits.DescriptionMaxLength);
+        builder.Property(t => t.Merchant).HasMaxLength(TransactionFieldLimits.MerchantMaxLength);
         builder.Property(t => t.ReferenceNumber).HasMaxLength(128);
         builder.Property(t => t.Currency).HasMaxLength(8);
         builder.Property(t => t.PageSourceLocation).HasMaxLength(128);
