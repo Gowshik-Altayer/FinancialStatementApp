@@ -171,9 +171,22 @@ dotnet user-secrets set "Azure:DocumentIntelligence:Endpoint" "https://<resource
 dotnet user-secrets set "Azure:DocumentIntelligence:ApiKey" "..."
 ```
 
-Transaction classification defaults to a Mock LLM (honest low-confidence "Other" for anything
-Rules/Merchant Mapping/prior corrections can't place — see `docs/ai-processing.md`). To use a
-real LLM, set `Classification:Provider` to `OpenAI` or `AzureOpenAI`:
+**Transaction classification defaults to `Classification:Provider = "Embeddings"`** — real
+classification, not a stub, with no API key, no account, and no ongoing cost.
+`EmbeddingTransactionClassifier` embeds the transaction text locally with a small open-weight
+sentence-embedding model
+([`all-MiniLM-L6-v2`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2), Apache 2.0,
+~23MB quantized ONNX export) via ONNX Runtime, then finds the nearest known example (the same seed
+data `MerchantMappingRepository` uses) by cosine similarity — unlike that repository's plain
+substring match, this generalizes semantically (e.g. an unseeded "AWS EMEA BILLING" still lands
+near the seeded "AWS" example, correctly classifying a merchant it's never seen — requirement #7).
+The model + tokenizer vocab (`vocab.txt`) are downloaded once, on first use, into
+`Embeddings:ModelCacheDirectory` (default `App_Data/models/all-MiniLM-L6-v2`) and reused after
+that — no re-download, no internet needed once cached, nothing to configure. `Embeddings:MinimumSimilarity`
+(default `0.40`) controls how close a match has to be before it's trusted at all, below which the
+classifier honestly falls back to "Other" rather than guessing.
+
+For a hosted LLM instead, set `Classification:Provider` to `OpenAI` or `AzureOpenAI`:
 ```bash
 dotnet user-secrets set "OpenAI:ApiKey" "sk-..."
 # or
@@ -181,6 +194,9 @@ dotnet user-secrets set "Azure:OpenAI:Endpoint" "https://<resource>.openai.azure
 dotnet user-secrets set "Azure:OpenAI:ApiKey" "..."
 dotnet user-secrets set "Azure:OpenAI:DeploymentName" "gpt-4o-mini"
 ```
+Set it to `Mock` for a deterministic, always-honest-fallback stub (useful for fast/offline tests) —
+this used to be the default; it no longer is, since the embeddings option costs nothing extra and
+actually classifies.
 
 Statement reprocessing defaults to running synchronously in the Api process (no configuration
 needed — this is what every automated test exercises). To enqueue it as a Hangfire background job

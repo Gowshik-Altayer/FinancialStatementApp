@@ -126,6 +126,7 @@ public static class DependencyInjection
 
         services.Configure<OpenAiOptions>(configuration.GetSection(OpenAiOptions.SectionName));
         services.Configure<AzureOpenAiOptions>(configuration.GetSection(AzureOpenAiOptions.SectionName));
+        services.Configure<EmbeddingOptions>(configuration.GetSection(EmbeddingOptions.SectionName));
 
         services.AddScoped<ITransactionClassifier>(sp =>
         {
@@ -136,7 +137,19 @@ public static class DependencyInjection
                     new OpenAiTransactionClassifier(sp.GetRequiredService<IOptions<OpenAiOptions>>()),
                 _ when string.Equals(provider, "AzureOpenAI", StringComparison.OrdinalIgnoreCase) =>
                     new AzureOpenAiTransactionClassifier(sp.GetRequiredService<IOptions<AzureOpenAiOptions>>()),
-                _ => new MockTransactionClassifier()
+                _ when string.Equals(provider, "Embeddings", StringComparison.OrdinalIgnoreCase) =>
+                    new EmbeddingTransactionClassifier(sp.GetRequiredService<IOptions<EmbeddingOptions>>()),
+                // Explicit opt-in only — a deterministic, always-honest stub kept around for fast/
+                // offline testing. Not the default: Embeddings below is real classification with
+                // the same zero-cost, zero-account profile, so there's no reason to default to a
+                // classifier that never actually classifies anything.
+                _ when string.Equals(provider, "Mock", StringComparison.OrdinalIgnoreCase) =>
+                    new MockTransactionClassifier(),
+                // Default (including an unset or unrecognized Classification:Provider): real
+                // classification via the local embeddings model — no API key, no account, no
+                // per-call cost, and it actually attempts to classify unseen merchants instead of
+                // always returning "Other" (requirement #7).
+                _ => new EmbeddingTransactionClassifier(sp.GetRequiredService<IOptions<EmbeddingOptions>>())
             };
         });
         services.AddScoped<ITransactionClassificationService, TransactionClassificationService>();

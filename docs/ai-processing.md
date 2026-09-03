@@ -294,17 +294,69 @@ Each rung's confidence reflects how much it should be trusted: Rules and Known C
 gets), Merchant Mapping is `0.90`, and the LLM's confidence is whatever it reports (validated,
 never blindly inflated).
 
-### `MockTransactionClassifier` is deliberately honest, not falsely confident
+### `MockTransactionClassifier` — explicit opt-in only, not the default
 
-With no real LLM configured (the default), classifying a merchant none of the first three rungs
-recognized always returns `Other` at `0.50` confidence — landing squarely in "review required."
-This mirrors the same design decision as Phase 8's Mock OCR/Document Intelligence services: a
-confident-looking wrong guess is worse than an honest "we don't know." Set
+Set `Classification:Provider` to `Mock` for a deterministic, always-honest stub: classifying a
+merchant none of the first three rungs recognized always returns `Other` at `0.50` confidence —
+landing squarely in "review required" — rather than guessing, the same design decision as Phase
+8's Mock OCR/Document Intelligence services (a confident-looking wrong guess is worse than an
+honest "we don't know"). This is useful for fast, fully offline/deterministic tests, but it **is
+not the default** and never actually classifies anything — see `EmbeddingTransactionClassifier`
+below for what runs when the provider is unset. For a hosted LLM instead, set
 `Classification:Provider` to `OpenAI` or `AzureOpenAI` (plus the matching endpoint/key via User
-Secrets) for real LLM classification — `OpenAiTransactionClassifier` and
-`AzureOpenAiTransactionClassifier` share one prompt/JSON-parsing implementation
-(`ChatCompletionClassifierCore`), since Azure OpenAI's 2.x SDK generation exposes the same
-`ChatClient` type as the plain OpenAI client and only differs in how that client is constructed.
+Secrets) — `OpenAiTransactionClassifier` and `AzureOpenAiTransactionClassifier` share one prompt/
+JSON-parsing implementation (`ChatCompletionClassifierCore`), since Azure OpenAI's 2.x SDK
+generation exposes the same `ChatClient` type as the plain OpenAI client and only differs in how
+that client is constructed.
+
+### `EmbeddingTransactionClassifier` — the default: real classification with zero API cost
+
+`Classification:Provider = "Embeddings"` (the default when the provider is unset or unrecognized —
+see `DependencyInjection`'s fallback case) requires no API key, no account, and no per-call cost,
+while still satisfying requirement #7's "classify previously unseen merchants" bar — unlike Mock,
+it can actually place a merchant it has never seen before, not just honestly decline to. Making
+this the default rather than Mock costs nothing (no external dependency, no credential to manage)
+and means the app demonstrates real AI-assisted classification out of the box, with no setup step.
+
+**How it works**: `LocalEmbeddingModel` loads (downloading once, on first use, into
+`Embeddings:ModelCacheDirectory`) a small open-weight sentence-embedding model —
+[`all-MiniLM-L6-v2`](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) (Apache 2.0,
+~23MB quantized ONNX export) — and runs it entirely in-process via ONNX Runtime. Classifying a
+transaction means: embed its description/merchant text into a 384-dimension vector (mean-pooling
+the model's token-level output over the attention mask, then L2-normalizing — the standard
+sentence-transformers recipe), embed every example in the same seed corpus
+`MerchantMappingRepository` uses (`DefaultMerchantMappings` — reused, not duplicated, so the two
+rungs never drift out of sync), and return the category of whichever example has the highest
+cosine similarity to the input.
+
+**Why this genuinely generalizes, unlike Rung 2's substring match**: `MerchantMappingRepository`
+only matches if the seeded pattern literally appears in the transaction text. Embeddings capture
+*meaning*, not spelling, so an unseeded merchant can still land near a seeded one it's actually
+similar to. Verified against real (not seeded) merchant strings:
+
+| Query (never seeded) | Nearest seeded example | Cosine similarity | Result |
+|---|---|---|---|
+| `SQ *BLUE BOTTLE COFFEE` | `STARBUCKS` | 0.49 | Food & Dining, 0.61 confidence |
+| `SOUTHWEST AIRLINES 5582` | `AMERICAN AIRLINES` | 0.63 | Travel, 0.70 confidence |
+| `AWS EMEA BILLING` | `AWS` | 0.50 | Software & SaaS, 0.62 confidence |
+| `XKQJ RANDOM GIBBERISH 991` | (nothing close) | 0.17 | Other, 0.30 confidence — honestly declines |
+
+**Confidence calibration**: `Embeddings:MinimumSimilarity` (default `0.40`, calibrated against the
+distribution above — genuinely unrelated merchants scored ~0.15-0.25, semantically-related-but-
+differently-worded ones scored ~0.44-0.63) is the floor below which no match is trusted at all; the
+transaction honestly falls back to `Other` at a fixed low confidence, same philosophy as
+`MockTransactionClassifier`. Above that floor, similarity is linearly mapped from
+`[MinimumSimilarity, 1.0]` to a confidence of `[0.55, 0.95]`, so a borderline match lands just past
+"review recommended" and a near-exact match approaches (but never exceeds) Rules/Merchant Mapping's
+own hand-set 0.90-0.95.
+
+**Cost/resource model**: the model and tokenizer are loaded once per process (a static `Lazy`, not
+per-DI-scope state — this classifier is registered `Scoped` like its siblings, but reloading a 23MB
+ONNX session on every statement's classification run would defeat the point), and the corpus is
+embedded once and cached the same way. After the one-time download, everything runs on local
+CPU with no network calls at all — no `AIRequest` log rows are written for this provider, since
+"AI request" tracking (requirement #46) exists specifically to track spend on paid, networked LLM
+calls, and this has none.
 
 ### AI cost tracking (requirement #46)
 

@@ -14,6 +14,16 @@ import { reviewPriorityLabel, reviewPriorityTone } from '../../utils/status-tone
 /// renderers in this app (confirmed via direct debug logging, reproduced on two AG Grid versions;
 /// see data-grid.ts's onGridReady comment). Returning HTMLElements from plain functions sidesteps
 /// that wrapper entirely.</summary>
+/// <summary>Accounting-style amount formatting: negative values are wrapped in parentheses with
+/// no minus sign ("(1,850.00)") rather than a leading "-", matching how bank/credit-card
+/// statements themselves usually print debits — the same convention this app's own sample
+/// statements and the challenge doc's own examples use.</summary>
+export function formatTransactionAmount(value: number | null | undefined): string {
+  if (value == null) return '—';
+  const formatted = Math.abs(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return value < 0 ? `(${formatted})` : formatted;
+}
+
 export function createGridIcon(name: string, opts: { title?: string; color?: string } = {}): HTMLElement {
   const icon = document.createElement('span');
   icon.className = 'material-icons cell-icon';
